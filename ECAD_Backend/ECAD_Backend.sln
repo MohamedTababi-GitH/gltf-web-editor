@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36202.13 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECAD_Backend", "ECAD_Backend.csproj", "{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {494D4C7E-2CB4-49AF-9388-5FBE23FE0D3B}
+	EndGlobalSection
+EndGlobal
