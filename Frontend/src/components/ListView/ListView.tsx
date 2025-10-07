@@ -1,4 +1,4 @@
-import ModelListItem from "@/components/ModelListItem.tsx";
+import ModelListItem from "@/components/ListView/ModelListItem.tsx";
 
 function ListView() {
   const data = [
