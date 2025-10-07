@@ -3,7 +3,11 @@ import { Button } from "@/components/ui/button";
 import ModelUploadDialog from "../ModelUploadDialog.tsx";
 import { useState } from "react";
 
-export default function HomeView() {
+export default function HomeView({
+  setIsHome,
+}: {
+  setIsHome: (isHome: boolean) => void;
+}) {
   const [showingUpload, setShowingUpload] = useState(false);
 
   return (
@@ -56,7 +60,13 @@ export default function HomeView() {
               <span>Upload a Model</span>
             </Button>
 
-            <Button variant="link" asChild>
+            <Button
+              onClick={() => {
+                setIsHome(false);
+              }}
+              variant="link"
+              asChild
+            >
               <span>Explore Models →</span>
             </Button>
           </div>

@@ -8,8 +8,10 @@ function Home() {
 
   return (
     <div>
-      <Navbar setIsHome={setIsHome} />
-      <main className="pt-16">{isHome ? <HomeView /> : <ListView />}</main>
+      <Navbar isHome={isHome} setIsHome={setIsHome} />
+      <main className="pt-16">
+        {isHome ? <HomeView setIsHome={setIsHome} /> : <ListView />}
+      </main>
     </div>
   );
 }
