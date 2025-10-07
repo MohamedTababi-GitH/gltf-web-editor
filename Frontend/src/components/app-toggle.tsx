@@ -3,12 +3,18 @@ import { useEffect, useId, useState } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function AppToggle({
+  isHome,
   setIsHome,
 }: {
+  isHome: boolean;
   setIsHome: (isHome: boolean) => void;
 }) {
   const id = useId();
   const [selectedValue, setSelectedValue] = useState("off");
+
+  useEffect(() => {
+    setSelectedValue(isHome ? "off" : "on");
+  }, [isHome]);
 
   useEffect(() => {
     setIsHome(selectedValue === "off");
