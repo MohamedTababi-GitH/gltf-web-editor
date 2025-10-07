@@ -1,9 +1,7 @@
-import {ModeToggle} from "@/components/mode-toggle.tsx";
+import { ModeToggle } from "@/components/mode-toggle.tsx";
 
 function Home() {
-    return (
-       <ModeToggle/>
-    );
+  return <ModeToggle />;
 }
 
 export default Home;

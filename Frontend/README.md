@@ -1,73 +1,172 @@
-# React + TypeScript + Vite
+# ⚙️ ECAD 3D Model Viewer — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern **React + TypeScript** web application for viewing, inspecting, and interacting with **3D ECAD models** in real time.
+This frontend leverages **Babylon.js** for 3D rendering, **Redux Toolkit** for state management, and **Tailwind CSS** for clean, responsive design.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Tech Stack
 
-## React Compiler
+| Category               | Technologies                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **Frontend Framework** | [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)                             |
+| **3D Rendering**       | [Babylon.js](https://www.babylonjs.com/) + [react-babylonjs](https://github.com/brianzinn/react-babylonjs) |
+| **Styling**            | [Tailwind CSS 4](https://tailwindcss.com/) + [Radix UI](https://www.radix-ui.com/)                         |
+| **State Management**   | [Redux Toolkit](https://redux-toolkit.js.org/)                                                             |
+| **Routing**            | [React Router 7](https://reactrouter.com/)                                                                 |
+| **Tooling**            | [Vite](https://vitejs.dev/), [ESLint](https://eslint.org/), [Prettier](https://prettier.io/)               |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🧱 Project Structure
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+frontend/
+├── public/               # Static assets
+├── src/
+│   ├── components/       # Reusable UI components
+│   ├── features/         # Redux slices and logic
+│   ├── pages/            # Page-level components (Viewer, Dashboard, etc.)
+│   ├── hooks/            # Custom React hooks
+│   ├── types/            # TypeScript type definitions
+│   ├── App.tsx           # Root component
+│   ├── main.tsx          # Entry point
+│   └── store.ts          # Redux store setup
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## ⚡ Getting Started
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Prerequisites
+
+* [Node.js](https://nodejs.org/) **v18+**
+* [npm](https://www.npmjs.com/) **v9+** (or [pnpm](https://pnpm.io/) / [yarn](https://yarnpkg.com/))
+
+---
+
+### 2. Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/Kekschorstviy/gltf-web-editor.git
+cd Frontend
+npm install
 ```
+
+---
+
+### 3. Development Server
+
+Start the local dev environment:
+
+```bash
+npm run dev
+```
+
+This will:
+
+* Run **Prettier** and **ESLint** checks
+* Launch Vite’s dev server
+* Open the app at [http://localhost:5173](http://localhost:5173)
+
+---
+
+### 4. Production Build
+
+Create an optimized production build:
+
+```bash
+npm run build
+```
+
+Preview the production output:
+
+```bash
+npm run preview
+```
+
+---
+
+### 5. Linting & Formatting
+
+Run code quality checks manually:
+
+```bash
+npm run lint
+```
+
+Prettier auto-format check:
+
+```bash
+npx prettier -c .
+```
+
+---
+
+## 🧩 Key Features
+
+* 🌀 **Interactive 3D Model Viewer** built on Babylon.js
+* 🧭 **Camera controls** for zoom, pan, and orbit
+* 🧱 **Model loading support** via common ECAD file formats (e.g., `.glb`, `.glTF`)
+* ⚙️ **Layer and part toggling** for detailed inspection
+* 🧠 **Redux-based state management**
+* 🎨 **Tailwind + Radix UI components** for clean, accessible interfaces
+* 🔧 **Strict TypeScript setup** with ESLint & Prettier integration
+
+---
+
+## 🧠 Development Guidelines
+
+* **Use TypeScript** for all code.
+* **Keep components modular** — place them under `src/components/`.
+* **Maintain consistent styling** using Tailwind utilities.
+* **Validate 3D models** for compatibility before importing.
+* **Commit frequently** with meaningful messages.
+
+---
+
+## 🧰 Useful Commands
+
+| Command             | Description                          |
+| ------------------- | ------------------------------------ |
+| `npm run dev`       | Run the app in development mode      |
+| `npm run build`     | Create a production build            |
+| `npm run preview`   | Preview the production build locally |
+| `npm run lint`      | Run ESLint checks                    |
+| `npx prettier -c .` | Verify code formatting               |
+
+---
+
+## 🧭 Roadmap
+
+* [ ] Support for multiple 3D file formats
+* [ ] Model annotation & measurement tools
+* [ ] Viewer themes (light/dark)
+* [ ] Performance profiling for large models
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**.
+See the [LICENSE](../LICENSE) file for details.
+
+---
+
+## 🤝 Contributing
+
+1. Create a new branch: `feature/your-feature-name`
+2. Commit your changes
+3. Submit a pull request
+
+---
+
+## 👥 Authors
+
+**ECAD Viewer Team**
+Built with ❤️ using React, Babylon.js, and TypeScript.

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "prettier -c . && eslint . && vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -14,10 +14,12 @@
     "@babylonjs/loaders": "^8.30.3",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-slot": "^1.2.3",
+    "@reduxjs/toolkit": "^2.9.0",
     "@tailwindcss/vite": "^4.1.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.545.0",
+    "prettier": "^3.6.2",
     "react": "^19.1.1",
     "react-babylonjs": "^3.2.5-beta.2",
     "react-dom": "^19.1.1",
