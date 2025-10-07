@@ -53,11 +53,11 @@ export default function HomeView() {
                 setShowingUpload(true);
               }}
             >
-              Upload a Model
+              <span>Upload a Model</span>
             </Button>
 
             <Button variant="link" asChild>
-              Explore Models →
+              <span>Explore Models →</span>
             </Button>
           </div>
         </div>
