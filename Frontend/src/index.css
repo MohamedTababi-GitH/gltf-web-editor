@@ -1,6 +1,33 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face {
+  font-family: "InterVariable";
+  src: url("./assets/fonts/InterVariable.woff2") format("woff2");
+  font-feature-settings:
+    "ss02" 1,
+    "cv10" 1,
+    "cv11" 1,
+    "tnum" 1;
+}
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+
+@theme {
+  --font-inter: InterVariable, "sans-serif";
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -42,6 +69,7 @@
 }
 
 :root {
+  --font-inter: InterVariable, "sans-serif";
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
@@ -77,6 +105,8 @@
 }
 
 .dark {
+  --font-inter: InterVariable, "sans-serif";
+  --radius: 0.625rem;
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);
@@ -112,8 +142,10 @@
 
 @layer base {
   * {
+    @apply font-inter;
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

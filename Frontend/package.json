@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "eslint . && vite",
+    "dev": "prettier -w . && eslint . && vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -20,9 +20,11 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.545.0",
     "prettier": "^3.6.2",
+    "radix-ui": "^1.4.3",
     "react": "^19.1.1",
     "react-babylonjs": "^3.2.5-beta.2",
     "react-dom": "^19.1.1",
+    "react-dropzone": "^14.3.8",
     "react-router-dom": "^7.9.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.14"
