@@ -12,6 +12,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   }
 }
