@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import ModelUploadDialog from "../ModelUploadDialog.tsx";
+import ModelUploadDialog from "./ModelUploadDialog.tsx";
 import { useState } from "react";
 
 export default function HomeView({

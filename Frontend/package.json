@@ -12,6 +12,7 @@
   "dependencies": {
     "@babylonjs/core": "^8.30.3",
     "@babylonjs/loaders": "^8.30.3",
+    "@lottiefiles/dotlottie-react": "^0.17.4",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-slot": "^1.2.3",
     "@reduxjs/toolkit": "^2.9.0",

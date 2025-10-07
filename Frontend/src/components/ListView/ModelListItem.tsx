@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/card.tsx";
 import { formatDateTime } from "@/utils/DateTime.ts";
 import { Badge } from "@/components/ui/badge.tsx";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 
 function ModelListItem({
   item,
@@ -33,10 +34,11 @@ function ModelListItem({
         </div>
       </CardHeader>
       <CardContent className="px-0">
-        <img
-          src="https://cdn.shadcnstudio.com/ss-assets/components/card/image-1.png?height=280&format=auto"
-          alt="Banner"
-          className="aspect-video h-70 rounded-b-xl object-cover"
+        <DotLottieReact
+          src="https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie"
+          loop
+          autoplay={false}
+          className={`bg-white rounded-xl`}
         />
       </CardContent>
     </Card>
