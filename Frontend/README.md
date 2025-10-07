@@ -1,7 +1,9 @@
 # ⚙️ ECAD 3D Model Viewer — Frontend
 
-A modern **React + TypeScript** web application for viewing, inspecting, and interacting with **3D ECAD models** in real time.
-This frontend leverages **Babylon.js** for 3D rendering, **Redux Toolkit** for state management, and **Tailwind CSS** for clean, responsive design.
+A modern **React + TypeScript** web application for viewing, inspecting, and interacting with **3D ECAD models** in real
+time.
+This frontend leverages **Babylon.js** for 3D rendering, **Redux Toolkit** for state management, and **Tailwind CSS**
+for clean, responsive design.
 
 ---
 
@@ -43,8 +45,8 @@ frontend/
 
 ### 1. Prerequisites
 
-* [Node.js](https://nodejs.org/) **v18+**
-* [npm](https://www.npmjs.com/) **v9+** (or [pnpm](https://pnpm.io/) / [yarn](https://yarnpkg.com/))
+- [Node.js](https://nodejs.org/) **v18+**
+- [npm](https://www.npmjs.com/) **v9+** (or [pnpm](https://pnpm.io/) / [yarn](https://yarnpkg.com/))
 
 ---
 
@@ -70,9 +72,9 @@ npm run dev
 
 This will:
 
-* Run **Prettier** and **ESLint** checks
-* Launch Vite’s dev server
-* Open the app at [http://localhost:5173](http://localhost:5173)
+- Run **Prettier** and **ESLint** checks
+- Launch Vite’s dev server
+- Open the app at [http://localhost:5173](http://localhost:5173)
 
 ---
 
@@ -110,23 +112,23 @@ npx prettier -c .
 
 ## 🧩 Key Features
 
-* 🌀 **Interactive 3D Model Viewer** built on Babylon.js
-* 🧭 **Camera controls** for zoom, pan, and orbit
-* 🧱 **Model loading support** via common ECAD file formats (e.g., `.glb`, `.glTF`)
-* ⚙️ **Layer and part toggling** for detailed inspection
-* 🧠 **Redux-based state management**
-* 🎨 **Tailwind + Radix UI components** for clean, accessible interfaces
-* 🔧 **Strict TypeScript setup** with ESLint & Prettier integration
+- 🌀 **Interactive 3D Model Viewer** built on Babylon.js
+- 🧭 **Camera controls** for zoom, pan, and orbit
+- 🧱 **Model loading support** via common ECAD file formats (e.g., `.glb`, `.glTF`)
+- ⚙️ **Layer and part toggling** for detailed inspection
+- 🧠 **Redux-based state management**
+- 🎨 **Tailwind + Radix UI components** for clean, accessible interfaces
+- 🔧 **Strict TypeScript setup** with ESLint & Prettier integration
 
 ---
 
 ## 🧠 Development Guidelines
 
-* **Use TypeScript** for all code.
-* **Keep components modular** — place them under `src/components/`.
-* **Maintain consistent styling** using Tailwind utilities.
-* **Validate 3D models** for compatibility before importing.
-* **Commit frequently** with meaningful messages.
+- **Use TypeScript** for all code.
+- **Keep components modular** — place them under `src/components/`.
+- **Maintain consistent styling** using Tailwind utilities.
+- **Validate 3D models** for compatibility before importing.
+- **Commit frequently** with meaningful messages.
 
 ---
 
@@ -144,17 +146,10 @@ npx prettier -c .
 
 ## 🧭 Roadmap
 
-* [ ] Support for multiple 3D file formats
-* [ ] Model annotation & measurement tools
-* [ ] Viewer themes (light/dark)
-* [ ] Performance profiling for large models
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**.
-See the [LICENSE](../LICENSE) file for details.
+- [ ] Support for multiple 3D file formats
+- [ ] Model annotation and measurement tools
+- [ ] Viewer themes (light/dark)
+- [ ] Performance profiling for large models
 
 ---
 
