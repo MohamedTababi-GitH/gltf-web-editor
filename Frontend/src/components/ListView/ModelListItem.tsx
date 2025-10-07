@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/card.tsx";
 import { formatDateTime } from "@/utils/DateTime.ts";
 import { Badge } from "@/components/ui/badge.tsx";
+import { useTheme } from "@/components/theme-provider.tsx";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 
 function ModelListItem({
@@ -19,6 +20,15 @@ function ModelListItem({
     date: Date;
   };
 }) {
+  const theme = useTheme();
+  const isDarkTheme =
+    theme.theme === "dark" ||
+    (theme.theme === "system" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const animationSrc = isDarkTheme
+    ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
+    : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
   return (
     <Card
       key={key}
@@ -34,12 +44,7 @@ function ModelListItem({
         </div>
       </CardHeader>
       <CardContent className="px-0">
-        <DotLottieReact
-          src="https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie"
-          loop
-          autoplay={false}
-          className={`bg-white rounded-xl`}
-        />
+        <DotLottieReact src={animationSrc} loop autoplay />
       </CardContent>
     </Card>
   );
