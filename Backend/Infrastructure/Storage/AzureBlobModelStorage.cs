@@ -17,14 +17,15 @@ namespace ECAD_Backend.Infrastructure.Storage;
 public class AzureBlobModelStorage : IModelStorage
 {
     // Represents a specific blob container within the Azure Storage account
-    private readonly BlobContainerClient _container; 
-    
+    private readonly BlobContainerClient _container;
+
     // Constructor – runs when this class is created (injected into a controller or service)
-    public AzureBlobModelStorage(IOptions<BlobOptions> opts) 
+    public AzureBlobModelStorage(IOptions<BlobOptions> opts)
     {
         // Grab the BlobOptions section from configuration (via dependency injection)
         var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
-        
+
+        /*
         // Validate that connection string and container name exist, otherwise throw early error
         if (string.IsNullOrWhiteSpace(o.ConnectionString)) throw new InvalidOperationException("Storage:ConnectionString is missing.");
         if (string.IsNullOrWhiteSpace(o.ContainerModels)) throw new InvalidOperationException("Storage:ContainerModels is missing.");
@@ -35,6 +36,10 @@ public class AzureBlobModelStorage : IModelStorage
         // From that service, get a reference to the specific container for model files
         _container = service.GetBlobContainerClient(o.ContainerModels);
         
+        */
+        _container = new BlobContainerClient(new Uri(o.ConnectionString));
+
+
         // Optional: create container automatically if it doesn't exist
         // You can uncomment this for local dev or demos
         //_container.CreateIfNotExists(PublicAccessType.Blob);
@@ -45,7 +50,7 @@ public class AzureBlobModelStorage : IModelStorage
     {
         // Create an empty list to hold our domain objects (ModelFile)
         var result = new List<ModelFile>();
-        
+
         // Async enumeration through all blobs in the container
         // BlobTraits.Metadata → includes metadata in results
         // BlobStates.None → no special blob states (snapshots, versions, etc.)
@@ -54,17 +59,17 @@ public class AzureBlobModelStorage : IModelStorage
         {
             // Get Blob name (filename)
             var name = blob.Name;
-            
+
             // Ensure we only accept .glb and .gltf
             var format = name.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) ? "glb" : name.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase) ? "gltf" : null;
-            
+
             // If file is not one of the supported formats, skip it
             if (format is null) continue;
-            
+
             // Construct a public URL (works if the container has public read access)
             // e.g., https://mystorage.blob.core.windows.net/models/connector.glb
             var url = new Uri($"{_container.Uri}/{Uri.EscapeDataString(name)}");
-            
+
             // Create a new domain object to represent the file
             result.Add(new ModelFile
             {
@@ -75,7 +80,7 @@ public class AzureBlobModelStorage : IModelStorage
                 Url = url
             });
         }
-        
+
         // Return the final list of files to the caller (controller/service)
         return result;
     }
