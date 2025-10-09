@@ -1,18 +1,18 @@
-import {Card, CardContent, CardHeader, CardTitle,} from "@/components/ui/card.tsx";
-import {formatDateTime} from "@/utils/DateTime.ts";
-import {Badge} from "@/components/ui/badge.tsx";
-import {useTheme} from "@/components/theme-provider.tsx";
-import {DotLottieReact} from "@lottiefiles/dotlottie-react";
-import {Button} from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { formatDateTime } from "@/utils/DateTime.ts";
+import { Badge } from "@/components/ui/badge.tsx";
+import { useTheme } from "@/components/theme-provider.tsx";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import {EllipsisVertical} from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 
 function ModelListItem({
   item,
@@ -57,16 +57,28 @@ function ModelListItem({
             <DropdownMenuContent className="w-56">
               <DropdownMenuLabel>Modifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => alert("Opening file...")}>
+              <DropdownMenuItem
+                className={`cursor-pointer`}
+                onClick={() => alert("Opening file...")}
+              >
                 Open
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alert("Downloading...")}>
+              <DropdownMenuItem
+                className={`cursor-pointer`}
+                onClick={() => alert("Downloading...")}
+              >
                 Download
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alert("Renaming...")}>
+              <DropdownMenuItem
+                className={`cursor-pointer`}
+                onClick={() => alert("Renaming...")}
+              >
                 Rename
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alert("Deleting...")}>
+              <DropdownMenuItem
+                className={`cursor-pointer`}
+                onClick={() => alert("Deleting...")}
+              >
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -80,7 +92,7 @@ function ModelListItem({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="px-0 border-accent-foreground">
+      <CardContent className="px-0 rounded-2xl border-t-2">
         <DotLottieReact src={animationSrc} loop autoplay />
       </CardContent>
     </Card>
