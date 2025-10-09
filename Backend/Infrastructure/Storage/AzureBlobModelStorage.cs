@@ -114,7 +114,7 @@ public class AzureBlobModelStorage : IModelStorage
             {
                 finalURL = parts[0] + '/' + Uri.EscapeDataString(name);
             }
-
+            var finalUri = new Uri(finalURL);
             Console.WriteLine("url is: " + finalURL);
 
 
@@ -129,7 +129,7 @@ public class AzureBlobModelStorage : IModelStorage
                 Format = format,
                 SizeBytes = blob.Properties.ContentLength,
                 CreatedOn = blob.Properties.CreatedOn,
-                Url = finalURL
+                Url = finalUri
             });
         }
 
