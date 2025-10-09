@@ -57,13 +57,19 @@ public class AzureBlobModelStorage : IModelStorage
 
         // Create upload options with HTTP headers
         // Here we specify the ContentType (e.g., "model/gltf-binary" or "application/octet-stream")
+        // Generate a persistent GUID for this blob
+        var blobId = Guid.NewGuid();
+
         var uploadOptions = new BlobUploadOptions
         {
             HttpHeaders = new BlobHttpHeaders
             {
                 ContentType = contentType
-            }
-            // By default, UploadAsync with BlobUploadOptions will overwrite existing content
+            },
+            Metadata = new Dictionary<string, string>
+        {
+            { "Id", blobId.ToString() }  // <-- attach GUID here
+        }
         };
 
         // Upload the stream to Azure Blob Storage using the SAS link
@@ -95,15 +101,35 @@ public class AzureBlobModelStorage : IModelStorage
             // Construct a public URL (works if the container has public read access)
             // e.g., https://mystorage.blob.core.windows.net/models/connector.glb
             var url = new Uri($"{_container.Uri}/{Uri.EscapeDataString(name)}");
+            var temp = _container.Uri.ToString();  // convert Uri to string
+            var parts = temp.Split('?', 2);        // split into base and query, max 2 parts
+
+            string finalURL;
+
+            if (parts.Length == 2)
+            {
+                finalURL = parts[0] + '/' + Uri.EscapeDataString(name) + '?' + parts[1];
+            }
+            else
+            {
+                finalURL = parts[0] + '/' + Uri.EscapeDataString(name);
+            }
+
+            Console.WriteLine("url is: " + finalURL);
+
+
+
+            var id = blob.Metadata.ContainsKey("Id") ? Guid.Parse(blob.Metadata["Id"]) : Guid.NewGuid();
 
             // Create a new domain object to represent the file
             result.Add(new ModelFile
             {
+                Id = id,
                 Name = name,
                 Format = format,
                 SizeBytes = blob.Properties.ContentLength,
                 CreatedOn = blob.Properties.CreatedOn,
-                Url = url
+                Url = finalURL
             });
         }
 
