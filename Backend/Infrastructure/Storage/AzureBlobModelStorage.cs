@@ -45,36 +45,28 @@ public class AzureBlobModelStorage : IModelStorage
         //_container.CreateIfNotExists(PublicAccessType.Blob);
     }
 
-    public async Task UploadAsync(string blobName, Stream content, string contentType, CancellationToken ct = default)
+    public async Task UploadAsync(string blobName, 
+                                  Stream content, 
+                                  string contentType, 
+                                  IDictionary<string, string>? metadata = null,
+                                  CancellationToken ct = default)
     {
         // Validate that the provided blob name is not empty or null
         if (string.IsNullOrWhiteSpace(blobName))
             throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
 
-        // Get a reference to the specific blob within the container
-        // If it doesn't exist, Azure will create it automatically on upload
-        BlobClient blobClient = _container.GetBlobClient(blobName);
-
-        // Create upload options with HTTP headers
-        // Here we specify the ContentType (e.g., "model/gltf-binary" or "application/octet-stream")
-        // Generate a persistent GUID for this blob
-        var blobId = Guid.NewGuid();
-
-        var uploadOptions = new BlobUploadOptions
+        var blobClient = _container.GetBlobClient(blobName);
+        
+        // Stamp an internal GUID as metadata
+        metadata ??= new Dictionary<string, string>();
+        
+        if (!metadata.ContainsKey("id")) metadata["id"] = Guid.NewGuid().ToString("N");
+        var options = new BlobUploadOptions
         {
-            HttpHeaders = new BlobHttpHeaders
-            {
-                ContentType = contentType
-            },
-            Metadata = new Dictionary<string, string>
-        {
-            { "Id", blobId.ToString() }  // <-- attach GUID here
-        }
+            HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            Metadata = metadata,
         };
-
-        // Upload the stream to Azure Blob Storage using the SAS link
-        // This operation will create or overwrite the blob with the provided content
-        await blobClient.UploadAsync(content, uploadOptions, ct);
+        await blobClient.UploadAsync(content, options, ct);
     }
 
     // Lists all model files currently stored in the container
@@ -116,16 +108,16 @@ public class AzureBlobModelStorage : IModelStorage
             }
             var finalUri = new Uri(finalURL);
             Console.WriteLine("url is: " + finalURL);
-
-
-
+            
             var id = blob.Metadata.ContainsKey("Id") ? Guid.Parse(blob.Metadata["Id"]) : Guid.NewGuid();
+            var alias = blob.Metadata.ContainsKey("alias") ? blob.Metadata["alias"] : "Model";
+
 
             // Create a new domain object to represent the file
             result.Add(new ModelFile
             {
                 Id = id,
-                Name = name,
+                Name = alias,
                 Format = format,
                 SizeBytes = blob.Properties.ContentLength,
                 CreatedOn = blob.Properties.CreatedOn,

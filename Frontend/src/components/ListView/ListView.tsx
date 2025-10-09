@@ -26,7 +26,7 @@ function ListView() {
         <div
           className={`flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl`}
         >
-          <h1 className={`mb-3`}>Table of Models</h1>
+          <h1 className={`mb-3`}>Uploaded Models</h1>
           <h1 className={`text-muted-foreground mb-3`}>
             {models?.length || 0} results found
           </h1>
