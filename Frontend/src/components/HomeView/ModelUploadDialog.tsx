@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -22,16 +22,28 @@ export default function ModelUploadDialog({
 }: ModelUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
 
-  const handleUpload = () => {
+  useEffect(() => {}, [file]);
+
+  const handleUpload = async () => {
     if (!file) {
       alert("No file selected!");
       return;
     }
     console.log("Uploading file:", file.name);
     const formData = new FormData();
-    formData.append("model", file);
+    formData.append("file", file);
 
-    alert(`Simulating upload for: ${file.name}`);
+    try {
+      const res = await fetch("http://localhost:5000/api/model/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      console.log(data);
+    } catch (error) {
+      console.log(error);
+    }
+
     onOpenChange(false);
   };
 
