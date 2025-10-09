@@ -1,53 +1,24 @@
 import ModelListItem from "@/components/ListView/ModelListItem.tsx";
+import { useEffect, useState } from "react";
+import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import type { ModelItem } from "@/types/ModelItem.ts";
 
 function ListView() {
-  const data = [
-    {
-      name: "CabinetCoolingWaterPump",
-      size: "10 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 2",
-      size: "20 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 3",
-      size: "30 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 4",
-      size: "40 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 5",
-      size: "50 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 6",
-      size: "50 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 7",
-      size: "50 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 8",
-      size: "50 MB",
-      date: new Date(),
-    },
-    {
-      name: "Model 9",
-      size: "50 MB",
-      date: new Date(),
-    },
-  ];
+  const [models, setModels] = useState<ModelItem[]>([]);
+  const apiClient = useAxiosConfig();
+
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        const res = await apiClient.get("/api/model");
+        const data = res.data;
+        setModels(data);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchModels();
+  }, [apiClient]);
 
   return (
     <div className={`grid justify-center w-full`}>
@@ -57,15 +28,15 @@ function ListView() {
         >
           <h1 className={`mb-3`}>Table of Models</h1>
           <h1 className={`text-muted-foreground mb-3`}>
-            {data.length} results found
+            {models?.length || 0} results found
           </h1>
         </div>
 
         <div
           className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full`}
         >
-          {data.map((item, i) => (
-            <ModelListItem key={i} item={item} />
+          {models?.map((item) => (
+            <ModelListItem key={item.id} item={item} />
           ))}
         </div>
       </div>

@@ -1,30 +1,26 @@
-import {Card, CardContent, CardHeader, CardTitle,} from "@/components/ui/card.tsx";
-import {formatDateTime} from "@/utils/DateTime.ts";
-import {Badge} from "@/components/ui/badge.tsx";
-import {useTheme} from "@/components/theme-provider.tsx";
-import {DotLottieReact} from "@lottiefiles/dotlottie-react";
-import {Button} from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { formatDateTime } from "@/utils/DateTime.ts";
+import { Badge } from "@/components/ui/badge.tsx";
+import { useTheme } from "@/components/theme-provider.tsx";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {EllipsisVertical} from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
+import type { ModelItem } from "@/types/ModelItem.ts";
 
-function ModelListItem({
-  item,
-  key,
-}: {
-  key: number;
-  item: {
-    name: string;
-    size: string;
-    date: Date;
-  };
-}) {
+function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
   const theme = useTheme();
   const isDarkTheme =
     theme.theme === "dark" ||
@@ -34,6 +30,14 @@ function ModelListItem({
   const animationSrc = isDarkTheme
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
+
+  const formatSize = (size: number) => {
+    const inMB = size / 1024 / 1024;
+    if (inMB < 1) {
+      return (size / 1024).toFixed(2) + " KB";
+    }
+    return inMB.toFixed(2) + " MB";
+  };
 
   return (
     <Card
@@ -74,14 +78,14 @@ function ModelListItem({
         </div>
 
         <div className={`flex gap-x-2`}>
-          <Badge>{item.size}</Badge>
+          <Badge>{formatSize(item.sizeBytes)}</Badge>
           <Badge variant={"date"}>
-            {formatDateTime(item.date.toISOString()).dateStr}
+            {formatDateTime(item.createdOn).dateStr}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="px-0 rounded-2xl border-t-2">
-        <DotLottieReact src={animationSrc} loop autoplay />
+        <DotLottieReact src={animationSrc} loop autoplay={false} />
       </CardContent>
     </Card>
   );

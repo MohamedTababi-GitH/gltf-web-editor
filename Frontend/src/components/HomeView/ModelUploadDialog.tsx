@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Uploader } from "@/components/HomeView/Uploader.tsx";
+import { useNotification } from "@/contexts/NotificationContext.tsx";
+import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
@@ -23,6 +25,8 @@ export default function ModelUploadDialog({
   const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {}, [file]);
+  const { showNotification } = useNotification();
+  const apiClient = useAxiosConfig();
 
   const handleUpload = async () => {
     if (!file) {
@@ -34,12 +38,8 @@ export default function ModelUploadDialog({
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://localhost:5000/api/model/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      console.log(data);
+      await apiClient.post("/api/model/upload", formData);
+      showNotification("Successfully uploaded model!", "success");
     } catch (error) {
       console.log(error);
     }
