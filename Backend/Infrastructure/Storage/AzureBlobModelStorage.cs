@@ -45,6 +45,32 @@ public class AzureBlobModelStorage : IModelStorage
         //_container.CreateIfNotExists(PublicAccessType.Blob);
     }
 
+    public async Task UploadAsync(string blobName, Stream content, string contentType, CancellationToken ct = default)
+    {
+        // Validate that the provided blob name is not empty or null
+        if (string.IsNullOrWhiteSpace(blobName))
+            throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
+
+        // Get a reference to the specific blob within the container
+        // If it doesn't exist, Azure will create it automatically on upload
+        BlobClient blobClient = _container.GetBlobClient(blobName);
+
+        // Create upload options with HTTP headers
+        // Here we specify the ContentType (e.g., "model/gltf-binary" or "application/octet-stream")
+        var uploadOptions = new BlobUploadOptions
+        {
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = contentType
+            }
+            // By default, UploadAsync with BlobUploadOptions will overwrite existing content
+        };
+
+        // Upload the stream to Azure Blob Storage using the SAS link
+        // This operation will create or overwrite the blob with the provided content
+        await blobClient.UploadAsync(content, uploadOptions, ct);
+    }
+
     // Lists all model files currently stored in the container
     public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
     {
