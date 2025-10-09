@@ -25,7 +25,7 @@ export default function ModelUploadDialog({
   onOpenChange,
 }: ModelUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [fileAlias, setFileAlias] = useState<string>();
+  const [fileAlias, setFileAlias] = useState<string>("");
 
   useEffect(() => {}, [file]);
   const { showNotification } = useNotification();
