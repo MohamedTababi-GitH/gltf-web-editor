@@ -47,7 +47,7 @@ public class ModelController : ControllerBase
         
         // TODO: add verification for .bin file extension if .gltf is used
         // TODO: add support for 2 files upload
-        if (ext != ".glb" || ext != ".gltf")
+        if (ext != ".glb" && ext != ".gltf")
             return BadRequest("Invalid file extension.");
         
         // blob name : guid + _ + base name + extension

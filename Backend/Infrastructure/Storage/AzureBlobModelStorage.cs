@@ -110,12 +110,14 @@ public class AzureBlobModelStorage : IModelStorage
             Console.WriteLine("url is: " + finalURL);
             
             var id = blob.Metadata.ContainsKey("Id") ? Guid.Parse(blob.Metadata["Id"]) : Guid.NewGuid();
+            var alias = blob.Metadata.ContainsKey("alias") ? blob.Metadata["alias"] : "Model";
+
 
             // Create a new domain object to represent the file
             result.Add(new ModelFile
             {
                 Id = id,
-                Name = name,
+                Name = alias,
                 Format = format,
                 SizeBytes = blob.Properties.ContentLength,
                 CreatedOn = blob.Properties.CreatedOn,
