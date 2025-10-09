@@ -1,18 +1,47 @@
-import {Card, CardContent, CardHeader, CardTitle,} from "@/components/ui/card.tsx";
-import {formatDateTime} from "@/utils/DateTime.ts";
-import {Badge} from "@/components/ui/badge.tsx";
-import {useTheme} from "@/components/theme-provider.tsx";
-import {DotLottieReact} from "@lottiefiles/dotlottie-react";
-import {Button} from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { formatDateTime } from "@/utils/DateTime.ts";
+import { Badge } from "@/components/ui/badge.tsx";
+import { useTheme } from "@/components/theme-provider.tsx";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {EllipsisVertical} from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog.tsx";
+
+import { useState } from "react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog.tsx";
+//import { Label } from "radix-ui";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function ModelListItem({
   item,
@@ -26,6 +55,8 @@ function ModelListItem({
   };
 }) {
   const theme = useTheme();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isRenameOpen, setRenameOpen] = useState(false);
   const isDarkTheme =
     theme.theme === "dark" ||
     (theme.theme === "system" &&
@@ -57,21 +88,79 @@ function ModelListItem({
             <DropdownMenuContent className="w-56">
               <DropdownMenuLabel>Modifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => alert("Opening file...")}>
+              <DropdownMenuItem
+                className={`cursor-pointer`}
+                onClick={() => alert("Opening file...")}
+              >
                 Open
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alert("Downloading...")}>
+              <DropdownMenuItem
+                className={`cursor-pointer`}
+                onClick={() => alert("Downloading...")}
+              >
                 Download
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alert("Renaming...")}>
+              <DropdownMenuItem
+                className={`cursor-pointer`}
+                onSelect={() => setRenameOpen(true)}
+              >
                 Rename
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => alert("Deleting...")}>
+
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        <AlertDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the
+                model.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog open={isRenameOpen} onOpenChange={setRenameOpen}>
+          <form>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Rename the model</DialogTitle>
+                <DialogDescription>
+                  Make changes to your model's name here. Click save when
+                  you&apos;re done.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4">
+                <div className="grid gap-3">
+                  <Label htmlFor="name-1">Name</Label>
+                  <Input id="name-1" name="name" defaultValue={item.name} />
+                </div>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button type="submit">Save changes</Button>
+              </DialogFooter>
+            </DialogContent>
+          </form>
+        </Dialog>
 
         <div className={`flex gap-x-2`}>
           <Badge>{item.size}</Badge>
@@ -81,7 +170,7 @@ function ModelListItem({
         </div>
       </CardHeader>
       <CardContent className="px-0 rounded-2xl border-t-2">
-        <DotLottieReact src={animationSrc} loop autoplay />
+        <DotLottieReact src={animationSrc} loop autoplay={false} />
       </CardContent>
     </Card>
   );
