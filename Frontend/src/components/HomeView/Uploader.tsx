@@ -1,7 +1,7 @@
 import { File as FileIcon, UploadCloud, X } from "lucide-react";
-import { useFileUpload } from "@/hooks/use-file-upload";
-import { cn } from "@/lib/utils";
-import { Button } from "./ui/button";
+import { useFileUpload } from "@/hooks/use-file-upload.ts";
+import { cn } from "@/lib/utils.ts";
+import { Button } from "../ui/button.tsx";
 import { useEffect } from "react";
 
 type UploaderProps = {

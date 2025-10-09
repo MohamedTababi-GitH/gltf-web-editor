@@ -80,7 +80,7 @@ function ModelListItem({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="px-0 border-accent-foreground">
+      <CardContent className="px-0 rounded-2xl border-t-2">
         <DotLottieReact src={animationSrc} loop autoplay />
       </CardContent>
     </Card>

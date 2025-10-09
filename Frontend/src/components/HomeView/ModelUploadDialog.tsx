@@ -7,9 +7,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Uploader } from "@/components/Uploader";
+} from "@/components/ui/dialog.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Uploader } from "@/components/HomeView/Uploader.tsx";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
