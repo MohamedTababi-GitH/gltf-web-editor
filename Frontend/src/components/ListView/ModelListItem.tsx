@@ -1,13 +1,18 @@
+import {Card, CardContent, CardHeader, CardTitle,} from "@/components/ui/card.tsx";
+import {formatDateTime} from "@/utils/DateTime.ts";
+import {Badge} from "@/components/ui/badge.tsx";
+import {useTheme} from "@/components/theme-provider.tsx";
+import {DotLottieReact} from "@lottiefiles/dotlottie-react";
+import {Button} from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card.tsx";
-import { formatDateTime } from "@/utils/DateTime.ts";
-import { Badge } from "@/components/ui/badge.tsx";
-import { useTheme } from "@/components/theme-provider.tsx";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {EllipsisVertical} from "lucide-react";
 
 function ModelListItem({
   item,
@@ -29,13 +34,45 @@ function ModelListItem({
   const animationSrc = isDarkTheme
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
+
   return (
     <Card
       key={key}
-      className="max-w-md pb-0 hover:cursor-pointer hover:scale-98 transition-all duration-200 ease-in-out"
+      className="max-w-md pb-0 hover:cursor-pointer hover:scale-99 transition-all duration-200 ease-in-out"
     >
       <CardHeader>
-        <CardTitle>{item.name}</CardTitle>
+        <div
+          className={`flex justify-between items-start break-words truncate`}
+        >
+          <CardTitle className={`text-sm md:text-lg break-words truncate`}>
+            {item.name}
+          </CardTitle>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <EllipsisVertical />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuLabel>Modifications</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => alert("Opening file...")}>
+                Open
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => alert("Downloading...")}>
+                Download
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => alert("Renaming...")}>
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => alert("Deleting...")}>
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         <div className={`flex gap-x-2`}>
           <Badge>{item.size}</Badge>
           <Badge variant={"date"}>
@@ -43,7 +80,7 @@ function ModelListItem({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="px-0">
+      <CardContent className="px-0 rounded-2xl border-t-2">
         <DotLottieReact src={animationSrc} loop autoplay />
       </CardContent>
     </Card>
