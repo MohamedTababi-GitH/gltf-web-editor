@@ -8,6 +8,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
+using ECAD_Backend.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 
 namespace ECAD_Backend.Infrastructure.Storage;
@@ -19,33 +20,58 @@ public class AzureBlobModelStorage : IModelStorage
     // Represents a specific blob container within the Azure Storage account
     private readonly BlobContainerClient _container;
 
-    // Constructor – runs when this class is created (injected into a controller or service)
+    // Constructor
     public AzureBlobModelStorage(IOptions<BlobOptions> opts)
     {
         // Grab the BlobOptions section from configuration (via dependency injection)
         var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
-
-        /*
-        // Validate that connection string and container name exist, otherwise throw early error
-        if (string.IsNullOrWhiteSpace(o.ConnectionString)) throw new InvalidOperationException("Storage:ConnectionString is missing.");
-        if (string.IsNullOrWhiteSpace(o.ContainerModels)) throw new InvalidOperationException("Storage:ContainerModels is missing.");
-
-        // Create a service-level client (represents the Azure Storage account)
-        var service = new BlobServiceClient(o.ConnectionString);
         
-        // From that service, get a reference to the specific container for model files
-        _container = service.GetBlobContainerClient(o.ContainerModels);
+        if (string.IsNullOrWhiteSpace(o.ConnectionString))
+            throw new InvalidOperationException("Storage:ConnectionString is missing.");
+        if (string.IsNullOrWhiteSpace(o.ContainerModels))
+            throw new InvalidOperationException("Storage:ContainerModels is missing.");
         
-        */
         _container = new BlobContainerClient(new Uri(o.ConnectionString));
+        
+        // test if works the following way 
+        // var service = new BlobServiceClient(o.ConnectionString);
+        // _container = service.GetBlobContainerClient(o.ContainerModels);
+    }
 
+    public async Task UploadAsync(
+        string blobName, 
+        Stream content, 
+        string contentType, 
+        IDictionary<string, string>? metadata = null,
+        CancellationToken ct = default)
+    {
+        // Validate that the provided blob name is not empty or null
+        if (string.IsNullOrWhiteSpace(blobName))
+            throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
+        
+        if (content == null) 
+            throw new ArgumentNullException(nameof(content));
 
-        // Optional: create container automatically if it doesn't exist
-        // You can uncomment this for local dev or demos
-        //_container.CreateIfNotExists(PublicAccessType.Blob);
+        var blobClient = _container.GetBlobClient(blobName);
+        
+        // Stamp an internal GUID as metadata
+        metadata ??= new Dictionary<string, string>();
+        
+        if (!metadata.ContainsKey("Id")) metadata["Id"] = Guid.NewGuid().ToString("N");
+        var options = new BlobUploadOptions
+        {
+            // HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType
+            },
+            Metadata = metadata,
+        };
+        await blobClient.UploadAsync(content, options, ct);
     }
 
     // Lists all model files currently stored in the container
+    // TODO : REFACTOR
     public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
     {
         // Create an empty list to hold our domain objects (ModelFile)
@@ -69,15 +95,35 @@ public class AzureBlobModelStorage : IModelStorage
             // Construct a public URL (works if the container has public read access)
             // e.g., https://mystorage.blob.core.windows.net/models/connector.glb
             var url = new Uri($"{_container.Uri}/{Uri.EscapeDataString(name)}");
+            var temp = _container.Uri.ToString();  // convert Uri to string
+            var parts = temp.Split('?', 2);        // split into base and query, max 2 parts
+
+            string finalURL;
+
+            if (parts.Length == 2)
+            {
+                finalURL = parts[0] + '/' + Uri.EscapeDataString(name) + '?' + parts[1];
+            }
+            else
+            {
+                finalURL = parts[0] + '/' + Uri.EscapeDataString(name);
+            }
+            var finalUri = new Uri(finalURL);
+            Console.WriteLine("url is: " + finalURL);
+            
+            var id = blob.Metadata.ContainsKey("Id") ? Guid.Parse(blob.Metadata["Id"]) : Guid.NewGuid();
+            var alias = blob.Metadata.ContainsKey("alias") ? blob.Metadata["alias"] : "Model";
+
 
             // Create a new domain object to represent the file
             result.Add(new ModelFile
             {
-                Name = name,
+                Id = id,
+                Name = alias,
                 Format = format,
                 SizeBytes = blob.Properties.ContentLength,
                 CreatedOn = blob.Properties.CreatedOn,
-                Url = url
+                Url = finalUri
             });
         }
 

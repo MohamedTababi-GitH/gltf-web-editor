@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Uploader } from "@/components/HomeView/Uploader.tsx";
+import { useNotification } from "@/contexts/NotificationContext.tsx";
+import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
@@ -21,29 +25,27 @@ export default function ModelUploadDialog({
   onOpenChange,
 }: ModelUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [fileAlias, setFileAlias] = useState<string>("");
 
   useEffect(() => {}, [file]);
+  const { showNotification } = useNotification();
+  const apiClient = useAxiosConfig();
 
   const handleUpload = async () => {
-    if (!file) {
-      alert("No file selected!");
-      return;
-    }
-    console.log("Uploading file:", file.name);
+    if (!file || !fileAlias) return;
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("fileAlias", fileAlias.trim());
 
     try {
-      const res = await fetch("http://localhost:5000/api/model/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      console.log(data);
+      await apiClient.post("/api/model/upload", formData);
+      showNotification("Successfully uploaded model!", "success");
     } catch (error) {
       console.log(error);
+    } finally {
+      setFile(null);
+      setFileAlias("");
     }
-
     onOpenChange(false);
   };
 
@@ -63,6 +65,19 @@ export default function ModelUploadDialog({
             Select a GLB or GLTF file to upload. Maximum size is 25MB.
           </DialogDescription>
         </DialogHeader>
+        {file && (
+          <div className="grid w-full max-w-sm items-center gap-3">
+            <Label htmlFor="fileAlias">File Alias</Label>
+            <Input
+              type="text"
+              id="fileAlias"
+              value={fileAlias}
+              onChange={(e) => setFileAlias(e.target.value)}
+              placeholder="Enter a file alias"
+              required={true}
+            />
+          </div>
+        )}
         <div className="py-4">
           <Uploader onFileSelect={setFile} />
         </div>
@@ -70,7 +85,7 @@ export default function ModelUploadDialog({
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button onClick={handleUpload} disabled={!file}>
+          <Button onClick={handleUpload} disabled={!file || !fileAlias}>
             Upload
           </Button>
         </DialogFooter>

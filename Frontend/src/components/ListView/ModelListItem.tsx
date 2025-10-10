@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVertical } from "lucide-react";
+import type { ModelItem } from "@/types/ModelItem.ts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,21 +40,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog.tsx";
-//import { Label } from "radix-ui";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function ModelListItem({
-  item,
-  key,
-}: {
-  key: number;
-  item: {
-    name: string;
-    size: string;
-    date: Date;
-  };
-}) {
+function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
   const theme = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenameOpen, setRenameOpen] = useState(false);
@@ -66,14 +56,19 @@ function ModelListItem({
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
+  const formatSize = (size: number) => {
+    const inMB = size / 1024 / 1024;
+    if (inMB < 1) {
+      return (size / 1024).toFixed(2) + " KB";
+    }
+    return inMB.toFixed(2) + " MB";
+  };
+
   return (
-    <Card
-      key={key}
-      className="max-w-md pb-0 hover:cursor-pointer hover:scale-99 transition-all duration-200 ease-in-out"
-    >
+    <Card key={key} className="max-w-md pb-0 hover:cursor-pointer">
       <CardHeader>
         <div
-          className={`flex justify-between items-start break-words truncate`}
+          className={`flex justify-between items-start break-words truncate gap-x-4`}
         >
           <CardTitle className={`text-sm md:text-lg break-words truncate`}>
             {item.name}
@@ -81,12 +76,12 @@ function ModelListItem({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <EllipsisVertical />
-              </Button>
+              <EllipsisVertical
+                className={`w-7 min-w-7 h-8 py-1 bg-muted rounded-md border`}
+              />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Modifications</DropdownMenuLabel>
+            <DropdownMenuContent className="w-32">
+              <DropdownMenuLabel>Options</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className={`cursor-pointer`}
@@ -94,11 +89,8 @@ function ModelListItem({
               >
                 Open
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className={`cursor-pointer`}
-                onClick={() => alert("Downloading...")}
-              >
-                Download
+              <DropdownMenuItem className={`cursor-pointer`}>
+                <a href={item.url}>Download</a>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className={`cursor-pointer`}
@@ -163,13 +155,16 @@ function ModelListItem({
         </Dialog>
 
         <div className={`flex gap-x-2`}>
-          <Badge>{item.size}</Badge>
-          <Badge variant={"date"}>
-            {formatDateTime(item.date.toISOString()).dateStr}
+          <Badge className={`text-sm`} variant={"destructive"}>
+            .{item.format}
+          </Badge>
+          <Badge className={`text-sm`}>{formatSize(item.sizeBytes)}</Badge>
+          <Badge className={`text-sm`} variant={"date"}>
+            {formatDateTime(item.createdOn).dateStr}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="px-0 rounded-2xl border-t-2">
+      <CardContent className="px-0 rounded-2xl border-t-2 dark:bg-black">
         <DotLottieReact src={animationSrc} loop autoplay={false} />
       </CardContent>
     </Card>
