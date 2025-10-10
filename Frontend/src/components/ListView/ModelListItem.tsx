@@ -13,8 +13,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EllipsisVertical } from "lucide-react";
@@ -46,11 +44,13 @@ import { Label } from "@/components/ui/label";
 function ModelListItem({
   item,
   key,
-  onClick,
+  setModelPath,
+  setShowViewer,
 }: {
   key: string;
   item: ModelItem;
-  onClick: () => void;
+  setModelPath: (path: string) => void;
+  setShowViewer: (show: boolean) => void;
 }) {
   const theme = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -76,7 +76,10 @@ function ModelListItem({
     <Card
       key={key}
       className="max-w-md pb-0 hover:cursor-pointer"
-      onClick={onClick}
+      onClick={() => {
+        setShowViewer(true);
+        setModelPath(item.url);
+      }}
     >
       <CardHeader>
         <div
@@ -93,27 +96,38 @@ function ModelListItem({
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-32">
-              <DropdownMenuLabel>Options</DropdownMenuLabel>
-              <DropdownMenuSeparator />
               <DropdownMenuItem
                 className={`cursor-pointer`}
-                onClick={() => alert("Opening file...")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowViewer(true);
+                  setModelPath(item.url);
+                }}
               >
                 Open
               </DropdownMenuItem>
-              <DropdownMenuItem className={`cursor-pointer`}>
+              <DropdownMenuItem
+                onClick={(e) => e.stopPropagation()}
+                className={`cursor-pointer`}
+              >
                 <a href={item.url}>Download</a>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className={`cursor-pointer`}
-                onSelect={() => setRenameOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenameOpen(true);
+                }}
               >
                 Rename
               </DropdownMenuItem>
 
               <DropdownMenuItem
                 className="cursor-pointer"
-                onClick={() => setIsDeleteDialogOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDeleteDialogOpen(true);
+                }}
               >
                 Delete
               </DropdownMenuItem>
@@ -125,7 +139,7 @@ function ModelListItem({
           open={isDeleteDialogOpen}
           onOpenChange={setIsDeleteDialogOpen}
         >
-          <AlertDialogContent>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -142,7 +156,10 @@ function ModelListItem({
 
         <Dialog open={isRenameOpen} onOpenChange={setRenameOpen}>
           <form>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent
+              onClick={(e) => e.stopPropagation()}
+              className="sm:max-w-[425px]"
+            >
               <DialogHeader>
                 <DialogTitle>Rename the model</DialogTitle>
                 <DialogDescription>
