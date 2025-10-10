@@ -1,5 +1,7 @@
 using ECAD_Backend.Application.Interfaces;
+using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure;
+using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +22,7 @@ builder.Services.AddCors(o => o.AddPolicy("frontend", p => p
 builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 // register storage service
 builder.Services.AddScoped<IModelStorage, AzureBlobModelStorage>();
+builder.Services.AddScoped<IModelService, ModelService>();
 
 var app = builder.Build();
 

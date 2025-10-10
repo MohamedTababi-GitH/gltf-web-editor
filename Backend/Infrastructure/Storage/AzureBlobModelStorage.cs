@@ -8,6 +8,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
+using ECAD_Backend.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 
 namespace ECAD_Backend.Infrastructure.Storage;
@@ -19,57 +20,58 @@ public class AzureBlobModelStorage : IModelStorage
     // Represents a specific blob container within the Azure Storage account
     private readonly BlobContainerClient _container;
 
-    // Constructor – runs when this class is created (injected into a controller or service)
+    // Constructor
     public AzureBlobModelStorage(IOptions<BlobOptions> opts)
     {
         // Grab the BlobOptions section from configuration (via dependency injection)
         var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
-
-        /*
-        // Validate that connection string and container name exist, otherwise throw early error
-        if (string.IsNullOrWhiteSpace(o.ConnectionString)) throw new InvalidOperationException("Storage:ConnectionString is missing.");
-        if (string.IsNullOrWhiteSpace(o.ContainerModels)) throw new InvalidOperationException("Storage:ContainerModels is missing.");
-
-        // Create a service-level client (represents the Azure Storage account)
-        var service = new BlobServiceClient(o.ConnectionString);
         
-        // From that service, get a reference to the specific container for model files
-        _container = service.GetBlobContainerClient(o.ContainerModels);
+        if (string.IsNullOrWhiteSpace(o.ConnectionString))
+            throw new InvalidOperationException("Storage:ConnectionString is missing.");
+        if (string.IsNullOrWhiteSpace(o.ContainerModels))
+            throw new InvalidOperationException("Storage:ContainerModels is missing.");
         
-        */
         _container = new BlobContainerClient(new Uri(o.ConnectionString));
-
-
-        // Optional: create container automatically if it doesn't exist
-        // You can uncomment this for local dev or demos
-        //_container.CreateIfNotExists(PublicAccessType.Blob);
+        
+        // test if works the following way 
+        // var service = new BlobServiceClient(o.ConnectionString);
+        // _container = service.GetBlobContainerClient(o.ContainerModels);
     }
 
-    public async Task UploadAsync(string blobName, 
-                                  Stream content, 
-                                  string contentType, 
-                                  IDictionary<string, string>? metadata = null,
-                                  CancellationToken ct = default)
+    public async Task UploadAsync(
+        string blobName, 
+        Stream content, 
+        string contentType, 
+        IDictionary<string, string>? metadata = null,
+        CancellationToken ct = default)
     {
         // Validate that the provided blob name is not empty or null
         if (string.IsNullOrWhiteSpace(blobName))
             throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
+        
+        if (content == null) 
+            throw new ArgumentNullException(nameof(content));
 
         var blobClient = _container.GetBlobClient(blobName);
         
         // Stamp an internal GUID as metadata
         metadata ??= new Dictionary<string, string>();
         
-        if (!metadata.ContainsKey("id")) metadata["id"] = Guid.NewGuid().ToString("N");
+        if (!metadata.ContainsKey("Id")) metadata["Id"] = Guid.NewGuid().ToString("N");
         var options = new BlobUploadOptions
         {
-            HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            // HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType
+            },
             Metadata = metadata,
         };
         await blobClient.UploadAsync(content, options, ct);
     }
 
     // Lists all model files currently stored in the container
+    // TODO : REFACTOR
     public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
     {
         // Create an empty list to hold our domain objects (ModelFile)
