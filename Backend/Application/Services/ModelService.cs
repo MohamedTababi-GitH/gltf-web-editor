@@ -5,13 +5,21 @@ using ECAD_Backend.Domain.Entities;
 
 namespace ECAD_Backend.Application.Services;
 
+/// <summary>
+/// Provides application logic for managing 3D model files, including validation and interaction with storage.
+/// Orchestrates the validation of model uploads and retrieval of stored models.
+/// </summary>
 public sealed class ModelService : IModelService
 {
     private readonly IModelStorage _storage;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
     public ModelService(IModelStorage storage) => _storage = storage;
     
-    // Utility mapper (Can be moved to separate class later)
+    /// <summary>
+    /// Maps a <see cref="ModelFile"/> entity to a <see cref="ModelItemDto"/> data transfer object.
+    /// </summary>
+    /// <param name="f">The model file entity to map.</param>
+    /// <returns>A <see cref="ModelItemDto"/> representing the model file.</returns>
     private static ModelItemDto Map(ModelFile f) => new()
     {
         Id = f.Id,
@@ -22,12 +30,28 @@ public sealed class ModelService : IModelService
         CreatedOn = f.CreatedOn
     };
     
+    /// <summary>
+    /// Retrieves a list of all stored model items.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A read-only list of <see cref="ModelItemDto"/> representing the stored models.</returns>
     public async Task<IReadOnlyList<ModelItemDto>> ListAsync(CancellationToken cancellationToken = default)
     {
         var files = await _storage.ListAsync(cancellationToken);
         return files.Select(Map).ToList();
     }
 
+    /// <summary>
+    /// Validates and uploads a 3D model file according to the specified request.
+    /// </summary>
+    /// <param name="request">The upload request containing file content, original file name, and alias.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>An <see cref="UploadResultDto"/> containing the result of the upload operation.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when the <paramref name="request"/> is null.</exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the request content is null, original file name or alias is missing,
+    /// alias does not match required pattern, or file extension is invalid.
+    /// </exception>
     public async Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));

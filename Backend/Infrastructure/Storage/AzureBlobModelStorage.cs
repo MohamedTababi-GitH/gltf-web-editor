@@ -1,9 +1,3 @@
-/* 
-Brings us azure sdk types:
-BlobServiceClient, BlobContainerClient — main entry points for talking to Blob Storage
-BlobItem, BlobTraits - listing and inspecting blobs
-*/
-
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.Interfaces;
@@ -13,14 +7,22 @@ using Microsoft.Extensions.Options;
 
 namespace ECAD_Backend.Infrastructure.Storage;
 
-// This class implements the repository/service that connects to Azure Blob Storage
-// and lists model files (glTF / glb) stored in the "models" container.
+/// <summary>
+/// Azure Blob Storage implementation of <see cref="IModelStorage"/>.
+/// Provides methods to upload model files and list model files stored in an Azure Blob Storage container.
+/// </summary>
 public class AzureBlobModelStorage : IModelStorage
 {
     // Represents a specific blob container within the Azure Storage account
     private readonly BlobContainerClient _container;
 
-    // Constructor
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureBlobModelStorage"/> class.
+    /// Configures the Blob container client using provided BlobOptions.
+    /// </summary>
+    /// <param name="opts">The options containing connection string and container name.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="opts"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if required configuration values are missing.</exception>
     public AzureBlobModelStorage(IOptions<BlobOptions> opts)
     {
         // Grab the BlobOptions section from configuration (via dependency injection)
@@ -38,6 +40,17 @@ public class AzureBlobModelStorage : IModelStorage
         // _container = service.GetBlobContainerClient(o.ContainerModels);
     }
 
+    /// <summary>
+    /// Uploads a blob (model file) to the Azure Blob Storage container.
+    /// </summary>
+    /// <param name="blobName">The name of the blob to upload.</param>
+    /// <param name="content">The content stream of the blob.</param>
+    /// <param name="contentType">The content type (MIME type) of the blob.</param>
+    /// <param name="metadata">Optional metadata to attach to the blob.</param>
+    /// <param name="ct">Cancellation token for the async operation.</param>
+    /// <returns>A task that represents the asynchronous upload operation.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="blobName"/> is null or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="content"/> is null.</exception>
     public async Task UploadAsync(
         string blobName, 
         Stream content, 
@@ -70,7 +83,12 @@ public class AzureBlobModelStorage : IModelStorage
         await blobClient.UploadAsync(content, options, ct);
     }
 
-    // Lists all model files currently stored in the container
+        /// <summary>
+    /// Lists all model files currently stored in the Azure Blob Storage container.
+    /// Only files with .glb or .gltf extensions are included.
+    /// </summary>
+    /// <param name="ct">Cancellation token for the async operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of <see cref="ModelFile"/> objects.</returns>
     // TODO : REFACTOR
     public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
     {
