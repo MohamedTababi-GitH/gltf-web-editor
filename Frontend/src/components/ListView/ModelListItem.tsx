@@ -43,7 +43,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
+function ModelListItem({
+  item,
+  key,
+  onClick,
+}: {
+  key: string;
+  item: ModelItem;
+  onClick: () => void;
+}) {
   const theme = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenameOpen, setRenameOpen] = useState(false);
@@ -65,7 +73,11 @@ function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
   };
 
   return (
-    <Card key={key} className="max-w-md pb-0 hover:cursor-pointer">
+    <Card
+      key={key}
+      className="max-w-md pb-0 hover:cursor-pointer"
+      onClick={onClick}
+    >
       <CardHeader>
         <div
           className={`flex justify-between items-start break-words truncate gap-x-4`}
