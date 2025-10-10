@@ -12,8 +12,7 @@ export function useAxiosConfig() {
     (response) => response,
     (error) => {
       const message = error.response?.data || "An unexpected error occurred";
-      const code = error.response?.status || 500;
-      showNotification("Error " + code + ": " + message, "error");
+      showNotification(message, "error");
       return Promise.reject(error);
     },
   );

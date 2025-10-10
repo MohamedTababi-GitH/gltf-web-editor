@@ -27,7 +27,24 @@ export default function ModelUploadDialog({
   const [file, setFile] = useState<File | null>(null);
   const [fileAlias, setFileAlias] = useState<string>("");
 
-  useEffect(() => {}, [file]);
+  useEffect(() => {
+    if (!file) return;
+    if (
+      file.name.split(".").pop() !== "glb" &&
+      file.name.split(".").pop() !== "gltf"
+    ) {
+      setFile(null);
+      setFileAlias("");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setFile(null);
+      setFileAlias("");
+      return;
+    }
+    setFileAlias(file.name.split(".").slice(0, -1).join(".") || "");
+  }, [file]);
+
   const { showNotification } = useNotification();
   const apiClient = useAxiosConfig();
 
