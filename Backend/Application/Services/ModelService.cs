@@ -1,10 +1,9 @@
 using System.Text.RegularExpressions;
-using Azure.Storage.Blobs;
 using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
 
-namespace ECAD_Backend.Services;
+namespace ECAD_Backend.Application.Services;
 
 public sealed class ModelService : IModelService
 {
@@ -42,10 +41,11 @@ public sealed class ModelService : IModelService
         if (string.IsNullOrWhiteSpace(request.Alias))
             throw new ArgumentException("Alias required.", nameof(request.Alias));
         
-        if (!AliasRegex.IsMatch(request.OriginalFileName))
-            throw new ArgumentException("Alias not valid.", nameof(request.OriginalFileName));
+        if (!AliasRegex.IsMatch(request.Alias))
+            throw new ArgumentException("Alias not valid.", nameof(request.Alias));
         
         var extension = Path.GetExtension(request.OriginalFileName).ToLowerInvariant();
+        
         if (extension != ".glb" && extension != ".gltf")
             throw new ArgumentException("Invalid file extension.", nameof(request.OriginalFileName));
         

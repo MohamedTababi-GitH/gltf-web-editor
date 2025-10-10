@@ -8,6 +8,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
+using ECAD_Backend.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 
 namespace ECAD_Backend.Infrastructure.Storage;
@@ -59,7 +60,11 @@ public class AzureBlobModelStorage : IModelStorage
         if (!metadata.ContainsKey("Id")) metadata["Id"] = Guid.NewGuid().ToString("N");
         var options = new BlobUploadOptions
         {
-            HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            // HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType
+            },
             Metadata = metadata,
         };
         await blobClient.UploadAsync(content, options, ct);

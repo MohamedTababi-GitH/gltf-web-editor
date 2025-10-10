@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Infrastructure.Storage;
+namespace ECAD_Backend.Infrastructure.Options;
 
 // This class represents the configuration options (settings) for connecting to Azure Blob Storage.
 // It's a simple "POCO" (Plain Old CLR Object) — no logic, just data.

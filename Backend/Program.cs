@@ -1,7 +1,8 @@
 using ECAD_Backend.Application.Interfaces;
+using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure;
+using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
-using ECAD_Backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
