@@ -36,4 +36,9 @@ public interface IModelStorage
     /// Useful if one model results in multiple blobs.
     /// </summary>
     Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default);
+    
+    /// <summary>
+    /// Updates the alias metadata for the blob(s) matching the given Id.
+    /// </summary>
+    Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken ct = default);
 }

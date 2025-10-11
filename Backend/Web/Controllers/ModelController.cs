@@ -88,4 +88,27 @@ public class ModelController : ControllerBase
 
         return NoContent();
     }
+    
+    /// <summary>
+    /// Updates alias for a model.
+    /// </summary>
+    /// <param name="id">The model Id (Guid).</param>
+    /// <param name="newAlias">The new alias string.</param>
+    [HttpPut("{id:guid}/alias")]
+    public async Task<IActionResult> UpdateAlias(Guid id, [FromBody] string newAlias, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty) return BadRequest("Invalid id.");
+        if (string.IsNullOrWhiteSpace(newAlias)) return BadRequest("Alias required.");
+
+        try
+        {
+            var success = await _service.UpdateAliasAsync(id, newAlias, cancellationToken);
+            if (!success) return NotFound();
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 }

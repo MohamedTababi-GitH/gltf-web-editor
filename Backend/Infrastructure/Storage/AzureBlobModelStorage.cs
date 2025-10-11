@@ -83,7 +83,7 @@ public class AzureBlobModelStorage : IModelStorage
         await blobClient.UploadAsync(content, options, ct);
     }
 
-        /// <summary>
+    /// <summary>
     /// Lists all model files currently stored in the Azure Blob Storage container.
     /// Only files with .glb or .gltf extensions are included.
     /// </summary>
@@ -148,7 +148,7 @@ public class AzureBlobModelStorage : IModelStorage
         // Return the final list of files to the caller (controller/service)
         return result;
     }
-        public async Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default)
     {
         bool anyDeleted = false;
 
@@ -179,7 +179,6 @@ public class AzureBlobModelStorage : IModelStorage
 
         return anyDeleted;
     }
-
     public async Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(assetId))
@@ -197,4 +196,31 @@ public class AzureBlobModelStorage : IModelStorage
 
         return count;
     }
+    public async Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken ct = default)
+    {
+        bool updated = false;
+
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
+        {
+            if (blob.Metadata != null &&
+                blob.Metadata.TryGetValue("Id", out var idStr) &&
+                Guid.TryParse(idStr, out var metaId) &&
+                metaId == id)
+            {
+                var client = _container.GetBlobClient(blob.Name);
+
+                // Copy existing metadata
+                var metadata = new Dictionary<string, string>(blob.Metadata, StringComparer.OrdinalIgnoreCase)
+                {
+                    ["alias"] = newAlias
+                };
+
+                // Apply
+                await client.SetMetadataAsync(metadata, cancellationToken: ct);
+                updated = true;
+            }
+        }
+        return updated;
+    }
+    
 }
