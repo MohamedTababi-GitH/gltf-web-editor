@@ -115,4 +115,16 @@ public sealed class ModelService : IModelService
         var deleted = await _storage.DeleteByIdAsync(id, cancellationToken);
         return deleted;
     }
+    
+    public async Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
+        if (string.IsNullOrWhiteSpace(newAlias)) throw new ArgumentException("Alias required.", nameof(newAlias));
+
+        // Enforce the same regex rule as on upload
+        if (!AliasRegex.IsMatch(newAlias))
+            throw new ArgumentException("Alias not valid.", nameof(newAlias));
+
+        return await _storage.UpdateAliasAsync(id, newAlias, cancellationToken);
+    }
 }

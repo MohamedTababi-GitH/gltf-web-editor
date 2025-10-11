@@ -21,4 +21,9 @@ public interface IModelService
     /// <returns>A task representing the asynchronous operation, containing the upload result as <see cref="UploadResultDto"/>.</returns>
     Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken);
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Updates the alias metadata of a model by its Id.
+    /// </summary>
+    Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken cancellationToken);
 }
