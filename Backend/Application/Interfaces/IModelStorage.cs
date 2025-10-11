@@ -27,4 +27,13 @@ public interface IModelStorage
                      string contentType, 
                      IDictionary<string, string>? metadata = null,
                      CancellationToken ct = default);
+    
+    /// <summary>Deletes blobs whose metadata "Id" equals the provided id.</summary>
+    Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes all blobs under the virtual folder of an asset (e.g. "{assetId}/...").
+    /// Useful if one model results in multiple blobs.
+    /// </summary>
+    Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default);
 }

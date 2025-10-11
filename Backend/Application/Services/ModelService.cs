@@ -108,4 +108,11 @@ public sealed class ModelService : IModelService
             BlobName = blobName,
         };
     }
+    
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
+        var deleted = await _storage.DeleteByIdAsync(id, cancellationToken);
+        return deleted;
+    }
 }
