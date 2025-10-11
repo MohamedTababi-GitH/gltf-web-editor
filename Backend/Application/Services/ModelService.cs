@@ -30,6 +30,12 @@ public sealed class ModelService : IModelService
         CreatedOn = f.CreatedOn
     };
     
+    static string Sanitize(string s)
+    {
+        s = s.Replace("/", "").Replace("\\", "").Trim().ToLowerInvariant();
+        return s.Length > 120 ? s[..120] : s;
+    }
+    
     /// <summary>
     /// Retrieves a list of all stored model items.
     /// </summary>
@@ -73,8 +79,10 @@ public sealed class ModelService : IModelService
         if (extension != ".glb" && extension != ".gltf")
             throw new ArgumentException("Invalid file extension.", nameof(request.OriginalFileName));
         
-        var baseName = Path.GetFileNameWithoutExtension(request.OriginalFileName);
-        var blobName = $"{Guid.NewGuid():N}_{baseName}{extension}";
+        var rawBase  = Path.GetFileNameWithoutExtension(request.OriginalFileName);
+        var safeBase = Sanitize(rawBase);
+        var assetId = Guid.NewGuid().ToString("N");
+        var blobName = $"{assetId}/{safeBase}{extension}";
 
         var contentType = extension switch
         {
@@ -88,6 +96,7 @@ public sealed class ModelService : IModelService
             ["alias"] = request.Alias,
             ["basename"] = request.OriginalFileName,
             ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
+            ["assetId"] = assetId
         };
         
         await _storage.UploadAsync(blobName, request.Content, contentType, metadata, cancellationToken);
