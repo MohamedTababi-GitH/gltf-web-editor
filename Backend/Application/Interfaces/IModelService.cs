@@ -20,4 +20,5 @@ public interface IModelService
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing the upload result as <see cref="UploadResultDto"/>.</returns>
     Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 }

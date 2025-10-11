@@ -148,4 +148,53 @@ public class AzureBlobModelStorage : IModelStorage
         // Return the final list of files to the caller (controller/service)
         return result;
     }
+        public async Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        bool anyDeleted = false;
+
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct))
+        {
+            if (blob.Metadata != null &&
+                blob.Metadata.TryGetValue("Id", out var idStr) &&
+                Guid.TryParse(idStr, out var metaId) &&
+                metaId == id)
+            {
+                // Delete by prefix to be safe:
+                if (blob.Metadata.TryGetValue("assetId", out var assetId) && !string.IsNullOrWhiteSpace(assetId))
+                {
+                    // Delete everything under {assetId}/
+                    await DeleteByAssetIdAsync(assetId, ct);
+                    anyDeleted = true;
+                }
+                else
+                {
+                    // Fallback: delete just this one blob
+                    var client = _container.GetBlobClient(blob.Name);
+                    await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null, cancellationToken: ct);
+                    anyDeleted = true;
+                }
+                // no break on purpose if multiple blobs share the same Id (unlikely but harmless)
+            }
+        }
+
+        return anyDeleted;
+    }
+
+    public async Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new ArgumentException("Asset id required.", nameof(assetId));
+
+        var prefix = assetId.TrimEnd('/') + "/";
+        int count = 0;
+
+        await foreach (var blob in _container.GetBlobsAsync(prefix: prefix, cancellationToken: ct))
+        {
+            var client = _container.GetBlobClient(blob.Name);
+            var resp = await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null, cancellationToken: ct);
+            if (resp.Value) count++;
+        }
+
+        return count;
+    }
 }

@@ -25,7 +25,8 @@ public class ModelController : ControllerBase
     /// </summary>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of model item DTOs.</returns>
-    /// <response code="200">Returns the list of model items.</response>    [HttpGet]
+    /// <response code="200">Returns the list of model items.</response>
+    [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ModelItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ModelItemDto>>> GetAll(CancellationToken cancellationToken)
     {
@@ -44,7 +45,8 @@ public class ModelController : ControllerBase
     /// <response code="400">No file was uploaded or the upload request was invalid.</response>
     /// <remarks>
     /// The maximum allowed file size is 25 MB.
-    /// </remarks>    [HttpPost("upload")]
+    /// </remarks>
+    [HttpPost("upload")]
     [RequestSizeLimit(26214400)]
     public async Task<IActionResult> Upload(IFormFile file, [FromForm] string fileAlias,
         CancellationToken cancellationToken)
@@ -69,5 +71,21 @@ public class ModelController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+    }
+    
+    /// <summary>Deletes a model by its Id.</summary>
+    /// <param name="id">The GUID that was exposed as ModelItemDto.Id</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="204">Delete succeeded.</response>
+    /// <response code="404">No model with the given Id was found.</response>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty) return BadRequest("Invalid id.");
+
+        var deleted = await _service.DeleteAsync(id, cancellationToken);
+        if (!deleted) return NotFound();
+
+        return NoContent();
     }
 }
