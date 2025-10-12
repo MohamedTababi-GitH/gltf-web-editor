@@ -1,75 +1,95 @@
-/* 
-Brings us azure sdk types:
-BlobServiceClient, BlobContainerClient — main entry points for talking to Blob Storage
-BlobItem, BlobTraits - listing and inspecting blobs
-*/
-
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
+using ECAD_Backend.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 
 namespace ECAD_Backend.Infrastructure.Storage;
 
-// This class implements the repository/service that connects to Azure Blob Storage
-// and lists model files (glTF / glb) stored in the "models" container.
+/// <summary>
+/// Azure Blob Storage implementation of <see cref="IModelStorage"/>.
+/// Provides methods to upload model files and list model files stored in an Azure Blob Storage container.
+/// </summary>
 public class AzureBlobModelStorage : IModelStorage
 {
     // Represents a specific blob container within the Azure Storage account
     private readonly BlobContainerClient _container;
 
-    // Constructor – runs when this class is created (injected into a controller or service)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureBlobModelStorage"/> class.
+    /// Configures the Blob container client using provided BlobOptions.
+    /// </summary>
+    /// <param name="opts">The options containing connection string and container name.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="opts"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if required configuration values are missing.</exception>
     public AzureBlobModelStorage(IOptions<BlobOptions> opts)
     {
         // Grab the BlobOptions section from configuration (via dependency injection)
         var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
-
-        /*
-        // Validate that connection string and container name exist, otherwise throw early error
-        if (string.IsNullOrWhiteSpace(o.ConnectionString)) throw new InvalidOperationException("Storage:ConnectionString is missing.");
-        if (string.IsNullOrWhiteSpace(o.ContainerModels)) throw new InvalidOperationException("Storage:ContainerModels is missing.");
-
-        // Create a service-level client (represents the Azure Storage account)
-        var service = new BlobServiceClient(o.ConnectionString);
         
-        // From that service, get a reference to the specific container for model files
-        _container = service.GetBlobContainerClient(o.ContainerModels);
+        if (string.IsNullOrWhiteSpace(o.ConnectionString))
+            throw new InvalidOperationException("Storage:ConnectionString is missing.");
+        if (string.IsNullOrWhiteSpace(o.ContainerModels))
+            throw new InvalidOperationException("Storage:ContainerModels is missing.");
         
-        */
         _container = new BlobContainerClient(new Uri(o.ConnectionString));
-
-
-        // Optional: create container automatically if it doesn't exist
-        // You can uncomment this for local dev or demos
-        //_container.CreateIfNotExists(PublicAccessType.Blob);
+        
+        // test if works the following way 
+        // var service = new BlobServiceClient(o.ConnectionString);
+        // _container = service.GetBlobContainerClient(o.ContainerModels);
     }
 
-    public async Task UploadAsync(string blobName, 
-                                  Stream content, 
-                                  string contentType, 
-                                  IDictionary<string, string>? metadata = null,
-                                  CancellationToken ct = default)
+    /// <summary>
+    /// Uploads a blob (model file) to the Azure Blob Storage container.
+    /// </summary>
+    /// <param name="blobName">The name of the blob to upload.</param>
+    /// <param name="content">The content stream of the blob.</param>
+    /// <param name="contentType">The content type (MIME type) of the blob.</param>
+    /// <param name="metadata">Optional metadata to attach to the blob.</param>
+    /// <param name="ct">Cancellation token for the async operation.</param>
+    /// <returns>A task that represents the asynchronous upload operation.</returns>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="blobName"/> is null or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="content"/> is null.</exception>
+    public async Task UploadAsync(
+        string blobName, 
+        Stream content, 
+        string contentType, 
+        IDictionary<string, string>? metadata = null,
+        CancellationToken ct = default)
     {
         // Validate that the provided blob name is not empty or null
         if (string.IsNullOrWhiteSpace(blobName))
             throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
+        
+        if (content == null) 
+            throw new ArgumentNullException(nameof(content));
 
         var blobClient = _container.GetBlobClient(blobName);
         
         // Stamp an internal GUID as metadata
         metadata ??= new Dictionary<string, string>();
         
-        if (!metadata.ContainsKey("id")) metadata["id"] = Guid.NewGuid().ToString("N");
+        if (!metadata.ContainsKey("Id")) metadata["Id"] = Guid.NewGuid().ToString("N");
         var options = new BlobUploadOptions
         {
-            HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            // HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType
+            },
             Metadata = metadata,
         };
         await blobClient.UploadAsync(content, options, ct);
     }
 
-    // Lists all model files currently stored in the container
+    /// <summary>
+    /// Lists all model files currently stored in the Azure Blob Storage container.
+    /// Only files with .glb or .gltf extensions are included.
+    /// </summary>
+    /// <param name="ct">Cancellation token for the async operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of <see cref="ModelFile"/> objects.</returns>
+    // TODO : REFACTOR
     public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
     {
         // Create an empty list to hold our domain objects (ModelFile)
@@ -128,4 +148,79 @@ public class AzureBlobModelStorage : IModelStorage
         // Return the final list of files to the caller (controller/service)
         return result;
     }
+    public async Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        bool anyDeleted = false;
+
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct))
+        {
+            if (blob.Metadata != null &&
+                blob.Metadata.TryGetValue("Id", out var idStr) &&
+                Guid.TryParse(idStr, out var metaId) &&
+                metaId == id)
+            {
+                // Delete by prefix to be safe:
+                if (blob.Metadata.TryGetValue("assetId", out var assetId) && !string.IsNullOrWhiteSpace(assetId))
+                {
+                    // Delete everything under {assetId}/
+                    await DeleteByAssetIdAsync(assetId, ct);
+                    anyDeleted = true;
+                }
+                else
+                {
+                    // Fallback: delete just this one blob
+                    var client = _container.GetBlobClient(blob.Name);
+                    await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null, cancellationToken: ct);
+                    anyDeleted = true;
+                }
+                // no break on purpose if multiple blobs share the same Id (unlikely but harmless)
+            }
+        }
+
+        return anyDeleted;
+    }
+    public async Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new ArgumentException("Asset id required.", nameof(assetId));
+
+        var prefix = assetId.TrimEnd('/') + "/";
+        int count = 0;
+
+        await foreach (var blob in _container.GetBlobsAsync(prefix: prefix, cancellationToken: ct))
+        {
+            var client = _container.GetBlobClient(blob.Name);
+            var resp = await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null, cancellationToken: ct);
+            if (resp.Value) count++;
+        }
+
+        return count;
+    }
+    public async Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken ct = default)
+    {
+        bool updated = false;
+
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
+        {
+            if (blob.Metadata != null &&
+                blob.Metadata.TryGetValue("Id", out var idStr) &&
+                Guid.TryParse(idStr, out var metaId) &&
+                metaId == id)
+            {
+                var client = _container.GetBlobClient(blob.Name);
+
+                // Copy existing metadata
+                var metadata = new Dictionary<string, string>(blob.Metadata, StringComparer.OrdinalIgnoreCase)
+                {
+                    ["alias"] = newAlias
+                };
+
+                // Apply
+                await client.SetMetadataAsync(metadata, cancellationToken: ct);
+                updated = true;
+            }
+        }
+        return updated;
+    }
+    
 }
