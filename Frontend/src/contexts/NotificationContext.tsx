@@ -1,6 +1,13 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { AnimatePresence } from "framer-motion";
 import Notification from "../components/Notification";
+import { NotificationManager } from "../services/NotificationManager";
 
 interface NotificationContextType {
   showNotification: (
@@ -15,34 +22,46 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const [notifications, setNotifications] = useState<
-    { id: number; message: string; type?: string }[]
+    { id: string; message: string; type: string }[]
   >([]);
+
+  // Subscribe to notification manager updates
+  useEffect(() => {
+    const unsubscribe = NotificationManager.subscribe((notificationEvents) => {
+      setNotifications(
+        notificationEvents.map((event) => ({
+          id: event.id,
+          message: event.message,
+          type: event.type,
+        })),
+      );
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const showNotification = (
     message: string,
-    type?: "success" | "error" | "info" | "warn",
+    type: "success" | "error" | "info" | "warn" = "info",
   ) => {
-    const id = Date.now();
-    setNotifications((prev) => [...prev, { id, message, type }]);
-
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 5000);
+    // Delegate to notification manager service
+    NotificationManager.addNotification(message, type);
   };
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
-      <div className="fixed top-5 right-5 flex flex-col space-y-2 font-inter">
+      <div className="fixed top-[6dvh] right-5 flex flex-col space-y-2 font-inter z-[9999]">
         <AnimatePresence>
           {notifications.map(({ id, message, type }) => (
             <Notification
               key={id}
               message={message}
-              type={type as never}
-              onClose={() =>
-                setNotifications((prev) => prev.filter((n) => n.id !== id))
-              }
+              type={type as "success" | "error" | "info" | "warn"}
+              onClose={() => NotificationManager.removeNotification(id)}
             />
           ))}
         </AnimatePresence>

@@ -11,7 +11,7 @@ type ModelViewerProps = {
 
 const ModelViewer: React.FC<ModelViewerProps> = ({ model }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { open, openMobile } = useSidebar();
+  const { open } = useSidebar();
   const engineRef = useRef<BABYLON.Engine | null>(null);
   const resizeTimeout = useRef<number | null>(null);
 
@@ -37,7 +37,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ model }) => {
       Math.PI / 4,
       5,
       BABYLON.Vector3.Zero(),
-      scene
+      scene,
     );
     camera.attachControl(canvas, true);
 
@@ -55,18 +55,18 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ model }) => {
         if (meshes.length) {
           const min = BABYLON.Vector3.Minimize(
             meshes.map((m) => m.getBoundingInfo().boundingBox.minimumWorld)[0],
-            meshes[0].position
+            meshes[0].position,
           );
           const max = BABYLON.Vector3.Maximize(
             meshes.map((m) => m.getBoundingInfo().boundingBox.maximumWorld)[0],
-            meshes[0].position
+            meshes[0].position,
           );
           const center = BABYLON.Vector3.Center(min, max);
           camera.setTarget(center);
         }
       },
       undefined,
-      (_scene, msg, ex) => console.error("Model load error:", msg, ex)
+      (_scene, msg, ex) => console.error("Model load error:", msg, ex),
     );
 
     engine.runRenderLoop(() => scene.render());
