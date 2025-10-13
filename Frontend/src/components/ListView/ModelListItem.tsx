@@ -43,10 +43,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
+function ModelListItem({
+  item,
+  key,
+  onClick,
+}: {
+  key: string;
+  item: ModelItem;
+  onClick: () => void;
+}) {
   const theme = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenameOpen, setRenameOpen] = useState(false);
+
   const isDarkTheme =
     theme.theme === "dark" ||
     (theme.theme === "system" &&
@@ -58,50 +67,68 @@ function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
 
   const formatSize = (size: number) => {
     const inMB = size / 1024 / 1024;
-    if (inMB < 1) {
-      return (size / 1024).toFixed(2) + " KB";
-    }
+    if (inMB < 1) return (size / 1024).toFixed(2) + " KB";
     return inMB.toFixed(2) + " MB";
   };
 
   return (
-    <Card key={key} className="max-w-md pb-0 hover:cursor-pointer">
+    <Card
+      key={key}
+      className="max-w-md pb-0 hover:cursor-pointer"
+      onClick={() => {
+        onClick();
+      }}
+    >
       <CardHeader>
-        <div
-          className={`flex justify-between items-start break-words truncate gap-x-4`}
-        >
-          <CardTitle className={`text-sm md:text-lg break-words truncate`}>
+        <div className="flex justify-between items-start break-words truncate gap-x-4">
+          <CardTitle className="text-sm md:text-lg break-words truncate">
             {item.name}
           </CardTitle>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <EllipsisVertical
-                className={`w-7 min-w-7 h-8 py-1 bg-muted rounded-md border`}
-              />
+              <div onClick={(e) => e.stopPropagation()}>
+                <EllipsisVertical className="w-7 min-w-7 h-8 py-1 bg-muted rounded-md border" />
+              </div>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-32">
+            <DropdownMenuContent
+              className="w-32"
+              onClick={(e) => e.stopPropagation()}
+            >
               <DropdownMenuLabel>Options</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                className={`cursor-pointer`}
-                onClick={() => alert("Opening file...")}
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  alert("Opening file...");
+                }}
               >
                 Open
               </DropdownMenuItem>
-              <DropdownMenuItem className={`cursor-pointer`}>
-                <a href={item.url}>Download</a>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(item.url, "_blank");
+                }}
+              >
+                Download
               </DropdownMenuItem>
               <DropdownMenuItem
-                className={`cursor-pointer`}
-                onSelect={() => setRenameOpen(true)}
+                className="cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenameOpen(true);
+                }}
               >
                 Rename
               </DropdownMenuItem>
-
               <DropdownMenuItem
                 className="cursor-pointer"
-                onClick={() => setIsDeleteDialogOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDeleteDialogOpen(true);
+                }}
               >
                 Delete
               </DropdownMenuItem>
@@ -113,7 +140,7 @@ function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
           open={isDeleteDialogOpen}
           onOpenChange={setIsDeleteDialogOpen}
         >
-          <AlertDialogContent>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -130,7 +157,10 @@ function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
 
         <Dialog open={isRenameOpen} onOpenChange={setRenameOpen}>
           <form>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent
+              className="sm:max-w-[425px]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <DialogHeader>
                 <DialogTitle>Rename the model</DialogTitle>
                 <DialogDescription>
@@ -154,12 +184,12 @@ function ModelListItem({ item, key }: { key: string; item: ModelItem }) {
           </form>
         </Dialog>
 
-        <div className={`flex gap-x-2`}>
-          <Badge className={`text-sm`} variant={"destructive"}>
+        <div className="flex gap-x-2">
+          <Badge className="text-sm" variant={"destructive"}>
             .{item.format}
           </Badge>
-          <Badge className={`text-sm`}>{formatSize(item.sizeBytes)}</Badge>
-          <Badge className={`text-sm`} variant={"date"}>
+          <Badge className="text-sm">{formatSize(item.sizeBytes)}</Badge>
+          <Badge className="text-sm" variant={"date"}>
             {formatDateTime(item.createdOn).dateStr}
           </Badge>
         </div>

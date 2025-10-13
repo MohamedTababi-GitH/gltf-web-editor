@@ -7,9 +7,9 @@ function Home() {
   const [isHome, setIsHome] = useState(true);
 
   return (
-    <div>
+    <div className="flex flex-col h-screen">
       <Navbar isHome={isHome} setIsHome={setIsHome} />
-      <main className="pt-16">
+      <main className="mt-16">
         {isHome ? <HomeView setIsHome={setIsHome} /> : <ListView />}
       </main>
     </div>

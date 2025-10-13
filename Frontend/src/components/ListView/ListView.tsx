@@ -2,8 +2,12 @@ import ModelListItem from "@/components/ListView/ModelListItem.tsx";
 import { useEffect, useState } from "react";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import type { ModelItem } from "@/types/ModelItem.ts";
+import ModelViewer from "../ModelViewer/ModelViewer";
+import { SidebarProvider } from "../ui/sidebar";
 
 function ListView() {
+  const [model, setModel] = useState<ModelItem | null>(null);
+
   const [models, setModels] = useState<ModelItem[]>([]);
   const apiClient = useAxiosConfig();
 
@@ -19,6 +23,18 @@ function ListView() {
     };
     fetchModels();
   }, [apiClient]);
+
+  const [showViewer, setShowViewer] = useState(false);
+
+  if (showViewer) {
+    return (
+      <SidebarProvider>
+        <div className="h-[calc(100vh-4rem)] w-screen">
+          <ModelViewer model={model} />
+        </div>
+      </SidebarProvider>
+    );
+  }
 
   return (
     <div className={`grid justify-center w-full`}>
@@ -36,7 +52,19 @@ function ListView() {
           className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full`}
         >
           {models?.map((item) => (
-            <ModelListItem key={item.id} item={item} />
+            <div
+              onClick={() => {
+                setShowViewer(true);
+              }}
+            >
+              <ModelListItem
+                key={item.id}
+                item={item}
+                onClick={() => {
+                  setModel(item);
+                }}
+              />
+            </div>
           ))}
         </div>
       </div>

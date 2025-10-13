@@ -18,6 +18,6 @@ export const formatDateTime = (isoString: string) => {
   return {
     dateStr,
     timeStr,
-    fullStr: `${dateStr}, ${timeStr}`,
+    fullStr: `${dateStr} at ${timeStr}`,
   };
 };
