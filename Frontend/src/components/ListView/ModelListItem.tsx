@@ -42,20 +42,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatBytes } from "@/utils/BytesConverter.ts";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import { Spinner } from "@/components/ui/spinner.tsx";
 
 function ModelListItem({
   item,
   key,
   onClick,
+  refreshList,
 }: {
   key: string;
   item: ModelItem;
   onClick: () => void;
+  refreshList: () => void;
 }) {
   const theme = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
-  const [newAlias, setNewAlias] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [newAlias, setNewAlias] = useState(item.name || "");
   const [isRenameOpen, setRenameOpen] = useState(false);
   const apiClient = useAxiosConfig();
   const isDarkTheme =
@@ -67,20 +71,38 @@ function ModelListItem({
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
+  const handleDelete = async () => {
+    if (isDeleting || !item.id) return;
+    setIsDeleting(true);
+    try {
+      await apiClient.delete(`/api/model/${item.id}`);
+      setIsDeleteDialogOpen(false);
+      refreshList();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleRename = async () => {
-    console.log("Renaming: ", newAlias);
-    if (isRenaming || !item.id || !newAlias) return;
+    if (isRenaming || !item.id || !newAlias.trim()) return;
     setIsRenaming(true);
     try {
-      await apiClient.put(`/api/model/${item.id}/${newAlias}`);
+      await apiClient.put(`/api/model/${item.id}/alias`, {
+        newAlias: newAlias.trim(),
+      });
       setRenameOpen(false);
       setNewAlias("");
+      refreshList();
     } catch (e) {
       console.error(e);
     } finally {
       setIsRenaming(false);
     }
   };
+
+  if (!item) return null;
 
   return (
     <Card
@@ -154,7 +176,10 @@ function ModelListItem({
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction>Delete</AlertDialogAction>
+              <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                {isDeleting && <Spinner />}
+                {isDeleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -190,6 +215,7 @@ function ModelListItem({
                 <Button variant="outline">Cancel</Button>
               </DialogClose>
               <Button onClick={handleRename} disabled={isRenaming}>
+                {isRenaming && <Spinner />}
                 {isRenaming ? "Saving..." : "Save Changes"}
               </Button>
             </DialogFooter>
@@ -207,7 +233,7 @@ function ModelListItem({
         </div>
       </CardHeader>
       <CardContent className="px-0 rounded-2xl border-t-2 dark:bg-black">
-        <DotLottieReact src={animationSrc} loop autoplay />
+        <DotLottieReact src={animationSrc} loop autoplay={false} />
       </CardContent>
     </Card>
   );

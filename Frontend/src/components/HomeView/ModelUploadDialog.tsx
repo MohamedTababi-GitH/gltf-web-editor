@@ -10,11 +10,10 @@ import {
 } from "@/components/ui/dialog.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Uploader } from "@/components/HomeView/Uploader.tsx";
-import { useNotification } from "@/contexts/NotificationContext.tsx";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
-import { Loader } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner.tsx";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
@@ -47,7 +46,6 @@ export default function ModelUploadDialog({
     setFileAlias(file.name.split(".").slice(0, -1).join(".") || "");
   }, [file]);
 
-  const { showNotification } = useNotification();
   const apiClient = useAxiosConfig();
 
   const handleUpload = async () => {
@@ -59,7 +57,6 @@ export default function ModelUploadDialog({
 
     try {
       await apiClient.post("/api/model/upload", formData);
-      showNotification("Successfully uploaded model!", "success");
     } catch (error) {
       console.log(error);
     } finally {
@@ -110,7 +107,7 @@ export default function ModelUploadDialog({
             onClick={handleUpload}
             disabled={!file || !fileAlias || isUploading}
           >
-            {isUploading && <Loader />}
+            {isUploading && <Spinner />}
             {isUploading ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
