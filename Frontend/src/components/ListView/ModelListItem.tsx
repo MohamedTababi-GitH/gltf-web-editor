@@ -40,6 +40,8 @@ import {
 } from "@/components/ui/dialog.tsx";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatBytes } from "@/utils/BytesConverter.ts";
+import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 
 function ModelListItem({
   item,
@@ -54,7 +56,10 @@ function ModelListItem({
 }) {
   const theme = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newAlias, setNewAlias] = useState("");
   const [isRenameOpen, setRenameOpen] = useState(false);
+  const apiClient = useAxiosConfig();
   const isDarkTheme =
     theme.theme === "dark" ||
     (theme.theme === "system" &&
@@ -64,12 +69,19 @@ function ModelListItem({
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
-  const formatSize = (size: number) => {
-    const inMB = size / 1024 / 1024;
-    if (inMB < 1) {
-      return (size / 1024).toFixed(2) + " KB";
+  const handleRename = async () => {
+    console.log("Renaming: ", newAlias);
+    if (isRenaming || !item.id || !newAlias) return;
+    setIsRenaming(true);
+    try {
+      await apiClient.put(`/api/model/${item.id}/${newAlias}`);
+      setRenameOpen(false);
+      setNewAlias("");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRenaming(false);
     }
-    return inMB.toFixed(2) + " MB";
   };
 
   return (
@@ -155,39 +167,47 @@ function ModelListItem({
         </AlertDialog>
 
         <Dialog open={isRenameOpen} onOpenChange={setRenameOpen}>
-          <form>
-            <DialogContent
-              onClick={(e) => e.stopPropagation()}
-              className="sm:max-w-[425px]"
-            >
-              <DialogHeader>
-                <DialogTitle>Rename the model</DialogTitle>
-                <DialogDescription>
-                  Make changes to your model's name here. Click save when
-                  you&apos;re done.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4">
-                <div className="grid gap-3">
-                  <Label htmlFor="name-1">Name</Label>
-                  <Input id="name-1" name="name" defaultValue={item.name} />
-                </div>
+          <DialogContent
+            onClick={(e) => e.stopPropagation()}
+            className="sm:max-w-[425px]"
+          >
+            <DialogHeader>
+              <DialogTitle>Rename the model</DialogTitle>
+              <DialogDescription>
+                Make changes to your model's name here. Click save when
+                you&apos;re done.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div className="grid gap-3">
+                <Label htmlFor="name-1">Name</Label>
+                <Input
+                  id="name-1"
+                  name="name"
+                  value={newAlias}
+                  onChange={(e) => setNewAlias(e.target.value)}
+                  placeholder="Enter a new alias"
+                  required={true}
+                  defaultValue={item.name}
+                />
               </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline">Cancel</Button>
-                </DialogClose>
-                <Button type="submit">Save changes</Button>
-              </DialogFooter>
-            </DialogContent>
-          </form>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button onClick={handleRename} disabled={isRenaming}>
+                {isRenaming ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
 
         <div className={`flex gap-x-2`}>
           <Badge className={`text-sm`} variant={"destructive"}>
             .{item.format}
           </Badge>
-          <Badge className={`text-sm`}>{formatSize(item.sizeBytes)}</Badge>
+          <Badge className={`text-sm`}>{formatBytes(item.sizeBytes)}</Badge>
           <Badge className={`text-sm`} variant={"date"}>
             {formatDateTime(item.createdOn).dateStr}
           </Badge>

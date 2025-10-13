@@ -37,7 +37,11 @@ function ListView() {
   const [showViewer, setShowViewer] = useState(false);
 
   if (showViewer && modelPath) {
-    return <ModelViewer modelPath={modelPath} />;
+    return (
+      <div className={`pt-16`}>
+        <ModelViewer modelPath={modelPath} />
+      </div>
+    );
   }
 
   return (
