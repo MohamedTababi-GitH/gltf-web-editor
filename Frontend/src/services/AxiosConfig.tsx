@@ -11,7 +11,8 @@ export function useAxiosConfig() {
   apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
-      const message = error.response?.data || "An unexpected error occurred";
+      const message =
+        error.response?.data.error || "An unexpected error occurred";
       showNotification(message, "error");
       return Promise.reject(error);
     },

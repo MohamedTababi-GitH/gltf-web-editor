@@ -5,9 +5,10 @@ import type { ModelItem } from "@/types/ModelItem.ts";
 import ModelViewer from "../ModelViewer/ModelViewer";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useTheme } from "@/components/theme-provider.tsx";
+import { SidebarProvider } from "../ui/sidebar";
 
 function ListView() {
-  const [modelPath, setModelPath] = useState<string>();
+  const [model, setModel] = useState<ModelItem | null>(null);
 
   const [models, setModels] = useState<ModelItem[]>([]);
   const apiClient = useAxiosConfig();
@@ -36,8 +37,14 @@ function ListView() {
 
   const [showViewer, setShowViewer] = useState(false);
 
-  if (showViewer && modelPath) {
-    return <ModelViewer modelPath={modelPath} />;
+  if (showViewer) {
+    return (
+      <SidebarProvider>
+        <div className="h-[calc(100vh-4rem)] w-screen">
+          <ModelViewer model={model} />
+        </div>
+      </SidebarProvider>
+    );
   }
 
   return (
@@ -55,20 +62,21 @@ function ListView() {
         <div
           className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full justify-center items-center`}
         >
-          {models && models.length > 0 ? (
-            models?.map((item) => (
-              <div>
-                <ModelListItem
-                  key={item.id}
-                  item={item}
-                  setModelPath={setModelPath}
-                  setShowViewer={setShowViewer}
-                />
-              </div>
-            ))
-          ) : (
-            <DotLottieReact src={animationSrc} loop autoplay />
-          )}
+          {models?.map((item) => (
+            <div
+              onClick={() => {
+                setShowViewer(true);
+              }}
+            >
+              <ModelListItem
+                key={item.id}
+                item={item}
+                onClick={() => {
+                  setModel(item);
+                }}
+              />
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -1,25 +1,33 @@
-// src/components/ModelViewer/ModelViewer.tsx
 import React, { useEffect, useRef } from "react";
 import * as BABYLON from "@babylonjs/core";
 import "@babylonjs/loaders"; // enable GLB/GLTF
-import { ArrowLeft } from "lucide-react";
+import AppSidebar from "./Sidebar";
+import type { ModelItem } from "@/types/ModelItem";
+import { SidebarTrigger, useSidebar } from "../ui/sidebar";
 
 type ModelViewerProps = {
-  modelPath: string | null; // the full URL to the GLB file
+  model: ModelItem | null;
 };
 
-const ModelViewer: React.FC<ModelViewerProps> = ({ modelPath }) => {
+const ModelViewer: React.FC<ModelViewerProps> = ({ model }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { open, openMobile } = useSidebar();
+  const engineRef = useRef<BABYLON.Engine | null>(null);
+  const resizeTimeout = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!modelPath) return;
+    if (!model) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const modelPath = model.url;
+    if (!modelPath) return;
 
     const engine = new BABYLON.Engine(canvas, true, {
       preserveDrawingBuffer: true,
       stencil: true,
     });
+    engineRef.current = engine;
+
     const scene = new BABYLON.Scene(engine);
 
     // Camera
@@ -38,15 +46,13 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ modelPath }) => {
 
     // Load model dynamically
     BABYLON.SceneLoader.Append(
-      "", // no root folder, full path used
+      "",
       modelPath,
       scene,
       (loadedScene) => {
-        console.log("Model loaded:", modelPath);
         const meshes = loadedScene.meshes.filter((m) => m.isVisible);
 
         if (meshes.length) {
-          // Center & scale camera
           const min = BABYLON.Vector3.Minimize(
             meshes.map((m) => m.getBoundingInfo().boundingBox.minimumWorld)[0],
             meshes[0].position
@@ -60,28 +66,40 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ modelPath }) => {
         }
       },
       undefined,
-      (scene, msg, ex) => console.error("Model load error:", msg, ex)
+      (_scene, msg, ex) => console.error("Model load error:", msg, ex)
     );
 
     engine.runRenderLoop(() => scene.render());
-    const handleResize = () => engine.resize();
-    window.addEventListener("resize", handleResize);
+
+    // Observe canvas resize and debounce engine.resize
+    const resizeObserver = new ResizeObserver(() => {
+      if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
+      resizeTimeout.current = window.setTimeout(() => {
+        engine.resize();
+        console.log("Canvas resized after layout finished");
+      }, 100); // adjust delay if needed
+    });
+    resizeObserver.observe(canvas);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
+      if (resizeTimeout.current) clearTimeout(resizeTimeout.current);
       engine.stopRenderLoop();
       scene.dispose();
       engine.dispose();
     };
-  }, [modelPath]);
+  }, [model]);
 
   return (
-    <div className="relative">
-      <ArrowLeft className="absolute top-16 left-0 m-4 w-16 h-12 p-2 rounded-md bg-muted border z-50"></ArrowLeft>
+    <div className="flex w-full h-full overflow-hidden">
       <canvas
         ref={canvasRef}
-        style={{ width: "100%", height: "100vh", display: "block" }}
+        className={`transition-all duration-300 ${open ? "w-[calc(100%-var(--sidebar-width))]" : "w-full"}`}
       />
+      <SidebarTrigger
+        className={` absolute top-16  z-50 transition-all duration-300 ${open ? "right-[calc(var(--sidebar-width))]" : "right-0"}`}
+      />
+      <AppSidebar model={model} />
     </div>
   );
 };

@@ -14,6 +14,7 @@ import { useNotification } from "@/contexts/NotificationContext.tsx";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
+import { Loader } from "lucide-react";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function ModelUploadDialog({
 }: ModelUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [fileAlias, setFileAlias] = useState<string>("");
+  const [isUploading, setIsUploading] = useState<boolean>(false);
 
   useEffect(() => {
     if (!file) return;
@@ -49,7 +51,8 @@ export default function ModelUploadDialog({
   const apiClient = useAxiosConfig();
 
   const handleUpload = async () => {
-    if (!file || !fileAlias) return;
+    if (!file || !fileAlias || isUploading) return;
+    setIsUploading(true);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("fileAlias", fileAlias.trim());
@@ -62,6 +65,7 @@ export default function ModelUploadDialog({
     } finally {
       setFile(null);
       setFileAlias("");
+      setIsUploading(false);
     }
     onOpenChange(false);
   };
@@ -102,8 +106,12 @@ export default function ModelUploadDialog({
           <DialogClose asChild>
             <Button variant="outline">Cancel</Button>
           </DialogClose>
-          <Button onClick={handleUpload} disabled={!file || !fileAlias}>
-            Upload
+          <Button
+            onClick={handleUpload}
+            disabled={!file || !fileAlias || isUploading}
+          >
+            {isUploading && <Loader />}
+            {isUploading ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>
