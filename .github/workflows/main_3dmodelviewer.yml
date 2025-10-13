@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dotnet-app
-          path: ${{ github.workspace }}/publish
+          path: ${{ github.workspace }}/dotnet-app
 
   deploy:
     runs-on: windows-latest
@@ -79,5 +79,6 @@ jobs:
           package: ${{ github.workspace }}/dotnet-app
 
           
+
 
 
