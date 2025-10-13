@@ -44,7 +44,7 @@ jobs:
           cp -r ./frontend/dist/* ./Backend/wwwroot/
 
       - name: Publish backend
-        run: dotnet publish ./Backend/Backend.csproj -c Release -o ${{ github.workspace }}/publish
+        run: dotnet publish ./Backend/ECAD_Backend.csproj -c Release -o ${{ github.workspace }}/publish
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -79,4 +79,5 @@ jobs:
           package: ${{ github.workspace }}/dotnet-app
 
           
+
 
