@@ -37,8 +37,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseDefaultFiles();
+
+// Enable static files (React build in wwwroot)
+app.UseStaticFiles();
+
+// Optional: enable routing middleware
+app.UseRouting();
+
+
+
 app.UseAuthorization();
 
 app.MapControllers();
-
+app.MapFallbackToFile("index.html");
 app.Run();
