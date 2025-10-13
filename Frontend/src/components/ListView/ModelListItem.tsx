@@ -46,13 +46,11 @@ import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 function ModelListItem({
   item,
   key,
-  setModelPath,
-  setShowViewer,
+  onClick,
 }: {
   key: string;
   item: ModelItem;
-  setModelPath: (path: string) => void;
-  setShowViewer: (show: boolean) => void;
+  onClick: () => void;
 }) {
   const theme = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -88,10 +86,7 @@ function ModelListItem({
     <Card
       key={key}
       className="max-w-md pb-0 hover:cursor-pointer"
-      onClick={() => {
-        setShowViewer(true);
-        setModelPath(item.url);
-      }}
+      onClick={onClick}
     >
       <CardHeader>
         <div
@@ -103,17 +98,16 @@ function ModelListItem({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <EllipsisVertical
-                className={`w-7 min-w-7 h-8 py-1 bg-muted rounded-md border`}
-              />
+              <div onClick={(e) => e.stopPropagation()}>
+                <EllipsisVertical className="w-7 min-w-7 h-8 py-1 bg-muted rounded-md border" />
+              </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-32">
               <DropdownMenuItem
                 className={`cursor-pointer`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowViewer(true);
-                  setModelPath(item.url);
+                  onClick();
                 }}
               >
                 Open
@@ -133,7 +127,6 @@ function ModelListItem({
               >
                 Rename
               </DropdownMenuItem>
-
               <DropdownMenuItem
                 className="cursor-pointer"
                 onClick={(e) => {
