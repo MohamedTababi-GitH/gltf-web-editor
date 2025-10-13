@@ -11,7 +11,7 @@ type ModelViewerProps = {
 
 const ModelViewer: React.FC<ModelViewerProps> = ({ model }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { open, openMobile } = useSidebar();
+  const { open } = useSidebar();
   const engineRef = useRef<BABYLON.Engine | null>(null);
   const resizeTimeout = useRef<number | null>(null);
 
