@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import type { ModelItem } from "@/types/ModelItem.ts";
 import ModelViewer from "../ModelViewer/ModelViewer";
+import { SidebarProvider } from "../ui/sidebar";
 
 function ListView() {
-  const [modelPath, setModelPath] = useState<string | null>(null);
+  const [model, setModel] = useState<ModelItem | null>(null);
 
   const [models, setModels] = useState<ModelItem[]>([]);
   const apiClient = useAxiosConfig();
@@ -26,7 +27,13 @@ function ListView() {
   const [showViewer, setShowViewer] = useState(false);
 
   if (showViewer) {
-    return <ModelViewer modelPath={modelPath} />;
+    return (
+      <SidebarProvider>
+        <div className="h-[calc(100vh-4rem)] w-screen">
+          <ModelViewer model={model} />
+        </div>
+      </SidebarProvider>
+    );
   }
 
   return (
@@ -48,14 +55,13 @@ function ListView() {
             <div
               onClick={() => {
                 setShowViewer(true);
-                setModelPath(item.url);
               }}
             >
               <ModelListItem
                 key={item.id}
                 item={item}
                 onClick={() => {
-                  setModelPath(item.url);
+                  setModel(item);
                 }}
               />
             </div>
