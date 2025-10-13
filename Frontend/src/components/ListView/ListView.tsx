@@ -13,6 +13,18 @@ function ListView() {
   const [models, setModels] = useState<ModelItem[]>([]);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
+
+  const [showAnimation, setShowAnimation] = useState(true);
+  useEffect(() => {
+    if (!models || models.length === 0) {
+      setShowAnimation(true);
+      const timer = setTimeout(() => setShowAnimation(false), 3000); // hide after 3s
+      return () => clearTimeout(timer);
+    } else {
+      setShowAnimation(false);
+    }
+  }, [models]);
+
   const isDarkTheme =
     theme.theme === "dark" ||
     (theme.theme === "system" &&
@@ -49,9 +61,9 @@ function ListView() {
 
   return (
     <div className={`grid justify-center w-full`}>
-      <div className={`m-4 md:m-8 lg:m-12 xl:m-16 max-w-screen `}>
+      <div className={`m-4 md:m-8 lg:m-12 xl:m-16`}>
         <div
-          className={`flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl`}
+          className={`flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-x-20`}
         >
           <h1 className={`mb-3`}>Uploaded Models</h1>
           <h1 className={`text-muted-foreground mb-3`}>
@@ -60,9 +72,10 @@ function ListView() {
         </div>
 
         <div
-          className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full justify-center items-center`}
+          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full justify-center items-center`}
         >
-          {models?.map((item) => (
+            {models && models.length > 0 ? (
+          models?.map((item) => (
             <div
               onClick={() => {
                 setShowViewer(true);
@@ -76,7 +89,18 @@ function ListView() {
                 }}
               />
             </div>
-          ))}
+          ))) : showAnimation ? (
+                <DotLottieReact
+                    className={`col-span-4 w-90 h-90`}
+                    src={animationSrc}
+                    loop
+                    autoplay
+                />
+            ) : (
+                <div className="col-span-4 text-gray-400 text-center">
+                    No models found
+                </div>
+            )}
         </div>
       </div>
     </div>

@@ -196,7 +196,7 @@ function ModelListItem({
           </DialogContent>
         </Dialog>
 
-        <div className={`flex gap-x-2`}>
+        <div className={`flex gap-x-1`}>
           <Badge className={`text-sm`} variant={"destructive"}>
             .{item.format}
           </Badge>
@@ -207,7 +207,7 @@ function ModelListItem({
         </div>
       </CardHeader>
       <CardContent className="px-0 rounded-2xl border-t-2 dark:bg-black">
-        <DotLottieReact src={animationSrc} loop autoplay={false} />
+        <DotLottieReact src={animationSrc} loop autoplay />
       </CardContent>
     </Card>
   );
