@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dotnet-app
-          path: ${{ github.workspace }}/dotnet-app
+          path: ${{ github.workspace }}/publish
 
   deploy:
     runs-on: windows-latest
@@ -76,9 +76,10 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: '3DModelViewer'
-          package: ${{ github.workspace }}/dotnet-app
+          package: .
 
           
+
 
 
 
