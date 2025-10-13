@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import type { ModelItem } from "@/types/ModelItem.ts";
 import ModelViewer from "../ModelViewer/ModelViewer";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { useTheme } from "@/components/theme-provider.tsx";
 import { SidebarProvider } from "../ui/sidebar";
 
 function ListView() {
@@ -10,6 +12,15 @@ function ListView() {
 
   const [models, setModels] = useState<ModelItem[]>([]);
   const apiClient = useAxiosConfig();
+  const theme = useTheme();
+  const isDarkTheme =
+    theme.theme === "dark" ||
+    (theme.theme === "system" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const animationSrc = isDarkTheme
+    ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
+    : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -49,7 +60,7 @@ function ListView() {
         </div>
 
         <div
-          className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full`}
+          className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full justify-center items-center`}
         >
           {models?.map((item) => (
             <div
