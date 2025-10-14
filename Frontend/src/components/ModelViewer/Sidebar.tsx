@@ -9,17 +9,21 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   Sidebar,
+  SidebarFooter,
 } from "../ui/sidebar";
 
-import { formatSize } from "@/lib/utils";
 import { formatDateTime } from "@/utils/DateTime";
+import { formatBytes } from "@/utils/BytesConverter.ts";
+import { Minimize2 } from "lucide-react";
 
 type SidebarProps = {
   model: ModelItem | null;
+  setShowViewer: (show: boolean) => void;
 };
 
-const AppSidebar = ({ model }: SidebarProps) => {
+const AppSidebar = ({ model, setShowViewer }: SidebarProps) => {
   // Null check
+
   if (!model) {
     return;
   }
@@ -28,14 +32,18 @@ const AppSidebar = ({ model }: SidebarProps) => {
   const meta = [
     { label: "ID", value: model.id },
     { label: "Name", value: model.name },
-    { label: "Size", value: formatSize(model.sizeBytes) },
-    { label: "Format", value: model.format },
+    { label: "Size", value: formatBytes(model.sizeBytes) },
+    { label: "Format", value: "." + model.format },
     { label: "Created On", value: formatDateTime(model.createdOn).fullStr },
   ];
 
+  const closeModel = () => {
+    setShowViewer(false);
+  };
+
   return (
     <Sidebar>
-      <SidebarHeader>Metadata</SidebarHeader>
+      <SidebarHeader className={`mt-2`}>Metadata</SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Details</SidebarGroupLabel>
@@ -58,6 +66,17 @@ const AppSidebar = ({ model }: SidebarProps) => {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        <SidebarFooter>
+          <div
+            onClick={closeModel}
+            className="w-fit cursor-pointer flex items-center justify-end text-left bg-sidebar-background hover:bg-sidebar-foreground/10 rounded-md gap-2 p-2"
+          >
+            <Minimize2 className={`size-5`} />
+            <span className="font-medium text-sidebar-foreground/70">
+              Close Model
+            </span>
+          </div>
+        </SidebarFooter>
       </SidebarContent>
     </Sidebar>
   );

@@ -7,9 +7,10 @@ import { SidebarTrigger, useSidebar } from "../ui/sidebar";
 
 type ModelViewerProps = {
   model: ModelItem | null;
+  setShowViewer: (show: boolean) => void;
 };
 
-const ModelViewer: React.FC<ModelViewerProps> = ({ model }) => {
+const ModelViewer: React.FC<ModelViewerProps> = ({ model, setShowViewer }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { open } = useSidebar();
   const engineRef = useRef<BABYLON.Engine | null>(null);
@@ -99,7 +100,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ model }) => {
       <SidebarTrigger
         className={` absolute top-16  z-50 transition-all duration-300 ${open ? "right-[calc(var(--sidebar-width))]" : "right-0"}`}
       />
-      <AppSidebar model={model} />
+      <AppSidebar model={model} setShowViewer={setShowViewer} />
     </div>
   );
 };

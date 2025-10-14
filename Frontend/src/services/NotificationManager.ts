@@ -3,7 +3,7 @@
  * Handles notification state, deduplication, and grouping
  */
 
-type NotificationType = 'success' | 'error' | 'info' | 'warn';
+type NotificationType = "success" | "error" | "info" | "warn";
 
 interface NotificationEvent {
   message: string;
@@ -12,7 +12,6 @@ interface NotificationEvent {
   timestamp: number;
 }
 
-// Subscribers that want to receive notification events
 type NotificationSubscriber = (notifications: NotificationEvent[]) => void;
 
 class NotificationManagerService {
@@ -21,9 +20,7 @@ class NotificationManagerService {
   private subscribers: Set<NotificationSubscriber> = new Set();
   private notificationTTL: number = 5000; // Time to live for notifications in ms
 
-  // Make constructor private for singleton pattern
   private constructor() {
-    // Start cleanup interval
     setInterval(() => this.cleanupExpiredNotifications(), 1000);
   }
 
@@ -41,20 +38,16 @@ class NotificationManagerService {
    * Add notification with deduplication
    */
   public addNotification(message: string, type: NotificationType): string {
-    // Create a fingerprint for deduplication
     const fingerprint = this.createFingerprint(message, type);
     const timestamp = Date.now();
 
-    // Check if we already have this notification
     if (this.activeNotifications.has(fingerprint)) {
-      // Update the timestamp to keep it alive longer
       const existing = this.activeNotifications.get(fingerprint)!;
       existing.timestamp = timestamp;
       this.notifySubscribers();
       return existing.id;
     }
 
-    // Create new notification
     const id = this.generateId();
     const notification: NotificationEvent = {
       id,
@@ -63,10 +56,9 @@ class NotificationManagerService {
       timestamp,
     };
 
-    // Store it
     this.activeNotifications.set(fingerprint, notification);
     this.notifySubscribers();
-    
+
     return id;
   }
 
@@ -75,7 +67,7 @@ class NotificationManagerService {
    */
   public removeNotification(id: string): void {
     let keyToDelete: string | undefined;
-    
+
     // Find the notification by ID
     for (const [key, notification] of this.activeNotifications.entries()) {
       if (notification.id === id) {
@@ -83,7 +75,7 @@ class NotificationManagerService {
         break;
       }
     }
-    
+
     if (keyToDelete) {
       this.activeNotifications.delete(keyToDelete);
       this.notifySubscribers();
@@ -96,8 +88,7 @@ class NotificationManagerService {
   public subscribe(callback: NotificationSubscriber): () => void {
     this.subscribers.add(callback);
     callback(this.getActiveNotifications());
-    
-    // Return unsubscribe function
+
     return () => {
       this.subscribers.delete(callback);
     };
@@ -123,14 +114,14 @@ class NotificationManagerService {
   private cleanupExpiredNotifications(): void {
     const now = Date.now();
     let hasRemoved = false;
-    
+
     for (const [key, notification] of this.activeNotifications.entries()) {
       if (now - notification.timestamp > this.notificationTTL) {
         this.activeNotifications.delete(key);
         hasRemoved = true;
       }
     }
-    
+
     if (hasRemoved) {
       this.notifySubscribers();
     }
@@ -155,7 +146,7 @@ class NotificationManagerService {
    */
   private notifySubscribers(): void {
     const notifications = this.getActiveNotifications();
-    this.subscribers.forEach(subscriber => subscriber(notifications));
+    this.subscribers.forEach((subscriber) => subscriber(notifications));
   }
 }
 

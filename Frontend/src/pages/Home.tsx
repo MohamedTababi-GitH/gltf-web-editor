@@ -1,16 +1,16 @@
 import Navbar from "@/components/Navbar";
 import HomeView from "@/components/HomeView/HomeView";
 import ListView from "@/components/ListView/ListView";
-import { useState } from "react";
+import { useNavigation } from "../context/NavigationContext";
 
 function Home() {
-  const [isHome, setIsHome] = useState(true);
+  const { activeTab } = useNavigation();
 
   return (
     <div className="flex flex-col h-screen">
-      <Navbar isHome={isHome} setIsHome={setIsHome} />
+      <Navbar />
       <main className="mt-16">
-        {isHome ? <HomeView setIsHome={setIsHome} /> : <ListView />}
+        {activeTab === "home" ? <HomeView /> : <ListView />}
       </main>
     </div>
   );

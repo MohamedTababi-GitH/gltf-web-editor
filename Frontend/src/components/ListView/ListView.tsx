@@ -53,7 +53,7 @@ function ListView() {
     return (
       <SidebarProvider>
         <div className="h-[calc(100vh-4rem)] w-screen">
-          <ModelViewer model={model} />
+          <ModelViewer model={model} setShowViewer={setShowViewer} />
         </div>
       </SidebarProvider>
     );

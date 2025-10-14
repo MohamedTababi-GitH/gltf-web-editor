@@ -125,13 +125,7 @@ function ModelListItem({
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-32">
-              <DropdownMenuItem
-                className={`cursor-pointer`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClick();
-                }}
-              >
+              <DropdownMenuItem className={`cursor-pointer`} onClick={onClick}>
                 Open
               </DropdownMenuItem>
               <DropdownMenuItem
