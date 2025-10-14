@@ -103,26 +103,24 @@ public class ModelController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// Updates alias for a model.
-    /// </summary>
-    /// <param name="id">The model Id (Guid).</param>
-    /// <param name="request"></param>
-    /// <param name="cancellationToken"></param>
-    [HttpPut("{id:guid}/alias")]
-    public async Task<IActionResult> UpdateAlias(Guid id, [FromBody] UpdateAliasRequest request, CancellationToken cancellationToken)
+    [HttpPatch("{id:guid}/details")]
+    public async Task<IActionResult> PatchDetails(
+        Guid id,
+        [FromBody] UpdateModelDetailsRequest request,
+        CancellationToken cancellationToken)
     {
-        if (id == Guid.Empty) 
-            return BadRequest("Invalid id.");
-        if (string.IsNullOrWhiteSpace(request.NewAlias)) 
-            return BadRequest("Alias required.");
+        if (id == Guid.Empty) return BadRequest("Invalid id.");
 
         try
         {
-            var success = await _service.UpdateAliasAsync(id, request.NewAlias, cancellationToken);
-            if (!success) return NotFound();
+            var ok = await _service.UpdateDetailsAsync(
+                id,
+                request.NewAlias,
+                request.Category,
+                request.Description,
+                cancellationToken);
 
-            return NoContent();
+            return ok ? NoContent() : NotFound();
         }
         catch (ArgumentException ex)
         {

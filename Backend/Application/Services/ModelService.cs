@@ -27,7 +27,9 @@ public sealed class ModelService : IModelService
         Format = f.Format,
         SizeBytes = f.SizeBytes,
         Url = f.Url,
-        CreatedOn = f.CreatedOn
+        CreatedOn = f.CreatedOn,
+        Category = f.Category,
+        Description = f.Description,
     };
     
     static string Sanitize(string s)
@@ -130,6 +132,8 @@ public sealed class ModelService : IModelService
             if (isEntry)
             {
                 metadata["alias"] = request.Alias;
+                metadata["category"] = ""; // default empty 
+                metadata["description"] = ""; // default empty 
             }
 
             await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
@@ -150,15 +154,26 @@ public sealed class ModelService : IModelService
         return deleted;
     }
     
-    public async Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken cancellationToken)
+    public async Task<bool> UpdateDetailsAsync(
+        Guid id,
+        string? newAlias,
+        string? category,
+        string? description,
+        CancellationToken cancellationToken)
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
-        if (string.IsNullOrWhiteSpace(newAlias)) throw new ArgumentException("Alias required.", nameof(newAlias));
 
-        // Enforce the same regex rule as on upload
-        if (!AliasRegex.IsMatch(newAlias))
+        // Alias validation
+        if (!string.IsNullOrWhiteSpace(newAlias) && !AliasRegex.IsMatch(newAlias))
             throw new ArgumentException("Alias not valid.", nameof(newAlias));
 
-        return await _storage.UpdateAliasAsync(id, newAlias, cancellationToken);
+        // Normalize category and description
+        var cat  = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+        var desc = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        if (newAlias is null && cat is null && desc is null)
+            throw new ArgumentException("No fields to update.");
+
+        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, cancellationToken);
     }
 }
