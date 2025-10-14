@@ -7,10 +7,10 @@ namespace ECAD_Backend.Application.DTOs;
 public sealed class UploadModelRequest
 {
     /// <summary>
-    /// File content as a stream.
-    /// This stream should point to the binary contents of the model file.
+    /// All files to upload. For .glb this is typically just one file.
+    /// For .gltf this may include .gltf (entry), .bin and textures.
     /// </summary>
-    public required Stream Content { get; init; }
+    public required IReadOnlyList<(string FileName, Stream Content)> Files { get; init; }
 
     /// <summary>
     /// The original file name provided by the client (e.g., "scene.gltf" or "model.glb").

@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.Interfaces;
@@ -79,6 +80,7 @@ public class AzureBlobModelStorage : IModelStorage
                 ContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType
             },
             Metadata = metadata,
+            Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All } // No overwrites
         };
         await blobClient.UploadAsync(content, options, ct);
     }

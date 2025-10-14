@@ -32,7 +32,8 @@ public sealed class ModelService : IModelService
     
     static string Sanitize(string s)
     {
-        s = s.Replace("/", "").Replace("\\", "").Trim().ToLowerInvariant();
+        s = s.Replace("/", "").Replace("\\", "").Trim();
+        s = s.Replace("..", ""); 
         return s.Length > 120 ? s[..120] : s;
     }
     
@@ -48,7 +49,7 @@ public sealed class ModelService : IModelService
     }
 
     /// <summary>
-    /// Validates and uploads a 3D model file according to the specified request.
+    /// Validates and uploads a 3D model file and relevant files according to the specified request.
     /// </summary>
     /// <param name="request">The upload request containing file content, original file name, and alias.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -61,51 +62,84 @@ public sealed class ModelService : IModelService
     public async Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
-        
-        if (request.Content is null) 
-            throw new ArgumentException("No file content provided.", nameof(request.Content));
-        
-        if (string.IsNullOrWhiteSpace(request.OriginalFileName))
-            throw new ArgumentException("Original file name required.", nameof(request.OriginalFileName));
-        
+        if (request.Files is null || request.Files.Count == 0)
+            throw new ArgumentException("No files provided.", nameof(request.Files));
+
+        // Validate alias once (only applied to entry file)
         if (string.IsNullOrWhiteSpace(request.Alias))
             throw new ArgumentException("Alias required.", nameof(request.Alias));
-        
         if (!AliasRegex.IsMatch(request.Alias))
             throw new ArgumentException("Alias not valid.", nameof(request.Alias));
-        
-        var extension = Path.GetExtension(request.OriginalFileName).ToLowerInvariant();
-        
-        if (extension != ".glb" && extension != ".gltf")
-            throw new ArgumentException("Invalid file extension.", nameof(request.OriginalFileName));
-        
-        var rawBase  = Path.GetFileNameWithoutExtension(request.OriginalFileName);
-        var safeBase = Sanitize(rawBase);
+
+        // Validate the entry file name
+        if (string.IsNullOrWhiteSpace(request.OriginalFileName))
+            throw new ArgumentException("Original file name required.", nameof(request.OriginalFileName));
+
+        var entryFileName = Path.GetFileName(request.OriginalFileName); // strips any path parts
+        var entryExt = Path.GetExtension(entryFileName).ToLowerInvariant();
+        if (entryExt != ".glb" && entryExt != ".gltf")
+            throw new ArgumentException("Original file must be .glb or .gltf.", nameof(request.OriginalFileName));
+
+        // Ensure the entry file is present in Files (basic consistency)
+        var entryTuple = request.Files.FirstOrDefault(f =>
+            string.Equals(Path.GetFileName(f.FileName), entryFileName, StringComparison.OrdinalIgnoreCase));
+        if (entryTuple.FileName is null)
+            throw new ArgumentException($"Entry file '{entryFileName}' was not included in Files.", nameof(request.Files));
+
+        var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
-        var blobName = $"{assetId}/{safeBase}{extension}";
 
-        var contentType = extension switch
+        // Upload all files under the same {assetId}/ folder
+        foreach (var (fileNameRaw, content) in request.Files)
         {
-            ".glb"  => "model/gltf-binary",
-            ".gltf" => "model/gltf+json",
-            _       => "application/octet-stream"
-        };
+            if (content is null) throw new ArgumentException("A file stream was null.", nameof(request.Files));
 
-        var metadata = new Dictionary<string, string>
-        {
-            ["alias"] = request.Alias,
-            ["basename"] = request.OriginalFileName,
-            ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
-            ["assetId"] = assetId
-        };
-        
-        await _storage.UploadAsync(blobName, request.Content, contentType, metadata, cancellationToken);
+            var fileName = Path.GetFileName(fileNameRaw);       // drop any directory parts
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+
+            // Keep it simple: allow common companions for glTF
+            bool isEntry = string.Equals(fileName, entryFileName, StringComparison.OrdinalIgnoreCase);
+            bool isAllowed =
+                isEntry ||
+                ext is ".bin" or ".png" or ".jpg" or ".jpeg" or ".webp" or ".ktx2";
+
+            if (!isAllowed)
+                throw new ArgumentException($"Unsupported file type: {fileName}");
+
+            var blobName = $"{assetId}/{fileName}";
+
+            var contentType = ext switch
+            {
+                ".glb"  => "model/gltf-binary",
+                ".gltf" => "model/gltf+json",
+                ".bin"  => "application/octet-stream",
+                ".png"  => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".webp" => "image/webp",
+                ".ktx2" => "image/ktx2",
+                _       => "application/octet-stream"
+            };
+
+            // Metadata: alias ONLY on the entry .glb/.gltf
+            var metadata = new Dictionary<string, string>
+            {
+                ["basename"] = fileName,
+                ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
+                ["assetId"] = assetId
+            };
+            if (isEntry)
+            {
+                metadata["alias"] = request.Alias;
+            }
+
+            await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
+        }
 
         return new UploadResultDto
         {
             Message = "Uploaded successfully.",
             Alias = request.Alias,
-            BlobName = blobName,
+            BlobName = $"{assetId}/{safeBase}{entryExt}" // path of the entry file
         };
     }
     

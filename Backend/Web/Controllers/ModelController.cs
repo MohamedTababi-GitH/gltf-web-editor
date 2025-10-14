@@ -33,12 +33,13 @@ public class ModelController : ControllerBase
         var items = await _service.ListAsync(cancellationToken);
         return Ok(items);
     }
-    
+
     /// <summary>
     /// Uploads a model file.
     /// </summary>
-    /// <param name="file">The file to be uploaded.</param>
+    /// <param name="files"></param>
     /// <param name="fileAlias">An alias for the uploaded file.</param>
+    /// <param name="originalFileName"></param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>Returns a message with details about the uploaded file.</returns>
     /// <response code="200">Upload succeeded and returns file details.</response>
@@ -47,29 +48,42 @@ public class ModelController : ControllerBase
     /// The maximum allowed file size is 25 MB.
     /// </remarks>
     [HttpPost("upload")]
+    [Consumes("multipart/form-data")]
     [RequestSizeLimit(26214400)]
-    public async Task<IActionResult> Upload(IFormFile file, [FromForm] string fileAlias,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Upload([FromForm] List<IFormFile> files,
+                                            [FromForm] string fileAlias,
+                                            [FromForm] string originalFileName,
+                                            CancellationToken cancellationToken)
     {
-        if (file is null || file.Length == 0)
-            return BadRequest("No file uploaded.");
-        
-        await using var stream = file.OpenReadStream();
-        var request = new UploadModelRequest
-        {
-            Content = stream,
-            OriginalFileName = file.FileName,
-            Alias = fileAlias,
-        };
-        
+        if (files.Count == 0)
+            return BadRequest("No files uploaded.");
+
+        // Build the request with streams (dispose after service finishes)
+        var uploadFiles = new List<(string FileName, Stream Content)>();
         try
         {
+            foreach (var file in files)
+                uploadFiles.Add((file.FileName, file.OpenReadStream()));
+
+            var request = new UploadModelRequest
+            {
+                OriginalFileName = originalFileName,
+                Files = uploadFiles,
+                Alias = fileAlias
+            };
+
             var result = await _service.UploadAsync(request, cancellationToken);
             return Ok(new { message = result.Message, alias = result.Alias, blobName = result.BlobName });
         }
         catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
+        }
+        finally
+        {
+            // Ensure all streams are disposed
+            foreach (var (_, stream) in uploadFiles)
+                stream.Dispose();
         }
     }
     
@@ -88,12 +102,13 @@ public class ModelController : ControllerBase
 
         return NoContent();
     }
-    
+
     /// <summary>
     /// Updates alias for a model.
     /// </summary>
     /// <param name="id">The model Id (Guid).</param>
-    /// <param name="newAlias">The new alias string.</param>
+    /// <param name="request"></param>
+    /// <param name="cancellationToken"></param>
     [HttpPut("{id:guid}/alias")]
     public async Task<IActionResult> UpdateAlias(Guid id, [FromBody] UpdateAliasRequest request, CancellationToken cancellationToken)
     {
