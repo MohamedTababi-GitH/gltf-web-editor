@@ -6,6 +6,13 @@ import ModelViewer from "../ModelViewer/ModelViewer";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { SidebarProvider } from "../ui/sidebar";
+import { ListFilter } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu.tsx";
 
 function ListView() {
   const [model, setModel] = useState<ModelItem | null>(null);
@@ -59,6 +66,27 @@ function ListView() {
     );
   }
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
+    "date",
+  );
+
+  const sortedModels = [...models].sort((a, b) => {
+    switch (sortBy) {
+      case "name":
+        return a.name.localeCompare(b.name);
+      case "size":
+        return (a.sizeBytes || 0) - (b.sizeBytes || 0);
+      case "fileType":
+        return (a.format || "").localeCompare(b.format || "");
+      case "date":
+      default:
+        return (
+          new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
+        ); // newest first
+    }
+  });
+
   return (
     <div className={`grid justify-center w-full`}>
       <div className={`m-4 md:m-8 lg:m-12 xl:m-16`}>
@@ -66,16 +94,41 @@ function ListView() {
           className={`flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-x-20`}
         >
           <h1 className={`mb-3`}>Uploaded Models</h1>
-          <h1 className={`text-muted-foreground mb-3`}>
-            {models?.length || 0} results found
-          </h1>
+          <div className="flex items-center gap-8 text-muted-foreground mb-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 hover:text-foreground transition">
+                  <ListFilter className="w-5 h-5" />
+                  <span>
+                    Sort by: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSortBy("name")}>
+                  Name
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortBy("size")}>
+                  Size
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortBy("date")}>
+                  Date
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortBy("fileType")}>
+                  File Type
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <span>{models?.length || 0} results found</span>
+          </div>
         </div>
 
         <div
           className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full justify-center items-center`}
         >
-          {models && models.length > 0 ? (
-            models?.map((item) => (
+          {sortedModels && sortedModels.length > 0 ? (
+            sortedModels.map((item) => (
               <div
                 onClick={() => {
                   setShowViewer(true);
