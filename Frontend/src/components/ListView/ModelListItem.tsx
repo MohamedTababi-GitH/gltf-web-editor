@@ -75,9 +75,7 @@ function ModelListItem({
     <Card
       key={key}
       className="max-w-md pb-0 hover:cursor-pointer"
-      onClick={() => {
-        onClick();
-      }}
+      onClick={onClick}
     >
       <CardHeader>
         <div className="flex justify-between items-start break-words truncate gap-x-4">
