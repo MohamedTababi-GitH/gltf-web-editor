@@ -78,7 +78,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ model, setShowViewer }) => {
       resizeTimeout.current = window.setTimeout(() => {
         engine.resize();
         console.log("Canvas resized after layout finished");
-      }, 100); // adjust delay if needed
+      }, 100); // delay to not call this too quick
     });
     resizeObserver.observe(canvas);
 
@@ -95,10 +95,13 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ model, setShowViewer }) => {
     <div className="flex w-full h-full overflow-hidden">
       <canvas
         ref={canvasRef}
-        className={`transition-all duration-300 ${open ? "w-[calc(100%-var(--sidebar-width))]" : "w-full"}`}
+        className={`transition-all duration-300 w-full ${open ? "md:w-[calc(100%-var(--sidebar-width))]" : "w-full"}`}
       />
       <SidebarTrigger
-        className={` absolute top-16  z-50 transition-all duration-300 ${open ? "right-[calc(var(--sidebar-width))]" : "right-0"}`}
+        className={` absolute 
+            md:top-16 md:right-4
+            top-18 right-2
+            z-50 transition-all duration-300 ${open ? "md:right-[calc(var(--sidebar-width))]" : "right-0"}`}
       />
       <AppSidebar model={model} setShowViewer={setShowViewer} />
     </div>
