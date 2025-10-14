@@ -11,13 +11,17 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
 
 function ListView() {
   const [model, setModel] = useState<ModelItem | null>(null);
 
   const [models, setModels] = useState<ModelItem[]>([]);
+  const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
+    "date"
+  );
+  const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
 
@@ -54,8 +58,6 @@ function ListView() {
     fetchModels();
   }, [fetchModels]);
 
-  const [showViewer, setShowViewer] = useState(false);
-
   if (showViewer) {
     return (
       <SidebarProvider>
@@ -65,11 +67,6 @@ function ListView() {
       </SidebarProvider>
     );
   }
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
-    "date",
-  );
 
   const sortedModels = [...models].sort((a, b) => {
     switch (sortBy) {
