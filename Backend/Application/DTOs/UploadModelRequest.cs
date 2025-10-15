@@ -23,4 +23,7 @@ public sealed class UploadModelRequest
     /// Must conform to validation rules (e.g., alphanumeric and underscores only).
     /// </summary>
     public required string Alias { get; init; }
+    
+    public string? Category { get; init; }
+    public string? Description { get; init; }
 }
