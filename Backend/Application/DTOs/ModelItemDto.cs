@@ -26,4 +26,5 @@ public sealed class ModelItemDto
     
     public string? Category { get; init; }
     public string? Description { get; init; }
+    public List<AdditionalFileDto>? AdditionalFiles { get; init; }
 }

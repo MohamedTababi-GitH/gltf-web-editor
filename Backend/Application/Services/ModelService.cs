@@ -30,6 +30,13 @@ public sealed class ModelService : IModelService
         CreatedOn = f.CreatedOn,
         Category = f.Category,
         Description = f.Description,
+        AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
+        {
+            Name = x.Name,
+            Url = x.Url,
+            SizeBytes = x.SizeBytes,
+            ContentType = x.ContentType
+        }).ToList()
     };
     
     static string Sanitize(string s)
