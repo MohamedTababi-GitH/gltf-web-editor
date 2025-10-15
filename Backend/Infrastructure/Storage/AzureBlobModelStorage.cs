@@ -28,14 +28,14 @@ public class AzureBlobModelStorage : IModelStorage
     {
         // Grab the BlobOptions section from configuration (via dependency injection)
         var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
-        
+
         if (string.IsNullOrWhiteSpace(o.ConnectionString))
             throw new InvalidOperationException("Storage:ConnectionString is missing.");
         if (string.IsNullOrWhiteSpace(o.ContainerModels))
             throw new InvalidOperationException("Storage:ContainerModels is missing.");
-        
+
         _container = new BlobContainerClient(new Uri(o.ConnectionString));
-        
+
         // test if works the following way 
         // var service = new BlobServiceClient(o.ConnectionString);
         // _container = service.GetBlobContainerClient(o.ContainerModels);
@@ -53,24 +53,24 @@ public class AzureBlobModelStorage : IModelStorage
     /// <exception cref="ArgumentException">Thrown if <paramref name="blobName"/> is null or whitespace.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="content"/> is null.</exception>
     public async Task UploadAsync(
-        string blobName, 
-        Stream content, 
-        string contentType, 
+        string blobName,
+        Stream content,
+        string contentType,
         IDictionary<string, string>? metadata = null,
         CancellationToken ct = default)
     {
         // Validate that the provided blob name is not empty or null
         if (string.IsNullOrWhiteSpace(blobName))
             throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
-        
-        if (content == null) 
+
+        if (content == null)
             throw new ArgumentNullException(nameof(content));
 
         var blobClient = _container.GetBlobClient(blobName);
-        
+
         // Stamp an internal GUID as metadata
         metadata ??= new Dictionary<string, string>();
-        
+
         if (!metadata.ContainsKey("Id")) metadata["Id"] = Guid.NewGuid().ToString("N");
         var options = new BlobUploadOptions
         {
@@ -94,37 +94,45 @@ public class AzureBlobModelStorage : IModelStorage
     // TODO : REFACTOR
     public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
     {
-        // Create an empty list to hold our domain objects (ModelFile)
         var result = new List<ModelFile>();
 
-        // Async enumeration through all blobs in the container
-        // BlobTraits.Metadata → includes metadata in results
-        // BlobStates.None → no special blob states (snapshots, versions, etc.)
-        await foreach (BlobItem blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None,
+        // Preserve SAS (if any) from the container URI
+        var containerUriStr = _container.Uri.ToString();
+        var parts = containerUriStr.Split('?', 2);
+        var baseUri = parts[0].TrimEnd('/'); // https://.../container
+        var sasQuery = parts.Length == 2 ? "?" + parts[1] : string.Empty; // ?sp=...&sig=...
+
+        await foreach (BlobItem blob in _container.GetBlobsAsync(
+                           traits: BlobTraits.Metadata,
+                           states: BlobStates.None,
                            cancellationToken: ct))
         {
-            // Get Blob name (filename)
             var name = blob.Name;
 
-            // Ensure we only accept .glb and .gltf
             var format =
                 name.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) ? "glb" :
                 name.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase) ? "gltf" : null;
 
-            // If file is not one of the supported formats, skip it
             if (format is null) continue;
-            var fileUri = new Uri(_container.Uri, Uri.EscapeDataString(name));
-            var id = blob.Metadata.TryGetValue("Id", out var idStr) && Guid.TryParse(idStr, out var parsed) ? parsed : Guid.NewGuid();
-            
+
+            // Build SAS-preserving URL for entry file
+            var fileUrlStr = $"{baseUri}/{Uri.EscapeDataString(name)}{sasQuery}";
+            var fileUri = new Uri(fileUrlStr);
+
+            var id = blob.Metadata.TryGetValue("Id", out var idStr) && Guid.TryParse(idStr, out var parsed)
+                ? parsed
+                : Guid.NewGuid();
+
             var alias = blob.Metadata.TryGetValue("alias", out var a) && !string.IsNullOrWhiteSpace(a) ? a : "Model";
             var category = blob.Metadata.TryGetValue("category", out var cat) ? cat : null;
             var description = blob.Metadata.TryGetValue("description", out var desc) ? desc : null;
+
             // Determine assetId
             var assetId = blob.Metadata.TryGetValue("assetId", out var aid) && !string.IsNullOrWhiteSpace(aid)
                 ? aid
                 : name.Split('/', 2)[0]; // fallback to first segment
 
-            // List all files under the same folder
+            // Collect additional files under the same folder (skip entry)
             var additional = new List<AdditionalFile>();
             await foreach (var sub in _container.GetBlobsAsync(
                                traits: BlobTraits.None,
@@ -132,11 +140,12 @@ public class AzureBlobModelStorage : IModelStorage
                                prefix: assetId + "/",
                                cancellationToken: ct))
             {
-                // skip the entry itself
                 if (string.Equals(sub.Name, name, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var subUri = new Uri(_container.Uri, Uri.EscapeDataString(sub.Name));
+                var subUrlStr = $"{baseUri}/{Uri.EscapeDataString(sub.Name)}{sasQuery}";
+                var subUri = new Uri(subUrlStr);
+
                 additional.Add(new AdditionalFile
                 {
                     Name = Path.GetFileName(sub.Name),
@@ -168,7 +177,8 @@ public class AzureBlobModelStorage : IModelStorage
     {
         bool anyDeleted = false;
 
-        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct))
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None,
+                           cancellationToken: ct))
         {
             if (blob.Metadata != null &&
                 blob.Metadata.TryGetValue("Id", out var idStr) &&
@@ -186,7 +196,8 @@ public class AzureBlobModelStorage : IModelStorage
                 {
                     // Fallback: delete just this one blob
                     var client = _container.GetBlobClient(blob.Name);
-                    await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null, cancellationToken: ct);
+                    await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null,
+                        cancellationToken: ct);
                     anyDeleted = true;
                 }
                 // no break on purpose if multiple blobs share the same Id (unlikely but harmless)
@@ -195,6 +206,7 @@ public class AzureBlobModelStorage : IModelStorage
 
         return anyDeleted;
     }
+
     public async Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(assetId))
@@ -206,12 +218,14 @@ public class AzureBlobModelStorage : IModelStorage
         await foreach (var blob in _container.GetBlobsAsync(prefix: prefix, cancellationToken: ct))
         {
             var client = _container.GetBlobClient(blob.Name);
-            var resp = await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null, cancellationToken: ct);
+            var resp = await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null,
+                cancellationToken: ct);
             if (resp.Value) count++;
         }
 
         return count;
     }
+
     public async Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
@@ -246,5 +260,4 @@ public class AzureBlobModelStorage : IModelStorage
 
         return updated;
     }
-    
 }
