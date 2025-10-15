@@ -132,8 +132,12 @@ public sealed class ModelService : IModelService
             if (isEntry)
             {
                 metadata["alias"] = request.Alias;
-                metadata["category"] = ""; // default empty 
-                metadata["description"] = ""; // default empty 
+                
+                if(!string.IsNullOrWhiteSpace(request.Category))
+                    metadata["category"] = request.Category.Trim();
+                
+                if(!string.IsNullOrWhiteSpace(request.Description))
+                    metadata["description"] = request.Description.Trim();
             }
 
             await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);

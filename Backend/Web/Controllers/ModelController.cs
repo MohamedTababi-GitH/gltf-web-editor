@@ -53,6 +53,8 @@ public class ModelController : ControllerBase
     public async Task<IActionResult> Upload([FromForm] List<IFormFile> files,
                                             [FromForm] string fileAlias,
                                             [FromForm] string originalFileName,
+                                            [FromForm] string? category,
+                                            [FromForm] string? description,
                                             CancellationToken cancellationToken)
     {
         if (files.Count == 0)
@@ -69,7 +71,9 @@ public class ModelController : ControllerBase
             {
                 OriginalFileName = originalFileName,
                 Files = uploadFiles,
-                Alias = fileAlias
+                Alias = fileAlias,
+                Category = category,
+                Description = description
             };
 
             var result = await _service.UploadAsync(request, cancellationToken);
