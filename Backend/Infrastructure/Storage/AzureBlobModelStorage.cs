@@ -107,35 +107,45 @@ public class AzureBlobModelStorage : IModelStorage
             var name = blob.Name;
 
             // Ensure we only accept .glb and .gltf
-            var format = name.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) ? "glb" : name.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase) ? "gltf" : null;
+            var format =
+                name.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) ? "glb" :
+                name.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase) ? "gltf" : null;
 
             // If file is not one of the supported formats, skip it
             if (format is null) continue;
-
-            // Construct a public URL (works if the container has public read access)
-            // e.g., https://mystorage.blob.core.windows.net/models/connector.glb
-            var url = new Uri($"{_container.Uri}/{Uri.EscapeDataString(name)}");
-            var temp = _container.Uri.ToString();  // convert Uri to string
-            var parts = temp.Split('?', 2);        // split into base and query, max 2 parts
-
-            string finalURL;
-
-            if (parts.Length == 2)
-            {
-                finalURL = parts[0] + '/' + Uri.EscapeDataString(name) + '?' + parts[1];
-            }
-            else
-            {
-                finalURL = parts[0] + '/' + Uri.EscapeDataString(name);
-            }
-            var finalUri = new Uri(finalURL);
-            Console.WriteLine("url is: " + finalURL);
+            var fileUri = new Uri(_container.Uri, Uri.EscapeDataString(name));
+            var id = blob.Metadata.TryGetValue("Id", out var idStr) && Guid.TryParse(idStr, out var parsed) ? parsed : Guid.NewGuid();
             
-            var id = blob.Metadata.ContainsKey("Id") ? Guid.Parse(blob.Metadata["Id"]) : Guid.NewGuid();
-            var alias = blob.Metadata.ContainsKey("alias") ? blob.Metadata["alias"] : "Model";
+            var alias = blob.Metadata.TryGetValue("alias", out var a) && !string.IsNullOrWhiteSpace(a) ? a : "Model";
+            var category = blob.Metadata.TryGetValue("category", out var cat) ? cat : null;
+            var description = blob.Metadata.TryGetValue("description", out var desc) ? desc : null;
+            // Determine assetId
+            var assetId = blob.Metadata.TryGetValue("assetId", out var aid) && !string.IsNullOrWhiteSpace(aid)
+                ? aid
+                : name.Split('/', 2)[0]; // fallback to first segment
 
+            // List all files under the same folder
+            var additional = new List<AdditionalFile>();
+            await foreach (var sub in _container.GetBlobsAsync(
+                               traits: BlobTraits.None,
+                               states: BlobStates.None,
+                               prefix: assetId + "/",
+                               cancellationToken: ct))
+            {
+                // skip the entry itself
+                if (string.Equals(sub.Name, name, StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-            // Create a new domain object to represent the file
+                var subUri = new Uri(_container.Uri, Uri.EscapeDataString(sub.Name));
+                additional.Add(new AdditionalFile
+                {
+                    Name = Path.GetFileName(sub.Name),
+                    Url = subUri,
+                    SizeBytes = sub.Properties.ContentLength,
+                    ContentType = sub.Properties.ContentType
+                });
+            }
+
             result.Add(new ModelFile
             {
                 Id = id,
@@ -143,16 +153,17 @@ public class AzureBlobModelStorage : IModelStorage
                 Format = format,
                 SizeBytes = blob.Properties.ContentLength,
                 CreatedOn = blob.Properties.CreatedOn,
-                Url = finalUri,
-                
-                Category = blob.Metadata.TryGetValue("category", out var category) ? category : null,
-                Description = blob.Metadata.TryGetValue("description", out var description) ? description : null
+                Url = fileUri,
+                Category = category,
+                Description = description,
+                AssetId = assetId,
+                AdditionalFiles = additional
             });
         }
 
-        // Return the final list of files to the caller (controller/service)
         return result;
     }
+
     public async Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default)
     {
         bool anyDeleted = false;

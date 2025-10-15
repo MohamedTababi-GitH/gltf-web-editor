@@ -40,7 +40,9 @@ public class ModelController : ControllerBase
     /// <param name="files"></param>
     /// <param name="fileAlias">An alias for the uploaded file.</param>
     /// <param name="originalFileName"></param>
+    /// <param name="description"></param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <param name="category"></param>
     /// <returns>Returns a message with details about the uploaded file.</returns>
     /// <response code="200">Upload succeeded and returns file details.</response>
     /// <response code="400">No file was uploaded or the upload request was invalid.</response>
