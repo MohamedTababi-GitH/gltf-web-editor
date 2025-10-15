@@ -2,13 +2,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ModelUploadDialog from "./ModelUploadDialog.tsx";
 import { useState } from "react";
+import { useNavigation } from "@/context/NavigationContext.tsx";
 
-export default function HomeView({
-  setIsHome,
-}: {
-  setIsHome: (isHome: boolean) => void;
-}) {
+export default function HomeView() {
   const [showingUpload, setShowingUpload] = useState(false);
+  const { navigateTo } = useNavigation();
 
   return (
     <div className="relative z-0 flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden bg-background text-foreground">
@@ -62,7 +60,7 @@ export default function HomeView({
 
             <Button
               onClick={() => {
-                setIsHome(false);
+                navigateTo("model");
               }}
               variant="link"
               asChild
