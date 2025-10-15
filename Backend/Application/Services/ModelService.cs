@@ -14,7 +14,7 @@ public sealed class ModelService : IModelService
     private readonly IModelStorage _storage;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
     public ModelService(IModelStorage storage) => _storage = storage;
-    
+
     /// <summary>
     /// Maps a <see cref="ModelFile"/> entity to a <see cref="ModelItemDto"/> data transfer object.
     /// </summary>
@@ -27,15 +27,25 @@ public sealed class ModelService : IModelService
         Format = f.Format,
         SizeBytes = f.SizeBytes,
         Url = f.Url,
-        CreatedOn = f.CreatedOn
+        CreatedOn = f.CreatedOn,
+        Category = f.Category,
+        Description = f.Description,
+        AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
+        {
+            Name = x.Name,
+            Url = x.Url,
+            SizeBytes = x.SizeBytes,
+            ContentType = x.ContentType
+        }).ToList()
     };
-    
+
     static string Sanitize(string s)
     {
-        s = s.Replace("/", "").Replace("\\", "").Trim().ToLowerInvariant();
+        s = s.Replace("/", "").Replace("\\", "").Trim();
+        s = s.Replace("..", "");
         return s.Length > 120 ? s[..120] : s;
     }
-    
+
     /// <summary>
     /// Retrieves a list of all stored model items.
     /// </summary>
@@ -48,7 +58,7 @@ public sealed class ModelService : IModelService
     }
 
     /// <summary>
-    /// Validates and uploads a 3D model file according to the specified request.
+    /// Validates and uploads a 3D model file and relevant files according to the specified request.
     /// </summary>
     /// <param name="request">The upload request containing file content, original file name, and alias.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
@@ -61,70 +71,121 @@ public sealed class ModelService : IModelService
     public async Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken)
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
-        
-        if (request.Content is null) 
-            throw new ArgumentException("No file content provided.", nameof(request.Content));
-        
-        if (string.IsNullOrWhiteSpace(request.OriginalFileName))
-            throw new ArgumentException("Original file name required.", nameof(request.OriginalFileName));
-        
+        if (request.Files is null || request.Files.Count == 0)
+            throw new ArgumentException("No files provided.", nameof(request.Files));
+
+        // Validate alias once (only applied to entry file)
         if (string.IsNullOrWhiteSpace(request.Alias))
             throw new ArgumentException("Alias required.", nameof(request.Alias));
-        
         if (!AliasRegex.IsMatch(request.Alias))
             throw new ArgumentException("Alias not valid.", nameof(request.Alias));
-        
-        var extension = Path.GetExtension(request.OriginalFileName).ToLowerInvariant();
-        
-        if (extension != ".glb" && extension != ".gltf")
-            throw new ArgumentException("Invalid file extension.", nameof(request.OriginalFileName));
-        
-        var rawBase  = Path.GetFileNameWithoutExtension(request.OriginalFileName);
-        var safeBase = Sanitize(rawBase);
+
+        // Validate the entry file name
+        if (string.IsNullOrWhiteSpace(request.OriginalFileName))
+            throw new ArgumentException("Original file name required.", nameof(request.OriginalFileName));
+
+        var entryFileName = Path.GetFileName(request.OriginalFileName); // strips any path parts
+        var entryExt = Path.GetExtension(entryFileName).ToLowerInvariant();
+        if (entryExt != ".glb" && entryExt != ".gltf")
+            throw new ArgumentException("Original file must be .glb or .gltf.", nameof(request.OriginalFileName));
+
+        // Ensure the entry file is present in Files (basic consistency)
+        var entryTuple = request.Files.FirstOrDefault(f =>
+            string.Equals(Path.GetFileName(f.FileName), entryFileName, StringComparison.OrdinalIgnoreCase));
+        if (entryTuple.FileName is null)
+            throw new ArgumentException($"Entry file '{entryFileName}' was not included in Files.",
+                nameof(request.Files));
+
+        var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
-        var blobName = $"{assetId}/{safeBase}{extension}";
 
-        var contentType = extension switch
+        // Upload all files under the same {assetId}/ folder
+        foreach (var (fileNameRaw, content) in request.Files)
         {
-            ".glb"  => "model/gltf-binary",
-            ".gltf" => "model/gltf+json",
-            _       => "application/octet-stream"
-        };
+            if (content is null) throw new ArgumentException("A file stream was null.", nameof(request.Files));
 
-        var metadata = new Dictionary<string, string>
-        {
-            ["alias"] = request.Alias,
-            ["basename"] = request.OriginalFileName,
-            ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
-            ["assetId"] = assetId
-        };
-        
-        await _storage.UploadAsync(blobName, request.Content, contentType, metadata, cancellationToken);
+            var fileName = Path.GetFileName(fileNameRaw); // drop any directory parts
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+
+            // Keep it simple: allow common companions for glTF
+            bool isEntry = string.Equals(fileName, entryFileName, StringComparison.OrdinalIgnoreCase);
+            bool isAllowed =
+                isEntry ||
+                ext is ".bin" or ".png" or ".jpg" or ".jpeg" or ".webp" or ".ktx2";
+
+            if (!isAllowed)
+                throw new ArgumentException($"Unsupported file type: {fileName}");
+
+            var blobName = $"{assetId}/{fileName}";
+
+            var contentType = ext switch
+            {
+                ".glb" => "model/gltf-binary",
+                ".gltf" => "model/gltf+json",
+                ".bin" => "application/octet-stream",
+                ".png" => "image/png",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".webp" => "image/webp",
+                ".ktx2" => "image/ktx2",
+                _ => "application/octet-stream"
+            };
+
+            // Metadata: alias ONLY on the entry .glb/.gltf
+            var metadata = new Dictionary<string, string>
+            {
+                ["basename"] = fileName,
+                ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
+                ["assetId"] = assetId
+            };
+            if (isEntry)
+            {
+                metadata["alias"] = request.Alias;
+
+                if (!string.IsNullOrWhiteSpace(request.Category))
+                    metadata["category"] = request.Category.Trim();
+
+                if (!string.IsNullOrWhiteSpace(request.Description))
+                    metadata["description"] = request.Description.Trim();
+            }
+
+            await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
+        }
 
         return new UploadResultDto
         {
             Message = "Uploaded successfully.",
             Alias = request.Alias,
-            BlobName = blobName,
+            BlobName = $"{assetId}/{safeBase}{entryExt}" // path of the entry file
         };
     }
-    
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
         var deleted = await _storage.DeleteByIdAsync(id, cancellationToken);
         return deleted;
     }
-    
-    public async Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken cancellationToken)
+
+    public async Task<bool> UpdateDetailsAsync(
+        Guid id,
+        string? newAlias,
+        string? category,
+        string? description,
+        CancellationToken cancellationToken)
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
-        if (string.IsNullOrWhiteSpace(newAlias)) throw new ArgumentException("Alias required.", nameof(newAlias));
 
-        // Enforce the same regex rule as on upload
-        if (!AliasRegex.IsMatch(newAlias))
+        // Alias validation
+        if (!string.IsNullOrWhiteSpace(newAlias) && !AliasRegex.IsMatch(newAlias))
             throw new ArgumentException("Alias not valid.", nameof(newAlias));
 
-        return await _storage.UpdateAliasAsync(id, newAlias, cancellationToken);
+        // Normalize category and description
+        var cat = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+        var desc = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+        if (newAlias is null && cat is null && desc is null)
+            throw new ArgumentException("No fields to update.");
+
+        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, cancellationToken);
     }
 }

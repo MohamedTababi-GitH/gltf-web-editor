@@ -12,8 +12,8 @@ namespace ECAD_Backend.Web.Controllers;
 public class ModelController : ControllerBase
 {
     private readonly IModelService _service;
-    
-    
+
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelController"/> class.
     /// </summary>
@@ -33,13 +33,16 @@ public class ModelController : ControllerBase
         var items = await _service.ListAsync(cancellationToken);
         return Ok(items);
     }
-    
+
     /// <summary>
     /// Uploads a model file.
     /// </summary>
-    /// <param name="file">The file to be uploaded.</param>
+    /// <param name="files"></param>
     /// <param name="fileAlias">An alias for the uploaded file.</param>
+    /// <param name="originalFileName"></param>
+    /// <param name="description"></param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <param name="category"></param>
     /// <returns>Returns a message with details about the uploaded file.</returns>
     /// <response code="200">Upload succeeded and returns file details.</response>
     /// <response code="400">No file was uploaded or the upload request was invalid.</response>
@@ -47,23 +50,34 @@ public class ModelController : ControllerBase
     /// The maximum allowed file size is 25 MB.
     /// </remarks>
     [HttpPost("upload")]
+    [Consumes("multipart/form-data")]
     [RequestSizeLimit(26214400)]
-    public async Task<IActionResult> Upload(IFormFile file, [FromForm] string fileAlias,
+    public async Task<IActionResult> Upload([FromForm] List<IFormFile> files,
+        [FromForm] string fileAlias,
+        [FromForm] string originalFileName,
+        [FromForm] string? category,
+        [FromForm] string? description,
         CancellationToken cancellationToken)
     {
-        if (file is null || file.Length == 0)
-            return BadRequest("No file uploaded.");
-        
-        await using var stream = file.OpenReadStream();
-        var request = new UploadModelRequest
-        {
-            Content = stream,
-            OriginalFileName = file.FileName,
-            Alias = fileAlias,
-        };
-        
+        if (files.Count == 0)
+            return BadRequest("No files uploaded.");
+
+        // Build the request with streams (dispose after service finishes)
+        var uploadFiles = new List<(string FileName, Stream Content)>();
         try
         {
+            foreach (var file in files)
+                uploadFiles.Add((file.FileName, file.OpenReadStream()));
+
+            var request = new UploadModelRequest
+            {
+                OriginalFileName = originalFileName,
+                Files = uploadFiles,
+                Alias = fileAlias,
+                Category = category,
+                Description = description
+            };
+
             var result = await _service.UploadAsync(request, cancellationToken);
             return Ok(new { message = result.Message, alias = result.Alias, blobName = result.BlobName });
         }
@@ -71,8 +85,14 @@ public class ModelController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        finally
+        {
+            // Ensure all streams are disposed
+            foreach (var (_, stream) in uploadFiles)
+                stream.Dispose();
+        }
     }
-    
+
     /// <summary>Deletes a model by its Id.</summary>
     /// <param name="id">The GUID that was exposed as ModelItemDto.Id</param>
     /// <param name="cancellationToken"></param>
@@ -88,26 +108,25 @@ public class ModelController : ControllerBase
 
         return NoContent();
     }
-    
-    /// <summary>
-    /// Updates alias for a model.
-    /// </summary>
-    /// <param name="id">The model Id (Guid).</param>
-    /// <param name="newAlias">The new alias string.</param>
-    [HttpPut("{id:guid}/alias")]
-    public async Task<IActionResult> UpdateAlias(Guid id, [FromBody] UpdateAliasRequest request, CancellationToken cancellationToken)
+
+    [HttpPatch("{id:guid}/details")]
+    public async Task<IActionResult> PatchDetails(
+        Guid id,
+        [FromBody] UpdateModelDetailsRequest request,
+        CancellationToken cancellationToken)
     {
-        if (id == Guid.Empty) 
-            return BadRequest("Invalid id.");
-        if (string.IsNullOrWhiteSpace(request.NewAlias)) 
-            return BadRequest("Alias required.");
+        if (id == Guid.Empty) return BadRequest("Invalid id.");
 
         try
         {
-            var success = await _service.UpdateAliasAsync(id, request.NewAlias, cancellationToken);
-            if (!success) return NotFound();
+            var ok = await _service.UpdateDetailsAsync(
+                id,
+                request.NewAlias,
+                request.Category,
+                request.Description,
+                cancellationToken);
 
-            return NoContent();
+            return ok ? NoContent() : NotFound();
         }
         catch (ArgumentException ex)
         {
