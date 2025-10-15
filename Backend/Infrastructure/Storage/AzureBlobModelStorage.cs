@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.Interfaces;
@@ -79,6 +80,7 @@ public class AzureBlobModelStorage : IModelStorage
                 ContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType
             },
             Metadata = metadata,
+            Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All } // No overwrites
         };
         await blobClient.UploadAsync(content, options, ct);
     }
@@ -141,7 +143,10 @@ public class AzureBlobModelStorage : IModelStorage
                 Format = format,
                 SizeBytes = blob.Properties.ContentLength,
                 CreatedOn = blob.Properties.CreatedOn,
-                Url = finalUri
+                Url = finalUri,
+                
+                Category = blob.Metadata.TryGetValue("category", out var category) ? category : null,
+                Description = blob.Metadata.TryGetValue("description", out var description) ? description : null
             });
         }
 
@@ -196,30 +201,38 @@ public class AzureBlobModelStorage : IModelStorage
 
         return count;
     }
-    public async Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken ct = default)
+    public async Task<bool> UpdateDetailsAsync(
+        Guid id,
+        string? newAlias,
+        string? category,
+        string? description,
+        CancellationToken ct = default)
     {
         bool updated = false;
 
         await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
         {
-            if (blob.Metadata != null &&
-                blob.Metadata.TryGetValue("Id", out var idStr) &&
-                Guid.TryParse(idStr, out var metaId) &&
-                metaId == id)
-            {
-                var client = _container.GetBlobClient(blob.Name);
+            if (blob.Metadata == null) continue;
+            if (!blob.Metadata.TryGetValue("Id", out var idStr) ||
+                !Guid.TryParse(idStr, out var metaId) ||
+                metaId != id)
+                continue;
 
-                // Copy existing metadata
-                var metadata = new Dictionary<string, string>(blob.Metadata, StringComparer.OrdinalIgnoreCase)
-                {
-                    ["alias"] = newAlias
-                };
+            // only update entry blobs (.glb/.gltf)
+            var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
+            if (ext != ".glb" && ext != ".gltf") continue;
 
-                // Apply
-                await client.SetMetadataAsync(metadata, cancellationToken: ct);
-                updated = true;
-            }
+            var client = _container.GetBlobClient(blob.Name);
+            var metadata = new Dictionary<string, string>(blob.Metadata, StringComparer.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrWhiteSpace(newAlias)) metadata["alias"] = newAlias;
+            if (!string.IsNullOrWhiteSpace(category)) metadata["category"] = category;
+            if (!string.IsNullOrWhiteSpace(description)) metadata["description"] = description;
+
+            await client.SetMetadataAsync(metadata, cancellationToken: ct);
+            updated = true;
         }
+
         return updated;
     }
     

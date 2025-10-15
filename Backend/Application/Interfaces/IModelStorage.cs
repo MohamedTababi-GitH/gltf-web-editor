@@ -40,5 +40,9 @@ public interface IModelStorage
     /// <summary>
     /// Updates the alias metadata for the blob(s) matching the given Id.
     /// </summary>
-    Task<bool> UpdateAliasAsync(Guid id, string newAlias, CancellationToken ct = default);
+    Task<bool> UpdateDetailsAsync( Guid id,
+        string? newAlias,
+        string? category,
+        string? description,
+        CancellationToken ct = default);
 }
