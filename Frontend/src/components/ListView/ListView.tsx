@@ -13,13 +13,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 function ListView() {
   const [model, setModel] = useState<ModelItem | null>(null);
 
   const [models, setModels] = useState<ModelItem[]>([]);
   const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
-    "date"
+    "date",
   );
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
@@ -85,12 +86,10 @@ function ListView() {
   });
 
   return (
-    <div className={`grid justify-center w-full`}>
-      <div className={`m-4 md:m-8 lg:m-12 xl:m-16`}>
-        <div
-          className={`flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-x-20`}
-        >
-          <h1 className={`mb-3`}>Uploaded Models</h1>
+    <div className="grid justify-center w-full">
+      <div className="m-4 md:m-8 lg:m-12 xl:m-16">
+        <div className="flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-x-20">
+          <h1 className="mb-3">Uploaded Models</h1>
           <div className="flex items-center gap-8 text-muted-foreground mb-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -121,39 +120,44 @@ function ListView() {
           </div>
         </div>
 
-        <div
-          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full justify-center items-center`}
-        >
+        <ScrollArea className="h-[70vh] w-full rounded-md border">
           {sortedModels && sortedModels.length > 0 ? (
-            sortedModels.map((item) => (
-              <div
-                onClick={() => {
-                  setShowViewer(true);
-                }}
-              >
-                <ModelListItem
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full justify-center items-center p-4">
+              {sortedModels.map((item) => (
+                <div
                   key={item.id}
-                  item={item}
-                  refreshList={fetchModels}
                   onClick={() => {
                     setModel(item);
+                    setShowViewer(true);
                   }}
-                />
-              </div>
-            ))
+                >
+                  <ModelListItem
+                    key={item.id}
+                    item={item}
+                    refreshList={fetchModels}
+                    onClick={() => {
+                      setModel(item);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           ) : showAnimation ? (
-            <DotLottieReact
-              className={`col-span-4 w-90 h-90`}
-              src={animationSrc}
-              loop
-              autoplay
-            />
+            <div className="flex justify-center items-center h-full w-full">
+              <DotLottieReact
+                className="w-90 h-90"
+                src={animationSrc}
+                loop
+                autoplay
+              />
+            </div>
           ) : (
-            <div className="col-span-4 text-gray-400 text-center">
+            <div className="flex justify-center items-center h-full w-full text-gray-400">
               No models found
             </div>
           )}
-        </div>
+          <ScrollBar orientation="vertical" />
+        </ScrollArea>
       </div>
     </div>
   );
