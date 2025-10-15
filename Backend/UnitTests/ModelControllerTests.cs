@@ -3,23 +3,24 @@ using Microsoft.AspNetCore.Mvc;
 using ECAD_Backend.Web.Controllers;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.DTOs;
+using Microsoft.AspNetCore.Http;
 
-namespace ECAD_Backend.BackendTesting;
+namespace ECAD_Backend.Tests;
 
-[TestFixture]
+[TestClass]
 public class ModelControllerTests
 {
     private Mock<IModelService> _mockService;
     private ModelController _controller;
 
-    [SetUp]
+    [TestInitialize]
     public void SetUp()
     {
         _mockService = new Mock<IModelService>();
         _controller = new ModelController(_mockService.Object);
     }
 
-    [Test]
+    [TestMethod]
     public async Task GetAll_ReturnsOk_WithListOfModels()
     {
         // Arrange
@@ -36,14 +37,14 @@ public class ModelControllerTests
 
         // Assert
         var okResult = result.Result as OkObjectResult;
-        Assert.That(okResult, Is.Not.Null);
+        Assert.IsNotNull(okResult);
         var actualList = okResult.Value as IReadOnlyList<ModelItemDto>;
-        Assert.That(actualList, Is.Not.Null);
-        Assert.That(actualList.Count, Is.EqualTo(1));
-        Assert.That(actualList[0].Name, Is.EqualTo(name));
+        Assert.IsNotNull(actualList);
+        Assert.AreEqual(1, actualList.Count);
+        Assert.AreEqual(name, actualList[0].Name);
     }
 
-    [Test]
+    [TestMethod]
     public async Task Upload_ReturnsBadRequest_WhenFileIsNull()
     {
         // Act
@@ -52,11 +53,11 @@ public class ModelControllerTests
 
         // Assert
         var badRequest = result as BadRequestObjectResult;
-        Assert.That(badRequest, Is.Not.Null);
-        Assert.That(badRequest.Value, Is.EqualTo("No file uploaded."));
+        Assert.IsNotNull(badRequest);
+        Assert.AreEqual("No file uploaded.", badRequest.Value);
     }
 
-    [Test]
+    [TestMethod]
     public async Task Upload_ReturnsOk_WhenUploadSucceeds()
     {
         // Arrange
@@ -82,10 +83,10 @@ public class ModelControllerTests
 
         // Assert
         var okResult = result as OkObjectResult;
-        Assert.That(okResult, Is.Not.Null);
+        Assert.IsNotNull(okResult);
         dynamic value = okResult.Value;
-        Assert.That(value.message, Is.EqualTo(message));
-        Assert.That(value.alias, Is.EqualTo(alias));
-        Assert.That(value.blobName, Is.EqualTo(blobName));
+        Assert.AreEqual(message, value.Message);
+        Assert.AreEqual(alias, value.Alias);
+        Assert.AreEqual(blobName, value.BlobName);
     }
 }

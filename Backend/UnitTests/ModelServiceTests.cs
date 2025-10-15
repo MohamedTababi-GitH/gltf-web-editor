@@ -4,22 +4,22 @@ using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Domain.Entities;
 
-namespace ECAD_Backend.BackendTesting;
+namespace ECAD_Backend.Tests;
 
-[TestFixture]
+[TestClass]
 public class ModelServiceTests
 {
     private Mock<IModelStorage> _mockStorage;
     private ModelService _service;
 
-    [SetUp]
+    [TestInitialize]
     public void SetUp()
     {
         _mockStorage = new Mock<IModelStorage>();
         _service = new ModelService(_mockStorage.Object);
     }
 
-    [Test]
+    [TestMethod]
     public async Task ListAsync_ReturnsMappedDtos()
     {
         // Arrange
@@ -35,12 +35,12 @@ public class ModelServiceTests
         var result = await _service.ListAsync();
 
         // Assert
-        Assert.That(result, Has.Count.EqualTo(1));
-        Assert.That(result.First().Name, Is.EqualTo(name));
+        Assert.AreEqual(1, result.Count);
+        Assert.AreEqual(name, result[0].Name);
     }
 
-    [Test]
-    public void UploadAsync_Throws_WhenAliasInvalid()
+    [TestMethod]
+    public async Task UploadAsync_Throws_WhenAliasInvalid()
     {
         // Arrange
         var filename = "file.glb";
@@ -53,13 +53,13 @@ public class ModelServiceTests
         };
 
         // Act + Assert
-        var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+        var ex = await Assert.ThrowsExceptionAsync<ArgumentException>(async () =>
             await _service.UploadAsync(request, CancellationToken.None));
 
-        Assert.That(ex!.Message, Does.Contain("Alias not valid"));
+        StringAssert.Contains(ex.Message, "Alias not valid");
     }
 
-    [Test]
+    [TestMethod]
     public async Task UploadAsync_CallsStorageUpload_WhenValid()
     {
         // Arrange
@@ -85,7 +85,7 @@ public class ModelServiceTests
             It.IsAny<CancellationToken>()),
             Times.Once);
 
-        Assert.That(result.Message, Is.EqualTo("Uploaded successfully."));
-        Assert.That(result.Alias, Is.EqualTo(alias));
+        Assert.AreEqual("Uploaded successfully.", result.Message);
+        Assert.AreEqual(alias, result.Alias);
     }
 }
