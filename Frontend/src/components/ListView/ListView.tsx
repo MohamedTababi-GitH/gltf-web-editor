@@ -9,8 +9,12 @@ import { SidebarProvider } from "../ui/sidebar";
 import { ListFilter } from "lucide-react";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -69,21 +73,30 @@ function ListView() {
     );
   }
 
-  const sortedModels = [...models].sort((a, b) => {
-    switch (sortBy) {
-      case "name":
-        return a.name.localeCompare(b.name);
-      case "size":
-        return (a.sizeBytes || 0) - (b.sizeBytes || 0);
-      case "fileType":
-        return (a.format || "").localeCompare(b.format || "");
-      case "date":
-      default:
-        return (
-          new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
-        ); // newest first
-    }
-  });
+  //const [showStatusBar, setShowStatusBar] = useState(false);
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const [fileTypeFilter, setFileTypeFilter] = useState("all");
+
+  const filteredAndSortedModels = models
+    .filter((model) =>
+      fileTypeFilter === "all" ? true : model.format === fileTypeFilter,
+    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "size":
+          return (b.sizeBytes || 0) - (a.sizeBytes || 0);
+        case "fileType":
+          return (a.format || "").localeCompare(b.format || "");
+        case "date":
+        default:
+          return (
+            new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
+          );
+      }
+    });
 
   return (
     <div className="grid justify-center w-full">
@@ -95,35 +108,94 @@ function ListView() {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 hover:text-foreground transition">
                   <ListFilter className="w-5 h-5" />
-                  <span>
-                    Sort by: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)}
-                  </span>
+                  <span>Filter</span>
                 </button>
               </DropdownMenuTrigger>
+
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSortBy("name")}>
-                  Name
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("size")}>
-                  Size
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("date")}>
-                  Date
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortBy("fileType")}>
-                  File Type
-                </DropdownMenuItem>
+                {/* Submenu 1: Sort-by */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuCheckboxItem
+                      checked={sortBy === "name"}
+                      onCheckedChange={() => setSortBy("name")}
+                    >
+                      Name
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={sortBy === "size"}
+                      onCheckedChange={() => setSortBy("size")}
+                    >
+                      Size
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={sortBy === "date"}
+                      onCheckedChange={() => setSortBy("date")}
+                    >
+                      Date
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={sortBy === "fileType"}
+                      onCheckedChange={() => setSortBy("fileType")}
+                    >
+                      File Type
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                {/* Submenu 2: Favorite filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                    //onClick={() => setFilter("favoritesOnly")}
+                    >
+                      Show favorites only
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                    //onClick={() => setFilter("all")}
+                    >
+                      Show all
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                {/* Submenu 3: File type */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>File type</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuCheckboxItem
+                      checked={fileTypeFilter === "glb"}
+                      onCheckedChange={() => setFileTypeFilter("glb")}
+                    >
+                      glb
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={fileTypeFilter === "gltf"}
+                      onCheckedChange={() => setFileTypeFilter("gltf")}
+                    >
+                      gltf
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={fileTypeFilter === "all"}
+                      onCheckedChange={() => setFileTypeFilter("all")}
+                    >
+                      All
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <span>{models?.length || 0} results found</span>
+            <span>{filteredAndSortedModels?.length || 0} results found</span>
           </div>
         </div>
 
         <ScrollArea className="h-[70vh] w-full rounded-md border">
-          {sortedModels && sortedModels.length > 0 ? (
+          {filteredAndSortedModels && filteredAndSortedModels.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full justify-center items-center p-4">
-              {sortedModels.map((item) => (
+              {filteredAndSortedModels.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => {

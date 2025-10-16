@@ -25,6 +25,7 @@ import {
   FilePenLine,
   ExternalLink,
   Tags,
+  Star,
 } from "lucide-react";
 import type { ModelItem } from "@/types/ModelItem.ts";
 import {
@@ -133,6 +134,8 @@ function ModelListItem({
 
   const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
+  const [isFavorite, setIsFavorite] = useState(false);
+
   if (!item) return null;
 
   return (
@@ -149,6 +152,17 @@ function ModelListItem({
                 Created: {formatDateTime(item.createdOn).dateStr}
               </CardDescription>
             </div>
+
+            <Star
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFavorite((prev) => !prev);
+              }}
+              className={`w-6 h-6 cursor-pointer transition ${
+                isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"
+              }`}
+            />
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
