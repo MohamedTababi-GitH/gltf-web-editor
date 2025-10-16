@@ -147,21 +147,35 @@ function ModelListItem({
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg truncate">{item.name}</CardTitle>
+              <CardTitle className="text-lg truncate w-50">
+                {item.name}
+              </CardTitle>
               <CardDescription>
                 Created: {formatDateTime(item.createdOn).dateStr}
               </CardDescription>
             </div>
 
-            <Star
+            <Button
+              variant="outline"
+              size="icon"
+              className={`flex items-center justify-center h-8 w-8 rounded-md transition-colors ${
+                isFavorite
+                  ? "bg-white !important border-yellow-400 hover:bg-yellow-50"
+                  : "bg-transparent border-gray-600 hover:bg-gray-800"
+              }`}
               onClick={(e) => {
                 e.stopPropagation();
                 setIsFavorite((prev) => !prev);
               }}
-              className={`w-6 h-6 cursor-pointer transition ${
-                isFavorite ? "text-yellow-400 fill-yellow-400" : "text-gray-400"
-              }`}
-            />
+            >
+              <Star
+                className={`w-5 h-5 transition ${
+                  isFavorite
+                    ? "text-yellow-400 fill-yellow-400"
+                    : "text-gray-400"
+                }`}
+              />
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
