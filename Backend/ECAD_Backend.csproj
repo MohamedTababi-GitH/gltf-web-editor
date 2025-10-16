@@ -18,16 +18,4 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="MSTest_Tests\MSTestSettings.cs">
-      <Link>UnitTesting\MSTestSettings.cs</Link>
-    </Compile>
-    <Compile Update="MSTest_Tests\ModelServiceTests.cs">
-      <Link>UnitTesting\ModelServiceTests.cs</Link>
-    </Compile>
-    <Compile Update="MSTest_Tests\ModelControllerTests.cs">
-      <Link>UnitTesting\ModelControllerTests.cs</Link>
-    </Compile>
-  </ItemGroup>
-
 </Project>

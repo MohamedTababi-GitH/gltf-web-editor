@@ -85,8 +85,8 @@ public class ModelControllerTests
         var okResult = result as OkObjectResult;
         Assert.IsNotNull(okResult);
         dynamic value = okResult.Value;
-        Assert.AreEqual(message, value.Message);
-        Assert.AreEqual(alias, value.Alias);
-        Assert.AreEqual(blobName, value.BlobName);
+        Assert.AreEqual(message, value.message);
+        Assert.AreEqual(alias, value.alias);
+        Assert.AreEqual(blobName, value.blobName);
     }
 }
