@@ -13,7 +13,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -27,9 +26,18 @@ function ListView() {
   const [models, setModels] = useState<ModelItem[]>([]);
   const { setUrl } = useModel();
   const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
-    "date"
+    "date",
   );
   const [searchTerm, setSearchTerm] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+
+  const toggleFavorite = (id: string) => {
+    setModels((prevModels) =>
+      prevModels.map((model) =>
+        model.id === id ? { ...model, isFavourite: !model.isFavourite } : model,
+      ),
+    );
+  };
 
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
@@ -85,11 +93,15 @@ function ListView() {
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
 
   const filteredAndSortedModels = models
-    .filter(
-      (model) =>
-        (fileTypeFilter === "all" ? true : model.format === fileTypeFilter) &&
-        model.name.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
+    .filter((model) => {
+      const matchesSearch = model.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesFileType =
+        fileTypeFilter === "all" ? true : model.format === fileTypeFilter;
+      const matchesFavorite = favoritesOnly ? model.isFavourite : true;
+      return matchesSearch && matchesFileType && matchesFavorite;
+    })
     .sort((a, b) => {
       switch (sortBy) {
         case "name":
@@ -169,16 +181,18 @@ function ListView() {
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    <DropdownMenuItem
-                    //onClick={() => setFilter("favoritesOnly")}
+                    <DropdownMenuCheckboxItem
+                      checked={favoritesOnly}
+                      onCheckedChange={() => setFavoritesOnly(true)}
                     >
-                      Show favorites only
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                    //onClick={() => setFilter("all")}
+                      Show favourites only
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={!favoritesOnly}
+                      onCheckedChange={() => setFavoritesOnly(false)}
                     >
                       Show all
-                    </DropdownMenuItem>
+                    </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
 
@@ -228,6 +242,7 @@ function ListView() {
                     key={item.id}
                     item={item}
                     refreshList={fetchModels}
+                    onToggleFavorite={() => toggleFavorite(item.id)}
                     onClick={() => {
                       setModel(item);
                       setShowViewer(true);

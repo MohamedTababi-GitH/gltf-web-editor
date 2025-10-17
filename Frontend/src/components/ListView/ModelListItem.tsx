@@ -60,10 +60,12 @@ import { type Category, ECADCategory } from "@/types/Category.ts";
 function ModelListItem({
   item,
   onClick,
+  //onToggleFavorite,
   refreshList,
 }: {
   item: ModelItem;
   onClick: () => void;
+  onToggleFavorite: () => void;
   refreshList: () => void;
 }) {
   const { theme } = useTheme();
@@ -91,6 +93,26 @@ function ModelListItem({
   const animationSrc = isDarkTheme
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
+
+  const [isFavorite, setIsFavorite] = useState(item.isFavourite); // initialize from backend
+
+  const handleFavoriteToggle = async (e) => {
+    e.stopPropagation();
+
+    const newFavoriteStatus = !isFavorite;
+    setIsFavorite(newFavoriteStatus); // optimistic update
+
+    try {
+      await apiClient.patch(`/api/model/${item.id}/details`, {
+        IsFavourite: newFavoriteStatus,
+      });
+
+      if (refreshList) refreshList();
+    } catch (error) {
+      console.error("Failed to update favorite:", error);
+      setIsFavorite(!newFavoriteStatus); // revert on error
+    }
+  };
 
   // --- Event Handlers are unchanged ---
   const handleDelete = async () => {
@@ -134,7 +156,7 @@ function ModelListItem({
 
   const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
 
-  const [isFavorite, setIsFavorite] = useState(false);
+  //const [isFavorite, setIsFavorite] = useState(false);
 
   if (!item) return null;
 
@@ -160,13 +182,10 @@ function ModelListItem({
               size="icon"
               className={`flex items-center justify-center h-8 w-8 rounded-md transition-colors ${
                 isFavorite
-                  ? "bg-white !important border-yellow-400 hover:bg-yellow-50"
+                  ? "bg-white border-yellow-400 hover:bg-yellow-50"
                   : "bg-transparent border-gray-600 hover:bg-gray-800"
               }`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsFavorite((prev) => !prev);
-              }}
+              onClick={handleFavoriteToggle}
             >
               <Star
                 className={`w-5 h-5 transition ${
