@@ -113,8 +113,8 @@ function ModelListItem({
     try {
       await apiClient.patch(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
-        description: editData.description?.trim(),
-        category: editData.category?.trim(),
+        description: editData.description?.trim() || null,
+        category: editData.category?.trim() || null,
       });
       setIsEditOpen(false);
       refreshList();
