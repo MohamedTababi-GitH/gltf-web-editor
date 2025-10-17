@@ -124,6 +124,7 @@ public class ModelController : ControllerBase
                 request.NewAlias,
                 request.Category,
                 request.Description,
+                request.IsFavourite,
                 cancellationToken);
 
             return ok ? NoContent() : NotFound();

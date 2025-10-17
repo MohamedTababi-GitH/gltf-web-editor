@@ -36,5 +36,6 @@ public interface IModelService
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken cancellationToken);
 }
