@@ -2,7 +2,7 @@ import "./App.css";
 import { ThemeProvider } from "@/components/theme-provider.tsx";
 import Home from "@/pages/Home.tsx";
 import { NotificationProvider } from "@/contexts/NotificationContext.tsx";
-import { NavigationProvider } from "@/context/NavigationContext.tsx";
+import { NavigationProvider } from "@/contexts/NavigationContext.tsx";
 
 function App() {
   return (
