@@ -1,6 +1,6 @@
 import { Canvas, useLoader } from "@react-three/fiber";
 import { Suspense, useRef, useState, memo, useEffect } from "react";
-import { Environment, Center, OrbitControls } from "@react-three/drei";
+import { Environment, Center, OrbitControls, Resize } from "@react-three/drei";
 import { Button } from "@/components/ui/button.tsx";
 import { Camera, Check } from "lucide-react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -14,7 +14,7 @@ type ModelThumbnailProps = {
 const LoadedModel = memo(({ url }: { url: string }) => {
   const gltf = useLoader(GLTFLoader, url);
   return (
-    <group scale={0.001} position={[0, -10, 0]}>
+    <group>
       <primitive object={gltf.scene} />
     </group>
   );
@@ -120,7 +120,6 @@ function ModelThumbnail({
       className={`border-2 w-full rounded-md`}
     >
       <Canvas
-        camera={{ position: [-15, 15, 30], fov: 50, far: 100000 }}
         gl={{ preserveDrawingBuffer: true }}
         onCreated={(state) => (canvasRef.current = state.gl.domElement)}
       >
@@ -129,7 +128,9 @@ function ModelThumbnail({
           <ambientLight intensity={0.5} />
           <directionalLight position={[10, 10, 5]} intensity={1} />
           <Center>
-            <Model gltfFile={gltfFile} dependentFiles={dependentFiles} />
+            <Resize scale={10}>
+              <Model gltfFile={gltfFile} dependentFiles={dependentFiles} />
+            </Resize>
           </Center>
           <OrbitControls makeDefault />
         </Suspense>
