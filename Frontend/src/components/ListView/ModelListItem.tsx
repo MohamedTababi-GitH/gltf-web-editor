@@ -111,7 +111,7 @@ function ModelListItem({
     if (isSaving || !editData.alias.trim()) return;
     setIsSaving(true);
     try {
-      await apiClient.patch(`/api/model/${item.id}/details`, {
+      await apiClient.put(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
         description: editData.description?.trim() || null,
         category: editData.category?.trim() || null,
