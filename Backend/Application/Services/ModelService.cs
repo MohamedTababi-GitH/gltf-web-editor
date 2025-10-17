@@ -30,6 +30,7 @@ public sealed class ModelService : IModelService
         CreatedOn = f.CreatedOn,
         Category = f.Category,
         Description = f.Description,
+        IsFavourite = f.IsFavourite,
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
         {
             Name = x.Name,
@@ -146,6 +147,8 @@ public sealed class ModelService : IModelService
 
                 if (!string.IsNullOrWhiteSpace(request.Description))
                     metadata["description"] = request.Description.Trim();
+                
+                metadata["isFavourite"] = "false";
             }
 
             await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
@@ -171,6 +174,7 @@ public sealed class ModelService : IModelService
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken cancellationToken)
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
@@ -183,9 +187,9 @@ public sealed class ModelService : IModelService
         var cat = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
         var desc = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
 
-        if (newAlias is null && cat is null && desc is null)
+        if (newAlias is null && cat is null && desc is null && isFavourite is null)
             throw new ArgumentException("No fields to update.");
 
-        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, cancellationToken);
+        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, isFavourite ,cancellationToken);
     }
 }
