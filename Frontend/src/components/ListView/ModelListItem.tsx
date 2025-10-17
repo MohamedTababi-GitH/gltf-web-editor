@@ -147,7 +147,7 @@ function ModelListItem({
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg truncate w-50">
+              <CardTitle className="text-lg truncate w-50" title={item.name}>
                 {item.name}
               </CardTitle>
               <CardDescription>

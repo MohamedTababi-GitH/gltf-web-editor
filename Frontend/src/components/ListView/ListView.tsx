@@ -7,6 +7,8 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { SidebarProvider } from "../ui/sidebar";
 import { ListFilter } from "lucide-react";
+import { useId } from "react";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -26,6 +28,8 @@ function ListView() {
   const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
     "date",
   );
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
@@ -79,8 +83,10 @@ function ListView() {
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
 
   const filteredAndSortedModels = models
-    .filter((model) =>
-      fileTypeFilter === "all" ? true : model.format === fileTypeFilter,
+    .filter(
+      (model) =>
+        (fileTypeFilter === "all" ? true : model.format === fileTypeFilter) &&
+        model.name.toLowerCase().includes(searchTerm.toLowerCase()),
     )
     .sort((a, b) => {
       switch (sortBy) {
@@ -98,11 +104,24 @@ function ListView() {
       }
     });
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const id = useId();
+
   return (
     <div className="grid justify-center w-full">
       <div className="m-4 md:m-8 lg:m-12 xl:m-16">
         <div className="flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-x-20">
-          <h1 className="mb-3">Uploaded Models</h1>
+          <div className="w-full max-w-xs space-y-2">
+            {/*<h1 className="m-2">Uploaded Models</h1>*/}
+            <Input
+              id={id}
+              type="text"
+              placeholder="Search a model..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-muted border-transparent shadow-none mb-2"
+            />
+          </div>
           <div className="flex items-center gap-8 text-muted-foreground mb-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
