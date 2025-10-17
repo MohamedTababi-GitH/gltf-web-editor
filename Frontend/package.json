@@ -10,9 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@babylonjs/core": "^8.30.3",
-    "@babylonjs/gui": "^8.30.5",
-    "@babylonjs/loaders": "^8.30.3",
     "@lottiefiles/dotlottie-react": "^0.17.4",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -35,7 +32,6 @@
     "prettier": "^3.6.2",
     "radix-ui": "^1.4.3",
     "react": "^19.1.1",
-    "react-babylonjs": "^3.2.5-beta.2",
     "react-dom": "^19.1.1",
     "react-dropzone": "^14.3.8",
     "react-router-dom": "^7.9.3",

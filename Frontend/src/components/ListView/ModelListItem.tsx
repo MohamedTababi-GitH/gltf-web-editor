@@ -25,6 +25,7 @@ import {
   FilePenLine,
   ExternalLink,
   Tags,
+  Calendar,
 } from "lucide-react";
 import type { ModelItem } from "@/types/ModelItem.ts";
 import {
@@ -112,8 +113,8 @@ function ModelListItem({
     try {
       await apiClient.patch(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
-        description: editData.description?.trim(),
-        category: editData.category?.trim(),
+        description: editData.description?.trim() || null,
+        category: editData.category?.trim() || null,
       });
       setIsEditOpen(false);
       refreshList();
@@ -138,15 +139,20 @@ function ModelListItem({
   return (
     <>
       <Card
-        className="flex flex-col max-w-md hover:bg-muted/65 transition-colors cursor-pointer overflow-hidden pb-0"
+        className="flex flex-col max-w-md hover:bg-muted/65 transition-colors cursor-pointer overflow-hidden pb-0 gap-2"
         onClick={onClick}
       >
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-0">
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1 min-w-0">
               <CardTitle className="text-lg truncate">{item.name}</CardTitle>
-              <CardDescription>
-                Created: {formatDateTime(item.createdOn).dateStr}
+              <CardDescription className={`min-h-8`}>
+                {item.category && (
+                  <span className="inline-flex mt-1 items-center rounded-md gap-1 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                    <Tags className={`size-4`} />
+                    {item.category}
+                  </span>
+                )}
               </CardDescription>
             </div>
             <DropdownMenu>
@@ -188,16 +194,11 @@ function ModelListItem({
         </CardHeader>
 
         <CardContent className="px-6 pt-0flex-grow flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground line-clamp-3 min-h-[60px]">
-            {item.description}
-          </p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground min-h-8">
-            {item.category && (
-              <span className="inline-flex items-center rounded-md gap-1 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-                <Tags className={`size-4`} />
-                {item.category}
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4" />
+              <span>{formatDateTime(item.createdOn).dateStr}</span>
+            </div>
             <div className="flex items-center gap-1.5">
               <FileCode2 className="h-4 w-4" />
               <span>.{item.format}</span>
@@ -211,7 +212,33 @@ function ModelListItem({
 
         <CardFooter className="p-0">
           <div className="w-full border-t dark:bg-black">
-            <DotLottieReact src={animationSrc} loop autoplay={false} />
+            {item.additionalFiles && item.additionalFiles.length > 0 ? (
+              // Check if there's a thumbnail image
+              item.additionalFiles.some(
+                (file) =>
+                  file.contentType === "image/png" &&
+                  file.name === "thumbnail.png",
+              ) ? (
+                // If thumbnail exists, display it
+                <img
+                  src={
+                    item.additionalFiles.find(
+                      (file) =>
+                        file.contentType === "image/png" &&
+                        file.name === "thumbnail.png",
+                    )?.url
+                  }
+                  alt="thumbnail"
+                  className="w-full"
+                />
+              ) : (
+                // If no thumbnail, show the animation
+                <DotLottieReact src={animationSrc} loop autoplay={false} />
+              )
+            ) : (
+              // If no additional files at all, show the animation
+              <DotLottieReact src={animationSrc} loop autoplay={false} />
+            )}
           </div>
         </CardFooter>
       </Card>

@@ -139,6 +139,7 @@ function ListView() {
                     refreshList={fetchModels}
                     onClick={() => {
                       setModel(item);
+                      setShowViewer(true);
                     }}
                   />
                 </div>

@@ -45,5 +45,6 @@ public interface IModelStorage
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken ct = default);
 }
