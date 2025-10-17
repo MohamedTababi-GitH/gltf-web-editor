@@ -7,6 +7,8 @@ type ModelViewerProps = {
 };
 
 const ModelViewer: React.FC<ModelViewerProps> = ({ model, setShowViewer }) => {
+  console.log(model);
+  console.log(setShowViewer);
   return <div className="flex w-full h-full overflow-hidden"></div>;
 };
 
