@@ -1,7 +1,7 @@
 import Navbar from "@/components/Navbar";
 import HomeView from "@/components/HomeView/HomeView";
 import ListView from "@/components/ListView/ListView";
-import { useNavigation } from "../context/NavigationContext";
+import { useNavigation } from "../contexts/NavigationContext.tsx";
 
 function Home() {
   const { activeTab } = useNavigation();

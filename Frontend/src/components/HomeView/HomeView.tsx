@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ModelUploadDialog from "./ModelUploadDialog.tsx";
 import { useState } from "react";
-import { useNavigation } from "@/context/NavigationContext.tsx";
+import { useNavigation } from "@/contexts/NavigationContext.tsx";
 
 export default function HomeView() {
   const [showingUpload, setShowingUpload] = useState(false);
