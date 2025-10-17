@@ -12,8 +12,8 @@ namespace ECAD_Backend.Web.Controllers;
 public class ModelController : ControllerBase
 {
     private readonly IModelService _service;
-    
-    
+
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelController"/> class.
     /// </summary>
@@ -53,11 +53,11 @@ public class ModelController : ControllerBase
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(26214400)]
     public async Task<IActionResult> Upload([FromForm] List<IFormFile> files,
-                                            [FromForm] string fileAlias,
-                                            [FromForm] string originalFileName,
-                                            [FromForm] string? category,
-                                            [FromForm] string? description,
-                                            CancellationToken cancellationToken)
+        [FromForm] string fileAlias,
+        [FromForm] string originalFileName,
+        [FromForm] string? category,
+        [FromForm] string? description,
+        CancellationToken cancellationToken)
     {
         if (files.Count == 0)
             return BadRequest("No files uploaded.");
@@ -92,7 +92,7 @@ public class ModelController : ControllerBase
                 stream.Dispose();
         }
     }
-    
+
     /// <summary>Deletes a model by its Id.</summary>
     /// <param name="id">The GUID that was exposed as ModelItemDto.Id</param>
     /// <param name="cancellationToken"></param>
@@ -124,6 +124,7 @@ public class ModelController : ControllerBase
                 request.NewAlias,
                 request.Category,
                 request.Description,
+                request.IsFavourite,
                 cancellationToken);
 
             return ok ? NoContent() : NotFound();

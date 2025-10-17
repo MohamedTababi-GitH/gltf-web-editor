@@ -126,6 +126,10 @@ public class AzureBlobModelStorage : IModelStorage
             var alias = blob.Metadata.TryGetValue("alias", out var a) && !string.IsNullOrWhiteSpace(a) ? a : "Model";
             var category = blob.Metadata.TryGetValue("category", out var cat) ? cat : null;
             var description = blob.Metadata.TryGetValue("description", out var desc) ? desc : null;
+            var isFavourite = false;
+            
+            if (blob.Metadata.TryGetValue("isFavourite", out var favStr)) bool.TryParse(favStr, out isFavourite);
+            
 
             // Determine assetId
             var assetId = blob.Metadata.TryGetValue("assetId", out var aid) && !string.IsNullOrWhiteSpace(aid)
@@ -166,7 +170,8 @@ public class AzureBlobModelStorage : IModelStorage
                 Category = category,
                 Description = description,
                 AssetId = assetId,
-                AdditionalFiles = additional
+                AdditionalFiles = additional,
+                IsFavourite = isFavourite
             });
         }
 
@@ -231,6 +236,7 @@ public class AzureBlobModelStorage : IModelStorage
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken ct = default)
     {
         bool updated = false;
@@ -253,6 +259,7 @@ public class AzureBlobModelStorage : IModelStorage
             if (!string.IsNullOrWhiteSpace(newAlias)) metadata["alias"] = newAlias;
             if (!string.IsNullOrWhiteSpace(category)) metadata["category"] = category;
             if (!string.IsNullOrWhiteSpace(description)) metadata["description"] = description;
+            if (isFavourite.HasValue) metadata["isFavourite"] = isFavourite.Value ? "true" : "false";
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;

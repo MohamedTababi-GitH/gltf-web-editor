@@ -14,7 +14,7 @@ public sealed class ModelService : IModelService
     private readonly IModelStorage _storage;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
     public ModelService(IModelStorage storage) => _storage = storage;
-    
+
     /// <summary>
     /// Maps a <see cref="ModelFile"/> entity to a <see cref="ModelItemDto"/> data transfer object.
     /// </summary>
@@ -30,6 +30,7 @@ public sealed class ModelService : IModelService
         CreatedOn = f.CreatedOn,
         Category = f.Category,
         Description = f.Description,
+        IsFavourite = f.IsFavourite,
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
         {
             Name = x.Name,
@@ -38,14 +39,14 @@ public sealed class ModelService : IModelService
             ContentType = x.ContentType
         }).ToList()
     };
-    
+
     static string Sanitize(string s)
     {
         s = s.Replace("/", "").Replace("\\", "").Trim();
-        s = s.Replace("..", ""); 
+        s = s.Replace("..", "");
         return s.Length > 120 ? s[..120] : s;
     }
-    
+
     /// <summary>
     /// Retrieves a list of all stored model items.
     /// </summary>
@@ -93,7 +94,8 @@ public sealed class ModelService : IModelService
         var entryTuple = request.Files.FirstOrDefault(f =>
             string.Equals(Path.GetFileName(f.FileName), entryFileName, StringComparison.OrdinalIgnoreCase));
         if (entryTuple.FileName is null)
-            throw new ArgumentException($"Entry file '{entryFileName}' was not included in Files.", nameof(request.Files));
+            throw new ArgumentException($"Entry file '{entryFileName}' was not included in Files.",
+                nameof(request.Files));
 
         var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
@@ -103,7 +105,7 @@ public sealed class ModelService : IModelService
         {
             if (content is null) throw new ArgumentException("A file stream was null.", nameof(request.Files));
 
-            var fileName = Path.GetFileName(fileNameRaw);       // drop any directory parts
+            var fileName = Path.GetFileName(fileNameRaw); // drop any directory parts
             var ext = Path.GetExtension(fileName).ToLowerInvariant();
 
             // Keep it simple: allow common companions for glTF
@@ -119,14 +121,14 @@ public sealed class ModelService : IModelService
 
             var contentType = ext switch
             {
-                ".glb"  => "model/gltf-binary",
+                ".glb" => "model/gltf-binary",
                 ".gltf" => "model/gltf+json",
-                ".bin"  => "application/octet-stream",
-                ".png"  => "image/png",
+                ".bin" => "application/octet-stream",
+                ".png" => "image/png",
                 ".jpg" or ".jpeg" => "image/jpeg",
                 ".webp" => "image/webp",
                 ".ktx2" => "image/ktx2",
-                _       => "application/octet-stream"
+                _ => "application/octet-stream"
             };
 
             // Metadata: alias ONLY on the entry .glb/.gltf
@@ -139,12 +141,14 @@ public sealed class ModelService : IModelService
             if (isEntry)
             {
                 metadata["alias"] = request.Alias;
-                
-                if(!string.IsNullOrWhiteSpace(request.Category))
+
+                if (!string.IsNullOrWhiteSpace(request.Category))
                     metadata["category"] = request.Category.Trim();
-                
-                if(!string.IsNullOrWhiteSpace(request.Description))
+
+                if (!string.IsNullOrWhiteSpace(request.Description))
                     metadata["description"] = request.Description.Trim();
+                
+                metadata["isFavourite"] = "false";
             }
 
             await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
@@ -157,19 +161,20 @@ public sealed class ModelService : IModelService
             BlobName = $"{assetId}/{safeBase}{entryExt}" // path of the entry file
         };
     }
-    
+
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
         var deleted = await _storage.DeleteByIdAsync(id, cancellationToken);
         return deleted;
     }
-    
+
     public async Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken cancellationToken)
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
@@ -179,12 +184,12 @@ public sealed class ModelService : IModelService
             throw new ArgumentException("Alias not valid.", nameof(newAlias));
 
         // Normalize category and description
-        var cat  = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+        var cat = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
         var desc = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
 
-        if (newAlias is null && cat is null && desc is null)
+        if (newAlias is null && cat is null && desc is null && isFavourite is null)
             throw new ArgumentException("No fields to update.");
 
-        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, cancellationToken);
+        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, isFavourite ,cancellationToken);
     }
 }
