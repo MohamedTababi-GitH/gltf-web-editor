@@ -20,13 +20,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useModel } from "@/contexts/ModelContext";
 
 function ListView() {
   const [model, setModel] = useState<ModelItem | null>(null);
-
   const [models, setModels] = useState<ModelItem[]>([]);
+  const { setUrl } = useModel();
   const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
-    "date",
+    "date"
   );
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -67,7 +68,8 @@ function ListView() {
     fetchModels();
   }, [fetchModels]);
 
-  if (showViewer) {
+  if (showViewer && model) {
+    setUrl(model.url);
     return (
       <SidebarProvider>
         <div className="h-[calc(100vh-4rem)] w-screen">
@@ -228,6 +230,7 @@ function ListView() {
                     refreshList={fetchModels}
                     onClick={() => {
                       setModel(item);
+                      setShowViewer(true);
                     }}
                   />
                 </div>
