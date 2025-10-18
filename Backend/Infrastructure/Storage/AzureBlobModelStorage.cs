@@ -207,17 +207,29 @@ public class AzureBlobModelStorage : IModelStorage
             if (blob.Metadata == null) continue;
             if (!TryMatchesId(blob.Metadata, id)) continue;
 
-            // only update entry blobs (.glb/.gltf)
             var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
             if (ext != ".glb" && ext != ".gltf") continue;
 
             var client = _container.GetBlobClient(blob.Name);
             var metadata = new Dictionary<string, string>(blob.Metadata, StringComparer.OrdinalIgnoreCase);
 
-            if (!string.IsNullOrWhiteSpace(newAlias)) metadata[MetaAlias] = newAlias;
-            if (!string.IsNullOrWhiteSpace(category)) metadata[MetaCategory] = category;
-            if (!string.IsNullOrWhiteSpace(description)) metadata[MetaDescription] = description;
-            if (isFavourite.HasValue) metadata[MetaIsFavourite] = isFavourite.Value ? "true" : "false";
+            // Helper local to set or remove
+            void SetOrRemove(string key, string? value)
+            {
+                if (value is null)
+                    metadata.Remove(key);
+                else
+                    metadata[key] = value;
+            }
+
+            SetOrRemove(MetaAlias, newAlias);
+            SetOrRemove(MetaCategory, category);
+            SetOrRemove(MetaDescription, description);
+
+            if (isFavourite.HasValue)
+                metadata[MetaIsFavourite] = isFavourite.Value ? "true" : "false";
+            else
+                metadata.Remove(MetaIsFavourite);
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;
