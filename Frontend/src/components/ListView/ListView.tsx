@@ -31,6 +31,9 @@ function ListView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
+  const id = useId();
+  const [fileTypeFilter, setFileTypeFilter] = useState("all");
+
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
@@ -39,7 +42,7 @@ function ListView() {
   useEffect(() => {
     if (!models || models.length === 0) {
       setShowAnimation(true);
-      const timer = setTimeout(() => setShowAnimation(false), 3000); // hide after 3s
+      const timer = setTimeout(() => setShowAnimation(false), 3000);
       return () => clearTimeout(timer);
     } else {
       setShowAnimation(false);
@@ -79,11 +82,6 @@ function ListView() {
     );
   }
 
-  //const [showStatusBar, setShowStatusBar] = useState(false);
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const [fileTypeFilter, setFileTypeFilter] = useState("all");
-
   const filteredAndSortedModels = models
     .filter((model) => {
       const matchesSearch = model.name
@@ -109,9 +107,6 @@ function ListView() {
           );
       }
     });
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const id = useId();
 
   return (
     <div className="grid justify-center w-full">
