@@ -3,6 +3,7 @@ using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure;
 using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
+using ECAD_Backend.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,13 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// adding Global exception handeler
+builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>(); // Keep this last
+builder.Services.AddProblemDetails(); ;
+
 
 //CORS for frontend dev host(adjust if needed)
 builder.Services.AddCors(o => o.AddPolicy("frontend", p => p
@@ -36,6 +44,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Enable Global exception handler
+app.UseExceptionHandler();
 
 app.UseDefaultFiles();
 
