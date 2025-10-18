@@ -31,14 +31,6 @@ function ListView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
-  const toggleFavorite = (id: string) => {
-    setModels((prevModels) =>
-      prevModels.map((model) =>
-        model.id === id ? { ...model, isFavourite: !model.isFavourite } : model,
-      ),
-    );
-  };
-
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
@@ -242,7 +234,6 @@ function ListView() {
                     key={item.id}
                     item={item}
                     refreshList={fetchModels}
-                    onToggleFavorite={() => toggleFavorite(item.id)}
                     onClick={() => {
                       setModel(item);
                       setShowViewer(true);
