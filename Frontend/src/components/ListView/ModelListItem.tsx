@@ -104,8 +104,8 @@ function ModelListItem({
     try {
       await apiClient.put(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
-        description: editData.description?.trim(),
-        category: editData.category?.trim(),
+        description: editData.description?.trim() || null,
+        category: editData.category?.trim() || null,
         IsFavourite: newFavoriteStatus,
       });
 
@@ -136,8 +136,8 @@ function ModelListItem({
     try {
       await apiClient.put(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
-        description: editData.description?.trim(),
-        category: editData.category?.trim(),
+        description: editData.description?.trim() || null,
+        category: editData.category?.trim() || null,
         IsFavourite: isFavorite,
       });
       setIsEditOpen(false);
