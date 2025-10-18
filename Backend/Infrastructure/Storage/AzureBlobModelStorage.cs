@@ -10,25 +10,32 @@ namespace ECAD_Backend.Infrastructure.Storage;
 
 /// <summary>
 /// Azure Blob Storage implementation of <see cref="IModelStorage"/>.
-/// Provides methods to upload model files and list model files stored in an Azure Blob Storage container.
+/// Provides methods to upload and list model files stored in an Azure Blob Storage container.
 /// </summary>
 public class AzureBlobModelStorage : IModelStorage
 {
+    private const string DefaultContentType = "application/octet-stream";
+    private const string MetaId = "Id";
+    private const string MetaAlias = "alias";
+    private const string MetaCategory = "category";
+    private const string MetaDescription = "description";
+    private const string MetaIsFavourite = "isFavourite";
+    private const string MetaAssetId = "assetId";
+    private const string MetaUploadedAtUtc = "UploadedAtUtc";
+    private const string MetaBasename = "basename";
+
+    #region Initialisation & Constructor
+
     // Represents a specific blob container within the Azure Storage account
     private readonly BlobContainerClient _container;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AzureBlobModelStorage"/> class.
-    /// Configures the Blob container client using provided BlobOptions.
-    /// </summary>
-    /// <param name="opts">The options containing connection string and container name.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="opts"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Thrown if required configuration values are missing.</exception>
+    // Cached container URL parts for SAS-preserving links
+    private readonly string _baseUri; // https://.../container
+    private readonly string _sasQuery; // ?sp=...&sig=...
+
     public AzureBlobModelStorage(IOptions<BlobOptions> opts)
     {
-        // Grab the BlobOptions section from configuration (via dependency injection)
         var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
-
         if (string.IsNullOrWhiteSpace(o.ConnectionString))
             throw new InvalidOperationException("Storage:ConnectionString is missing.");
         if (string.IsNullOrWhiteSpace(o.ContainerModels))
@@ -36,128 +43,52 @@ public class AzureBlobModelStorage : IModelStorage
 
         _container = new BlobContainerClient(new Uri(o.ConnectionString));
 
-        // test if works the following way 
-        // var service = new BlobServiceClient(o.ConnectionString);
-        // _container = service.GetBlobContainerClient(o.ContainerModels);
+        // Precompute SAS-preserving base URL pieces
+        var containerUriStr = _container.Uri.ToString();
+        var parts = containerUriStr.Split('?', 2);
+        _baseUri = parts[0].TrimEnd('/'); // https://.../container
+        _sasQuery = parts.Length == 2 ? "?" + parts[1] : string.Empty; // ?sp=...&sig=...
     }
 
-    /// <summary>
-    /// Uploads a blob (model file) to the Azure Blob Storage container.
-    /// </summary>
-    /// <param name="blobName">The name of the blob to upload.</param>
-    /// <param name="content">The content stream of the blob.</param>
-    /// <param name="contentType">The content type (MIME type) of the blob.</param>
-    /// <param name="metadata">Optional metadata to attach to the blob.</param>
-    /// <param name="ct">Cancellation token for the async operation.</param>
-    /// <returns>A task that represents the asynchronous upload operation.</returns>
-    /// <exception cref="ArgumentException">Thrown if <paramref name="blobName"/> is null or whitespace.</exception>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="content"/> is null.</exception>
-    public async Task UploadAsync(
-        string blobName,
-        Stream content,
-        string contentType,
-        IDictionary<string, string>? metadata = null,
-        CancellationToken ct = default)
-    {
-        // Validate that the provided blob name is not empty or null
-        if (string.IsNullOrWhiteSpace(blobName))
-            throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
+    #endregion
 
-        if (content == null)
-            throw new ArgumentNullException(nameof(content));
+    #region CRUD Methods
 
-        var blobClient = _container.GetBlobClient(blobName);
-
-        // Stamp an internal GUID as metadata
-        metadata ??= new Dictionary<string, string>();
-
-        if (!metadata.ContainsKey("Id")) metadata["Id"] = Guid.NewGuid().ToString("N");
-        var options = new BlobUploadOptions
-        {
-            // HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
-            HttpHeaders = new BlobHttpHeaders
-            {
-                ContentType = string.IsNullOrEmpty(contentType) ? "application/octet-stream" : contentType
-            },
-            Metadata = metadata,
-            Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All } // No overwrites
-        };
-        await blobClient.UploadAsync(content, options, ct);
-    }
-
-    /// <summary>
-    /// Lists all model files currently stored in the Azure Blob Storage container.
-    /// Only files with .glb or .gltf extensions are included.
-    /// </summary>
-    /// <param name="ct">Cancellation token for the async operation.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of <see cref="ModelFile"/> objects.</returns>
-    // TODO : REFACTOR
     public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
     {
         var result = new List<ModelFile>();
 
-        // Preserve SAS (if any) from the container URI
-        var containerUriStr = _container.Uri.ToString();
-        var parts = containerUriStr.Split('?', 2);
-        var baseUri = parts[0].TrimEnd('/'); // https://.../container
-        var sasQuery = parts.Length == 2 ? "?" + parts[1] : string.Empty; // ?sp=...&sig=...
-
-        await foreach (BlobItem blob in _container.GetBlobsAsync(
+        await foreach (var blob in _container.GetBlobsAsync(
                            traits: BlobTraits.Metadata,
                            states: BlobStates.None,
                            cancellationToken: ct))
         {
             var name = blob.Name;
-
-            var format =
-                name.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) ? "glb" :
-                name.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase) ? "gltf" : null;
-
-            if (format is null) continue;
+            var format = GetFormatOrNull(name);
+            if (format is null) continue; // only entry .glb/.gltf
 
             // Build SAS-preserving URL for entry file
-            var fileUrlStr = $"{baseUri}/{Uri.EscapeDataString(name)}{sasQuery}";
-            var fileUri = new Uri(fileUrlStr);
+            var fileUri = BuildBlobUri(name);
 
-            var id = blob.Metadata.TryGetValue("Id", out var idStr) && Guid.TryParse(idStr, out var parsed)
-                ? parsed
-                : Guid.NewGuid();
+            // Id
+            var id = TryGetGuidMetadata(blob.Metadata, MetaId) ?? Guid.NewGuid();
 
-            var alias = blob.Metadata.TryGetValue("alias", out var a) && !string.IsNullOrWhiteSpace(a) ? a : "Model";
-            var category = blob.Metadata.TryGetValue("category", out var cat) ? cat : null;
-            var description = blob.Metadata.TryGetValue("description", out var desc) ? desc : null;
-            var isFavourite = false;
-            
-            if (blob.Metadata.TryGetValue("isFavourite", out var favStr)) bool.TryParse(favStr, out isFavourite);
-            
+            // Alias/Category/Description/Favourite
+            var alias = ReadStringMetadataOrDefault(blob.Metadata, MetaAlias, "Model");
+            var category = ReadStringMetadataOrNull(blob.Metadata, MetaCategory);
+            var description = ReadStringMetadataOrNull(blob.Metadata, MetaDescription);
+            var isFavourite = ParseBoolMetadata(blob.Metadata, MetaIsFavourite);
 
             // Determine assetId
-            var assetId = blob.Metadata.TryGetValue("assetId", out var aid) && !string.IsNullOrWhiteSpace(aid)
-                ? aid
-                : name.Split('/', 2)[0]; // fallback to first segment
+            var assetId = ReadStringMetadataOrNull(blob.Metadata, MetaAssetId);
+            if (string.IsNullOrWhiteSpace(assetId))
+            {
+                // fallback to first virtual folder segment
+                assetId = name.Split('/', 2)[0];
+            }
 
             // Collect additional files under the same folder (skip entry)
-            var additional = new List<AdditionalFile>();
-            await foreach (var sub in _container.GetBlobsAsync(
-                               traits: BlobTraits.None,
-                               states: BlobStates.None,
-                               prefix: assetId + "/",
-                               cancellationToken: ct))
-            {
-                if (string.Equals(sub.Name, name, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                var subUrlStr = $"{baseUri}/{Uri.EscapeDataString(sub.Name)}{sasQuery}";
-                var subUri = new Uri(subUrlStr);
-
-                additional.Add(new AdditionalFile
-                {
-                    Name = Path.GetFileName(sub.Name),
-                    Url = subUri,
-                    SizeBytes = sub.Properties.ContentLength,
-                    ContentType = sub.Properties.ContentType
-                });
-            }
+            var additional = await EnumerateAdditionalFilesAsync(assetId!, name, ct);
 
             result.Add(new ModelFile
             {
@@ -178,41 +109,71 @@ public class AzureBlobModelStorage : IModelStorage
         return result;
     }
 
-    public async Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task UploadAsync(
+        string blobName,
+        Stream content,
+        string contentType,
+        IDictionary<string, string>? metadata = null,
+        CancellationToken ct = default)
     {
-        bool anyDeleted = false;
+        if (string.IsNullOrWhiteSpace(blobName))
+            throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
+        if (content == null)
+            throw new ArgumentNullException(nameof(content));
+
+        var blobClient = _container.GetBlobClient(blobName);
+
+        // Ensure metadata dictionary exists and stamp internal GUID if missing
+        metadata ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!metadata.ContainsKey(MetaId))
+            metadata[MetaId] = Guid.NewGuid().ToString("N");
+
+        var options = new BlobUploadOptions
+        {
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = string.IsNullOrEmpty(contentType) ? DefaultContentType : contentType
+            },
+            Metadata = metadata,
+            Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All } // No overwrites
+        };
+
+        await blobClient.UploadAsync(content, options, ct);
+    }
+
+    public async Task<bool> DeleteByIdAsync(
+        Guid id,
+        CancellationToken ct = default)
+    {
+        var anyDeleted = false;
 
         await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None,
                            cancellationToken: ct))
         {
-            if (blob.Metadata != null &&
-                blob.Metadata.TryGetValue("Id", out var idStr) &&
-                Guid.TryParse(idStr, out var metaId) &&
-                metaId == id)
+            if (!TryMatchesId(blob.Metadata, id)) continue;
+
+            // Delete by prefix to be safe if assetId exists
+            if (blob.Metadata.TryGetValue(MetaAssetId, out var assetId) && !string.IsNullOrWhiteSpace(assetId))
             {
-                // Delete by prefix to be safe:
-                if (blob.Metadata.TryGetValue("assetId", out var assetId) && !string.IsNullOrWhiteSpace(assetId))
-                {
-                    // Delete everything under {assetId}/
-                    await DeleteByAssetIdAsync(assetId, ct);
-                    anyDeleted = true;
-                }
-                else
-                {
-                    // Fallback: delete just this one blob
-                    var client = _container.GetBlobClient(blob.Name);
-                    await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null,
-                        cancellationToken: ct);
-                    anyDeleted = true;
-                }
-                // no break on purpose if multiple blobs share the same Id (unlikely but harmless)
+                await DeleteByAssetIdAsync(assetId, ct);
+                anyDeleted = true;
             }
+            else
+            {
+                var client = _container.GetBlobClient(blob.Name);
+                var resp = await client.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, conditions: null,
+                    cancellationToken: ct);
+                if (resp.Value) anyDeleted = true;
+            }
+            // intentionally no "break" to handle the unlikely case of multiple blobs with same Id
         }
 
         return anyDeleted;
     }
 
-    public async Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default)
+    public async Task<int> DeleteByAssetIdAsync(
+        string assetId,
+        CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(assetId))
             throw new ArgumentException("Asset id required.", nameof(assetId));
@@ -239,27 +200,36 @@ public class AzureBlobModelStorage : IModelStorage
         bool? isFavourite,
         CancellationToken ct = default)
     {
-        bool updated = false;
+        var updated = false;
 
         await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
         {
             if (blob.Metadata == null) continue;
-            if (!blob.Metadata.TryGetValue("Id", out var idStr) ||
-                !Guid.TryParse(idStr, out var metaId) ||
-                metaId != id)
-                continue;
+            if (!TryMatchesId(blob.Metadata, id)) continue;
 
-            // only update entry blobs (.glb/.gltf)
             var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
             if (ext != ".glb" && ext != ".gltf") continue;
 
             var client = _container.GetBlobClient(blob.Name);
             var metadata = new Dictionary<string, string>(blob.Metadata, StringComparer.OrdinalIgnoreCase);
 
-            if (!string.IsNullOrWhiteSpace(newAlias)) metadata["alias"] = newAlias;
-            if (!string.IsNullOrWhiteSpace(category)) metadata["category"] = category;
-            if (!string.IsNullOrWhiteSpace(description)) metadata["description"] = description;
-            if (isFavourite.HasValue) metadata["isFavourite"] = isFavourite.Value ? "true" : "false";
+            // Helper local to set or remove
+            void SetOrRemove(string key, string? value)
+            {
+                if (value is null)
+                    metadata.Remove(key);
+                else
+                    metadata[key] = value;
+            }
+
+            SetOrRemove(MetaAlias, newAlias);
+            SetOrRemove(MetaCategory, category);
+            SetOrRemove(MetaDescription, description);
+
+            if (isFavourite.HasValue)
+                metadata[MetaIsFavourite] = isFavourite.Value ? "true" : "false";
+            else
+                metadata.Remove(MetaIsFavourite);
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;
@@ -267,4 +237,67 @@ public class AzureBlobModelStorage : IModelStorage
 
         return updated;
     }
+
+    #endregion
+
+    #region Private Helpers
+
+    private static string? GetFormatOrNull(string blobName)
+    {
+        if (blobName.EndsWith(".glb", StringComparison.OrdinalIgnoreCase)) return "glb";
+        if (blobName.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase)) return "gltf";
+        return null;
+    }
+
+    private Uri BuildBlobUri(string blobName)
+        => new($"{_baseUri}/{Uri.EscapeDataString(blobName)}{_sasQuery}");
+
+    private static Guid? TryGetGuidMetadata(IDictionary<string, string> metadata, string key)
+        => metadata.TryGetValue(key, out var idStr) && Guid.TryParse(idStr, out var g) ? g : null;
+
+    private static string? ReadStringMetadataOrNull(IDictionary<string, string> metadata, string key)
+        => metadata.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : null;
+
+    private static string ReadStringMetadataOrDefault(IDictionary<string, string> metadata, string key, string @default)
+        => ReadStringMetadataOrNull(metadata, key) ?? @default;
+
+    private static bool ParseBoolMetadata(IDictionary<string, string> metadata, string key)
+        => metadata.TryGetValue(key, out var s) && bool.TryParse(s, out var b) && b;
+
+    private static bool TryMatchesId(IDictionary<string, string> metadata, Guid id)
+        => metadata != null
+           && metadata.TryGetValue(MetaId, out var idStr)
+           && Guid.TryParse(idStr, out var metaId)
+           && metaId == id;
+
+    private async Task<List<AdditionalFile>> EnumerateAdditionalFilesAsync(
+        string assetId, string entryBlobName, CancellationToken ct)
+    {
+        var additional = new List<AdditionalFile>();
+        var prefix = assetId.TrimEnd('/') + "/";
+
+        await foreach (var sub in _container.GetBlobsAsync(
+                           traits: BlobTraits.None,
+                           states: BlobStates.None,
+                           prefix: prefix,
+                           cancellationToken: ct))
+        {
+            if (string.Equals(sub.Name, entryBlobName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var subUri = BuildBlobUri(sub.Name);
+
+            additional.Add(new AdditionalFile
+            {
+                Name = Path.GetFileName(sub.Name),
+                Url = subUri,
+                SizeBytes = sub.Properties.ContentLength,
+                ContentType = sub.Properties.ContentType
+            });
+        }
+
+        return additional;
+    }
+
+    #endregion
 }
