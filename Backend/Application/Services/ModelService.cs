@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
+using ECAD_Backend.Exceptions;
 
 namespace ECAD_Backend.Application.Services;
 
@@ -13,6 +14,7 @@ public sealed class ModelService : IModelService
 {
     private readonly IModelStorage _storage;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
+
     public ModelService(IModelStorage storage) => _storage = storage;
 
     /// <summary>
@@ -40,6 +42,11 @@ public sealed class ModelService : IModelService
         }).ToList()
     };
 
+    /// <summary>
+    /// Sanitizes a file name by removing directory parts and limiting its length.
+    /// </summary>
+    /// <param name="s">The input string to sanitize.</param>
+    /// <returns>A cleaned and safe file name string.</returns>
     static string Sanitize(string s)
     {
         s = s.Replace("/", "").Replace("\\", "").Trim();
@@ -59,43 +66,47 @@ public sealed class ModelService : IModelService
     }
 
     /// <summary>
-    /// Validates and uploads a 3D model file and relevant files according to the specified request.
+    /// Validates and uploads a 3D model file and its related files according to the specified request.
     /// </summary>
     /// <param name="request">The upload request containing file content, original file name, and alias.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>An <see cref="UploadResultDto"/> containing the result of the upload operation.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when the <paramref name="request"/> is null.</exception>
-    /// <exception cref="ArgumentException">
-    /// Thrown when the request content is null, original file name or alias is missing,
-    /// alias does not match required pattern, or file extension is invalid.
+    /// <exception cref="BadRequestException">
+    /// Thrown when the request or its file contents are missing or inconsistent.
+    /// </exception>
+    /// <exception cref="ValidationException">
+    /// Thrown when input validation fails (e.g., alias, file type, or file naming rules).
     /// </exception>
     public async Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken)
     {
-        if (request is null) throw new ArgumentNullException(nameof(request));
-        if (request.Files is null || request.Files.Count == 0)
-            throw new ArgumentException("No files provided.", nameof(request.Files));
+        if (request is null)
+            throw new BadRequestException("Upload request cannot be null.");
 
-        // Validate alias once (only applied to entry file)
+        if (request.Files is null || request.Files.Count == 0)
+            throw new BadRequestException("No files provided in the upload request.");
+
+        // Validate alias once (applies only to entry file)
         if (string.IsNullOrWhiteSpace(request.Alias))
-            throw new ArgumentException("Alias required.", nameof(request.Alias));
+            throw new ValidationException("Alias is required.");
         if (!AliasRegex.IsMatch(request.Alias))
-            throw new ArgumentException("Alias not valid.", nameof(request.Alias));
+            throw new ValidationException("Alias must contain only letters, digits, or underscores.");
 
         // Validate the entry file name
         if (string.IsNullOrWhiteSpace(request.OriginalFileName))
-            throw new ArgumentException("Original file name required.", nameof(request.OriginalFileName));
+            throw new ValidationException("Original file name is required.");
 
-        var entryFileName = Path.GetFileName(request.OriginalFileName); // strips any path parts
+        var entryFileName = Path.GetFileName(request.OriginalFileName);
         var entryExt = Path.GetExtension(entryFileName).ToLowerInvariant();
-        if (entryExt != ".glb" && entryExt != ".gltf")
-            throw new ArgumentException("Original file must be .glb or .gltf.", nameof(request.OriginalFileName));
 
-        // Ensure the entry file is present in Files (basic consistency)
+        if (entryExt != ".glb" && entryExt != ".gltf")
+            throw new ValidationException("Original file must be a .glb or .gltf file.");
+
+        // Ensure the entry file is present in Files
         var entryTuple = request.Files.FirstOrDefault(f =>
             string.Equals(Path.GetFileName(f.FileName), entryFileName, StringComparison.OrdinalIgnoreCase));
+
         if (entryTuple.FileName is null)
-            throw new ArgumentException($"Entry file '{entryFileName}' was not included in Files.",
-                nameof(request.Files));
+            throw new BadRequestException($"Entry file '{entryFileName}' was not included in the request files.");
 
         var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
@@ -103,22 +114,20 @@ public sealed class ModelService : IModelService
         // Upload all files under the same {assetId}/ folder
         foreach (var (fileNameRaw, content) in request.Files)
         {
-            if (content is null) throw new ArgumentException("A file stream was null.", nameof(request.Files));
+            if (content is null)
+                throw new BadRequestException($"File stream for '{fileNameRaw}' was null.");
 
-            var fileName = Path.GetFileName(fileNameRaw); // drop any directory parts
+            var fileName = Path.GetFileName(fileNameRaw);
             var ext = Path.GetExtension(fileName).ToLowerInvariant();
 
-            // Keep it simple: allow common companions for glTF
+            // Allow only specific companion files
             bool isEntry = string.Equals(fileName, entryFileName, StringComparison.OrdinalIgnoreCase);
-            bool isAllowed =
-                isEntry ||
-                ext is ".bin" or ".png" or ".jpg" or ".jpeg" or ".webp" or ".ktx2";
+            bool isAllowed = isEntry || ext is ".bin" or ".png" or ".jpg" or ".jpeg" or ".webp" or ".ktx2";
 
             if (!isAllowed)
-                throw new ArgumentException($"Unsupported file type: {fileName}");
+                throw new ValidationException($"Unsupported file type: {fileName}");
 
             var blobName = $"{assetId}/{fileName}";
-
             var contentType = ext switch
             {
                 ".glb" => "model/gltf-binary",
@@ -131,13 +140,14 @@ public sealed class ModelService : IModelService
                 _ => "application/octet-stream"
             };
 
-            // Metadata: alias ONLY on the entry .glb/.gltf
+            // Metadata: alias only on the entry .glb/.gltf
             var metadata = new Dictionary<string, string>
             {
                 ["basename"] = fileName,
                 ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
                 ["assetId"] = assetId
             };
+
             if (isEntry)
             {
                 metadata["alias"] = request.Alias;
@@ -147,7 +157,7 @@ public sealed class ModelService : IModelService
 
                 if (!string.IsNullOrWhiteSpace(request.Description))
                     metadata["description"] = request.Description.Trim();
-                
+
                 metadata["isFavourite"] = "false";
             }
 
@@ -158,17 +168,42 @@ public sealed class ModelService : IModelService
         {
             Message = "Uploaded successfully.",
             Alias = request.Alias,
-            BlobName = $"{assetId}/{safeBase}{entryExt}" // path of the entry file
+            BlobName = $"{assetId}/{safeBase}{entryExt}"
         };
     }
 
+    /// <summary>
+    /// Deletes a model entry and its related files by ID.
+    /// </summary>
+    /// <param name="id">The unique identifier of the model to delete.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>True if deletion succeeded, otherwise false.</returns>
+    /// <exception cref="ValidationException">Thrown when the provided ID is invalid.</exception>
+    /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
+        if (id == Guid.Empty)
+            throw new ValidationException("Invalid model ID.");
+
         var deleted = await _storage.DeleteByIdAsync(id, cancellationToken);
-        return deleted;
+        if (!deleted)
+            throw new NotFoundException($"Model with ID '{id}' not found.");
+
+        return true;
     }
 
+    /// <summary>
+    /// Updates metadata details for a stored model (alias, category, description, or favourite status).
+    /// </summary>
+    /// <param name="id">The unique identifier of the model to update.</param>
+    /// <param name="newAlias">The new alias to assign, or null to remove it.</param>
+    /// <param name="category">The new category to assign, or null to remove it.</param>
+    /// <param name="description">The new description to assign, or null to remove it.</param>
+    /// <param name="isFavourite">Whether the model is marked as favourite.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>True if the update succeeded.</returns>
+    /// <exception cref="ValidationException">Thrown when the provided ID or alias is invalid.</exception>
+    /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
     public async Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
@@ -177,20 +212,22 @@ public sealed class ModelService : IModelService
         bool? isFavourite,
         CancellationToken cancellationToken)
     {
-        if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
+        if (id == Guid.Empty)
+            throw new ValidationException("Invalid model ID.");
 
-        // Normalize whitespace-only to null (treat as delete)
+        // Normalize whitespace-only strings to null (treat as deletion)
         string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-        var cat  = Normalize(category);
-        var desc = Normalize(description);
         var alias = Normalize(newAlias);
-
-        // Validate alias only if it's being set (not deleted)
         if (alias is not null && !AliasRegex.IsMatch(alias))
-            throw new ArgumentException("Alias not valid.", nameof(newAlias));
+            throw new ValidationException("Alias format is invalid.");
 
-        // NOTE: For PUT we DO allow all nulls (deletes all metadata)
-        return await _storage.UpdateDetailsAsync(id, alias, cat, desc, isFavourite, cancellationToken);
+        var updated = await _storage.UpdateDetailsAsync(
+            id, alias, Normalize(category), Normalize(description), isFavourite, cancellationToken);
+
+        if (!updated)
+            throw new NotFoundException($"Model with ID '{id}' not found.");
+
+        return true;
     }
 }

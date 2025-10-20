@@ -17,6 +17,8 @@ builder.Services.AddSwaggerGen();
 // adding Global exception handeler
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>(); // Keep this last
 builder.Services.AddProblemDetails(); ;
 
