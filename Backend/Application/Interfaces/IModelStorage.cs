@@ -12,8 +12,8 @@ public interface IModelStorage
     /// </summary>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of <see cref="ModelFile"/> instances.</returns>
-    Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default);
-
+    Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(int limit, string? cursor, CancellationToken ct = default);
+    
     /// <summary>
     /// Uploads a model file to storage asynchronously.
     /// </summary>

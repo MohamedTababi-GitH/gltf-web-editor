@@ -27,11 +27,19 @@ public class ModelController : ControllerBase
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<ModelItemDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<ModelItemDto>>> GetAll(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PageResult<ModelItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
+        [FromQuery] int limit = 10,
+        [FromQuery] string? cursor = null,
+        CancellationToken cancellationToken = default)
     {
-        var items = await _service.ListAsync(cancellationToken);
-        return Ok(items);
+        var page = await _service.ListAsync(limit, cursor, cancellationToken);
+
+        // Optional: expose cursor in a response header too
+        if (page.NextCursor is not null)
+            Response.Headers["X-Next-Cursor"] = page.NextCursor;
+
+        return Ok(page);
     }
 
     /// <summary>

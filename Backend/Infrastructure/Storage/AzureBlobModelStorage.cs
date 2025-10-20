@@ -54,59 +54,65 @@ public class AzureBlobModelStorage : IModelStorage
 
     #region CRUD Methods
 
-    public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
+     public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
+        int limit,
+        string? cursor,
+        CancellationToken ct = default)
     {
-        var result = new List<ModelFile>();
+        // Request one page from Azure
+        var pages = _container
+            .GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct)
+            .AsPages(cursor, pageSizeHint: limit);
 
-        await foreach (var blob in _container.GetBlobsAsync(
-                           traits: BlobTraits.Metadata,
-                           states: BlobStates.None,
-                           cancellationToken: ct))
+        await foreach (var page in pages.WithCancellation(ct))
         {
-            var name = blob.Name;
-            var format = GetFormatOrNull(name);
-            if (format is null) continue; // only entry .glb/.gltf
+            var list = new List<ModelFile>(page.Values.Count);
 
-            // Build SAS-preserving URL for entry file
-            var fileUri = BuildBlobUri(name);
-
-            // Id
-            var id = TryGetGuidMetadata(blob.Metadata, MetaId) ?? Guid.NewGuid();
-
-            // Alias/Category/Description/Favourite
-            var alias = ReadStringMetadataOrDefault(blob.Metadata, MetaAlias, "Model");
-            var category = ReadStringMetadataOrNull(blob.Metadata, MetaCategory);
-            var description = ReadStringMetadataOrNull(blob.Metadata, MetaDescription);
-            var isFavourite = ParseBoolMetadata(blob.Metadata, MetaIsFavourite);
-
-            // Determine assetId
-            var assetId = ReadStringMetadataOrNull(blob.Metadata, MetaAssetId);
-            if (string.IsNullOrWhiteSpace(assetId))
+            foreach (var blob in page.Values)
             {
-                // fallback to first virtual folder segment
-                assetId = name.Split('/', 2)[0];
+                var name = blob.Name;
+                var format = GetFormatOrNull(name);
+                if (format is null) continue; // only .glb / .gltf
+
+                var fileUri = BuildBlobUri(name);
+
+                var id = TryGetGuidMetadata(blob.Metadata, MetaId) ?? Guid.NewGuid();
+
+                var alias = ReadStringMetadataOrDefault(blob.Metadata, MetaAlias, "Model");
+                var category = ReadStringMetadataOrNull(blob.Metadata, MetaCategory);
+                var description = ReadStringMetadataOrNull(blob.Metadata, MetaDescription);
+                var isFavourite = ParseBoolMetadata(blob.Metadata, MetaIsFavourite);
+
+                var assetId = ReadStringMetadataOrNull(blob.Metadata, MetaAssetId);
+                if (string.IsNullOrWhiteSpace(assetId))
+                    assetId = name.Split('/', 2)[0];
+
+                var additional = await EnumerateAdditionalFilesAsync(assetId!, name, ct);
+
+                list.Add(new ModelFile
+                {
+                    Id = id,
+                    Name = alias,
+                    Format = format,
+                    SizeBytes = blob.Properties.ContentLength,
+                    CreatedOn = blob.Properties.CreatedOn,
+                    Url = fileUri,
+                    Category = category,
+                    Description = description,
+                    AssetId = assetId,
+                    AdditionalFiles = additional,
+                    IsFavourite = isFavourite
+                });
+
+                // Optional micro-optimization: stop if we already filled 'limit' after filtering
+                if (list.Count >= limit) break;
             }
 
-            // Collect additional files under the same folder (skip entry)
-            var additional = await EnumerateAdditionalFilesAsync(assetId!, name, ct);
-
-            result.Add(new ModelFile
-            {
-                Id = id,
-                Name = alias,
-                Format = format,
-                SizeBytes = blob.Properties.ContentLength,
-                CreatedOn = blob.Properties.CreatedOn,
-                Url = fileUri,
-                Category = category,
-                Description = description,
-                AssetId = assetId,
-                AdditionalFiles = additional,
-                IsFavourite = isFavourite
-            });
+            return (list, page.ContinuationToken);
         }
 
-        return result;
+        // No blobs at all
+        return (Array.Empty<ModelFile>(), null);
     }
 
     public async Task UploadAsync(
