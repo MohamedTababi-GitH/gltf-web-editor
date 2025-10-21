@@ -1,0 +1,35 @@
+@startuml backend_components
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title C3 - Component Diagram – ASP.NET API Backend 
+
+Container(Frontend, "Single-Page App", "React, TypeScript", "Provides the UI for engineers to view and manage 3D models.")
+
+ContainerDb(Blob, "Azure Blob Storage", "Object storage service","Stores 3D models in glb/gltf format and their metadata.")
+
+Boundary(Backend,"ASP.NET Backend App")  {
+    Component(ModelController, "REST Controller", "ASP.NET Core", "Exposes endpoints for CRUD operations on 3D model files. Handles incoming request and delegates to business logic and storage service.")
+    Component(IModelStorage, "Interface", "C#/.NET", "Abstraction for storage and business logic operations on 3D models.")
+    Component(Service, "Service", "Azure SDK/.NET", "Implements IModelStorage and IModelService using Azure Blob Storage. Handles CRUD operations and URL construction.")
+    Component(ModelFile, "Domain Entity", "C#/.NET", "Represents a 3D model and asset files with metadata.")
+    Component(BlobOptions, "Configuration Class", "C#/.NET", "Holds Azure Storage connection settings")
+}
+
+Rel(Frontend, ModelController, "API calls", "JSON/HTTPS")
+Rel(ModelController, IModelStorage, "Uses (DI)")
+IModelStorage -> Service: "Implemented by"
+
+Service -> ModelFile: Creates domain objects
+
+Rel(Service, BlobOptions, "Injected")
+Service -> Blob: "Reads/Writes"
+
+note right of BlobOptions
+BlobOptions stores:
+- ConnectionString: the Azure Storage account connection string (kept in secrets or env variables)
+- ContainerModels: the container name for model files
+end note
+
+LAYOUT_WITH_LEGEND()
+@enduml
