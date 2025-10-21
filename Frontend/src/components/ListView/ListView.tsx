@@ -210,6 +210,25 @@ function ListView() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Here we'll simply show the result of all the filters, by simply checking the values of the consts we created! */}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
+              {sortBy && (
+                <span className="bg-muted px-2 py-1 rounded-full">
+                  Sort: {sortBy}
+                </span>
+              )}
+              {favoritesOnly && (
+                <span className="bg-muted px-2 py-1 rounded-full">
+                  Favorites: On
+                </span>
+              )}
+              {fileTypeFilter !== "all" && (
+                <span className="bg-muted px-2 py-1 rounded-full">
+                  Type: {fileTypeFilter}
+                </span>
+              )}
+            </div>
+
             <span>{filteredAndSortedModels?.length || 0} results found</span>
           </div>
         </div>
