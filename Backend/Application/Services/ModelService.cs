@@ -179,17 +179,18 @@ public sealed class ModelService : IModelService
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
 
-        // Alias validation
-        if (!string.IsNullOrWhiteSpace(newAlias) && !AliasRegex.IsMatch(newAlias))
+        // Normalize whitespace-only to null (treat as delete)
+        string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        var cat  = Normalize(category);
+        var desc = Normalize(description);
+        var alias = Normalize(newAlias);
+
+        // Validate alias only if it's being set (not deleted)
+        if (alias is not null && !AliasRegex.IsMatch(alias))
             throw new ArgumentException("Alias not valid.", nameof(newAlias));
 
-        // Normalize category and description
-        var cat = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
-        var desc = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-
-        if (newAlias is null && cat is null && desc is null && isFavourite is null)
-            throw new ArgumentException("No fields to update.");
-
-        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, isFavourite ,cancellationToken);
+        // NOTE: For PUT we DO allow all nulls (deletes all metadata)
+        return await _storage.UpdateDetailsAsync(id, alias, cat, desc, isFavourite, cancellationToken);
     }
 }

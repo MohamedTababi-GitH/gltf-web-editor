@@ -25,6 +25,7 @@ import {
   FilePenLine,
   ExternalLink,
   Tags,
+  Star,
   Calendar,
 } from "lucide-react";
 import type { ModelItem } from "@/types/ModelItem.ts";
@@ -92,7 +93,29 @@ function ModelListItem({
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
-  // --- Event Handlers are unchanged ---
+  const [isFavorite, setIsFavorite] = useState(item.isFavourite);
+
+  const handleFavoriteToggle = async (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+
+    const newFavoriteStatus = !isFavorite;
+    setIsFavorite(newFavoriteStatus);
+
+    try {
+      await apiClient.put(`/api/model/${item.id}/details`, {
+        newAlias: editData.alias.trim(),
+        description: editData.description?.trim() || null,
+        category: editData.category?.trim() || null,
+        IsFavourite: newFavoriteStatus,
+      });
+
+      if (refreshList) refreshList();
+    } catch (error) {
+      console.error("Failed to update favorite:", error);
+      setIsFavorite(!newFavoriteStatus);
+    }
+  };
+
   const handleDelete = async () => {
     if (isDeleting) return;
     setIsDeleting(true);
@@ -111,10 +134,11 @@ function ModelListItem({
     if (isSaving || !editData.alias.trim()) return;
     setIsSaving(true);
     try {
-      await apiClient.patch(`/api/model/${item.id}/details`, {
+      await apiClient.put(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
         description: editData.description?.trim() || null,
         category: editData.category?.trim() || null,
+        IsFavourite: isFavorite,
       });
       setIsEditOpen(false);
       refreshList();
@@ -145,7 +169,9 @@ function ModelListItem({
         <CardHeader className="pb-0">
           <div className="flex justify-between items-start gap-4">
             <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg truncate">{item.name}</CardTitle>
+              <CardTitle className="text-lg truncate w-50">
+                {item.name}
+              </CardTitle>
               <CardDescription className={`min-h-8`}>
                 {item.category && (
                   <span className="inline-flex mt-1 items-center rounded-md gap-1 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
@@ -155,6 +181,26 @@ function ModelListItem({
                 )}
               </CardDescription>
             </div>
+
+            <Button
+              variant="outline"
+              size="icon"
+              className={`flex items-center justify-center h-8 w-8 rounded-md transition-colors ${
+                isFavorite
+                  ? "bg-white border-yellow-400 hover:bg-yellow-50"
+                  : "bg-transparent border-gray-600 hover:bg-neutral-200 hover:dark:bg-neutral-900"
+              }`}
+              onClick={handleFavoriteToggle}
+            >
+              <Star
+                className={`w-5 h-5 transition ${
+                  isFavorite
+                    ? "text-yellow-400 fill-yellow-400"
+                    : "text-gray-400"
+                }`}
+              />
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -213,13 +259,11 @@ function ModelListItem({
         <CardFooter className="p-0">
           <div className="w-full border-t dark:bg-black">
             {item.additionalFiles && item.additionalFiles.length > 0 ? (
-              // Check if there's a thumbnail image
               item.additionalFiles.some(
                 (file) =>
                   file.contentType === "image/png" &&
                   file.name === "thumbnail.png",
               ) ? (
-                // If thumbnail exists, display it
                 <img
                   src={
                     item.additionalFiles.find(
@@ -232,18 +276,15 @@ function ModelListItem({
                   className="w-full"
                 />
               ) : (
-                // If no thumbnail, show the animation
                 <DotLottieReact src={animationSrc} loop autoplay={false} />
               )
             ) : (
-              // If no additional files at all, show the animation
               <DotLottieReact src={animationSrc} loop autoplay={false} />
             )}
           </div>
         </CardFooter>
       </Card>
 
-      {/* --- Dialogs (No changes needed here) --- */}
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

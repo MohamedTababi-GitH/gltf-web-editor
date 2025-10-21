@@ -11,6 +11,7 @@ export interface ModelItem {
   category: Category;
   description: string;
   additionalFiles: AdditionalFile[];
+  isFavourite: boolean;
 }
 
 export type MeshData = {

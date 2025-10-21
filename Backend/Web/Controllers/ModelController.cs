@@ -109,8 +109,8 @@ public class ModelController : ControllerBase
         return NoContent();
     }
 
-    [HttpPatch("{id:guid}/details")]
-    public async Task<IActionResult> PatchDetails(
+    [HttpPut("{id:guid}/details")]
+    public async Task<IActionResult> PutDetails(
         Guid id,
         [FromBody] UpdateModelDetailsRequest request,
         CancellationToken cancellationToken)
