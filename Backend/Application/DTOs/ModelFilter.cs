@@ -1,6 +1,6 @@
 namespace ECAD_Backend.Application.DTOs;
 
-public class ModelFilter
+public sealed class ModelFilter
 {
     // e.g. /api/model?category=chair
     public string? Category { get; init; }
