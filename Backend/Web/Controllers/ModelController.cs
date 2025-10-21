@@ -31,11 +31,28 @@ public class ModelController : ControllerBase
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
         [FromQuery] int limit = 10,
         [FromQuery] string? cursor = null,
+        [FromQuery] string? category = null,
+        [FromQuery] bool? isFavourite = null,
+        [FromQuery] string? q = null,
+        [FromQuery] string? format = null,
+        [FromQuery] DateTimeOffset? createdAfter = null,
+        [FromQuery] DateTimeOffset? createdBefore = null,
+        [FromQuery] string? prefix = null,
         CancellationToken cancellationToken = default)
     {
-        var page = await _service.ListAsync(limit, cursor, cancellationToken);
+        var filter = new ModelFilter
+        {
+            Category = category,
+            IsFavourite = isFavourite,
+            Q = q,
+            Format = format,
+            CreatedAfter = createdAfter,
+            CreatedBefore = createdBefore,
+            Prefix = prefix
+        };
 
-        // Optional: expose cursor in a response header too
+        var page = await _service.ListAsync(limit, cursor, filter, cancellationToken);
+
         if (page.NextCursor is not null)
             Response.Headers["X-Next-Cursor"] = page.NextCursor;
 

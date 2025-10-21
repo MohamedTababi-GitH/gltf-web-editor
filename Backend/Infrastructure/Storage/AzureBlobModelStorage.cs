@@ -1,6 +1,7 @@
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Options;
@@ -54,65 +55,109 @@ public class AzureBlobModelStorage : IModelStorage
 
     #region CRUD Methods
 
-     public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
-        int limit,
-        string? cursor,
-        CancellationToken ct = default)
+    public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
+        int limit, string? cursor, ModelFilter filter, CancellationToken ct = default)
     {
-        // Request one page from Azure
-        var pages = _container
-            .GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct)
-            .AsPages(cursor, pageSizeHint: limit);
+        var items = new List<ModelFile>(limit);
+        string? nextCursor = cursor;
 
-        await foreach (var page in pages.WithCancellation(ct))
+        // Build async pageable with optional prefix optimization
+        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
+            ? _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct)
+            : _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, prefix: filter.Prefix,
+                cancellationToken: ct);
+
+        await foreach (var page in pageable.AsPages(nextCursor, pageSizeHint: Math.Min(500, Math.Max(50, limit * 3)))
+                           .WithCancellation(ct))
         {
-            var list = new List<ModelFile>(page.Values.Count);
-
             foreach (var blob in page.Values)
             {
-                var name = blob.Name;
-                var format = GetFormatOrNull(name);
-                if (format is null) continue; // only .glb / .gltf
+                // Entry files only
+                var format = GetFormatOrNull(blob.Name);
+                if (format is null) continue;
 
-                var fileUri = BuildBlobUri(name);
+                // Quick format filter
+                if (!string.IsNullOrWhiteSpace(filter.Format) &&
+                    !string.Equals(format, filter.Format, StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-                var id = TryGetGuidMetadata(blob.Metadata, MetaId) ?? Guid.NewGuid();
+                // Read metadata fields used by filters
+                var md = blob.Metadata ?? new Dictionary<string, string>();
+                var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
+                var category = ReadStringMetadataOrNull(md, MetaCategory);
+                var description = ReadStringMetadataOrNull(md, MetaDescription);
+                var fav = ParseBoolMetadata(md, MetaIsFavourite);
 
-                var alias = ReadStringMetadataOrDefault(blob.Metadata, MetaAlias, "Model");
-                var category = ReadStringMetadataOrNull(blob.Metadata, MetaCategory);
-                var description = ReadStringMetadataOrNull(blob.Metadata, MetaDescription);
-                var isFavourite = ParseBoolMetadata(blob.Metadata, MetaIsFavourite);
+                // Date filters (use Properties.CreatedOn if present; otherwise skip date filtering)
+                var created = blob.Properties.CreatedOn;
 
-                var assetId = ReadStringMetadataOrNull(blob.Metadata, MetaAssetId);
+                if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value)
+                    continue;
+
+                if (!string.IsNullOrWhiteSpace(filter.Category) &&
+                    !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (filter.CreatedAfter is not null && created is not null && created < filter.CreatedAfter)
+                    continue;
+
+                if (filter.CreatedBefore is not null && created is not null && created >= filter.CreatedBefore)
+                    continue;
+
+                if (!string.IsNullOrWhiteSpace(filter.Q))
+                {
+                    var q = filter.Q.Trim();
+                    bool matches =
+                        (alias?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        (category?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        blob.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
+
+                    if (!matches) continue;
+                }
+
+                // Passed filters → now build ModelFile (do the heavier work after filtering)
+                var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
+                var fileUri = BuildBlobUri(blob.Name);
+                var assetId = ReadStringMetadataOrNull(md, MetaAssetId);
                 if (string.IsNullOrWhiteSpace(assetId))
-                    assetId = name.Split('/', 2)[0];
+                    assetId = blob.Name.Split('/', 2)[0];
 
-                var additional = await EnumerateAdditionalFilesAsync(assetId!, name, ct);
+                var additional = await EnumerateAdditionalFilesAsync(assetId!, blob.Name, ct);
 
-                list.Add(new ModelFile
+                items.Add(new ModelFile
                 {
                     Id = id,
                     Name = alias,
                     Format = format,
                     SizeBytes = blob.Properties.ContentLength,
-                    CreatedOn = blob.Properties.CreatedOn,
+                    CreatedOn = created,
                     Url = fileUri,
                     Category = category,
                     Description = description,
                     AssetId = assetId,
                     AdditionalFiles = additional,
-                    IsFavourite = isFavourite
+                    IsFavourite = fav
                 });
 
-                // Optional micro-optimization: stop if we already filled 'limit' after filtering
-                if (list.Count >= limit) break;
+                if (items.Count >= limit) break;
             }
 
-            return (list, page.ContinuationToken);
+            // If we filled the page, return keeping Azure's continuation token for the *next* server page.
+            if (items.Count >= limit)
+            {
+                return (items, page.ContinuationToken);
+            }
+
+            // Otherwise, continue to next Azure page.
+            nextCursor = page.ContinuationToken;
+
+            // If Azure has no more pages, we're done.
+            if (nextCursor is null)
+                break;
         }
 
-        // No blobs at all
-        return (Array.Empty<ModelFile>(), null);
+        return (items, nextCursor);
     }
 
     public async Task UploadAsync(

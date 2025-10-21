@@ -12,9 +12,10 @@ public interface IModelService
     /// </summary>
     /// <param name="limit"></param>
     /// <param name="cursor"></param>
+    /// <param name="filter"></param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing a list of <see cref="ModelItemDto"/>.</returns>
-    Task<PageResult<ModelItemDto>> ListAsync(int limit, string? cursor, CancellationToken cancellationToken);
+    Task<PageResult<ModelItemDto>> ListAsync(int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken);
 
     /// <summary>
     /// Uploads a model asynchronously based on the specified request data.
