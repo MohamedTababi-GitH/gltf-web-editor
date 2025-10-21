@@ -10,12 +10,12 @@ export default function ThreeApp() {
       <Suspense fallback={null}>
         <Environment preset="city" background={false} />
         <Center>
-          <Resize scale={5}>
+          <Resize scale={3}>
             <Model />
           </Resize>
         </Center>
       </Suspense>
-      <OrbitControls />
+      <OrbitControls makeDefault enableDamping={false} />
     </Canvas>
   );
 }

@@ -1,16 +1,27 @@
-import { createContext, useContext, type ReactNode, useState } from "react";
+import type { MeshData } from "@/types/ModelItem";
+import {
+  createContext,
+  useContext,
+  type ReactNode,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 
 interface ModelContextType {
   url: string | undefined;
-  setUrl: (url: string) => void;
+  setUrl: Dispatch<SetStateAction<string | undefined>>;
+  meshes: MeshData[];
+  setMeshes: Dispatch<SetStateAction<MeshData[]>>;
 }
 
 const ModelContext = createContext<ModelContextType | undefined>(undefined);
 
 export function ModelProvider({ children }: { children: ReactNode }) {
   const [url, setUrl] = useState<string>();
+  const [meshes, setMeshes] = useState<MeshData[]>([]);
   return (
-    <ModelContext.Provider value={{ url, setUrl }}>
+    <ModelContext.Provider value={{ url, setUrl, meshes, setMeshes }}>
       {children}
     </ModelContext.Provider>
   );
