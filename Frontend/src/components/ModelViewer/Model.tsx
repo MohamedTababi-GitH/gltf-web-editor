@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { TransformControls, useGLTF } from "@react-three/drei";
+import { TransformControls } from "@react-three/drei";
 import { useModel } from "@/contexts/ModelContext";
 import * as THREE from "three";
 import type { MeshData } from "@/types/ModelItem";
+import { useLoader } from "@react-three/fiber";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -24,12 +26,12 @@ function ListMeshes(scene: THREE.Group): MeshData[] {
   return meshes;
 }
 
-export function Model() {
-  const { url, setMeshes } = useModel();
+export function Model({ processedUrl }: { processedUrl: string }) {
+  const { setMeshes } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
   const [selectedComponent, setSelectedComponent] = useState<THREE.Mesh | null>(
-    null
+    null,
   );
   const [originalMaterials, setOriginalMaterials] = useState(new Map());
 
@@ -44,10 +46,10 @@ export function Model() {
         roughness: 0.5,
         metalness: 0.5,
       }),
-    []
+    [],
   );
 
-  const gltf = useGLTF(url || "", false);
+  const gltf = useLoader(GLTFLoader, processedUrl);
 
   const scene = useMemo(() => {
     if (!gltf.scene) return new THREE.Group();
@@ -64,7 +66,7 @@ export function Model() {
     clonedScene.position.sub(center);
 
     return clonedScene;
-  }, [url, gltf.scene]);
+  }, [gltf.scene]);
 
   useEffect(() => {
     if (scene && setMeshes) {
@@ -84,14 +86,14 @@ export function Model() {
       const updatedMeshes = ListMeshes(scene);
 
       const movedMesh = updatedMeshes.find(
-        (m) => m.id === selectedComponent?.id
+        (m) => m.id === selectedComponent?.id,
       );
       console.log(
         "Moved Mesh New Position:",
         movedMesh?.name,
         movedMesh?.X,
         movedMesh?.Y,
-        movedMesh?.Z
+        movedMesh?.Z,
       );
 
       setMeshes(updatedMeshes);
@@ -106,20 +108,36 @@ export function Model() {
     }
   };
 
-  const handleMeshClick = (event: any) => {
+  const handleMeshClick = (event: {
+    stopPropagation: () => void;
+    object: THREE.Mesh<
+      THREE.BufferGeometry<
+        THREE.NormalBufferAttributes,
+        THREE.BufferGeometryEventMap
+      >,
+      THREE.Material | THREE.Material[],
+      THREE.Object3DEventMap
+    >;
+  }) => {
     event.stopPropagation();
     const clickedMesh = event.object as THREE.Mesh;
     if (!isMesh(clickedMesh)) return;
+    const componentParent = clickedMesh.parent;
+
     restoreOriginalMaterials();
 
-    if (selectedComponent === clickedMesh) {
+    if (selectedComponent === componentParent) {
       setSelectedComponent(null);
       setOriginalMaterials(new Map());
     } else {
       const newMaterialsMap = new Map();
-      newMaterialsMap.set(clickedMesh, clickedMesh.material);
-      clickedMesh.material = highlightMaterial;
-      setSelectedComponent(clickedMesh);
+      componentParent?.traverse((child) => {
+        if (isMesh(child)) {
+          newMaterialsMap.set(child, child.material);
+          child.material = highlightMaterial;
+        }
+      });
+      setSelectedComponent(componentParent as THREE.Mesh);
       setOriginalMaterials(newMaterialsMap);
     }
   };
@@ -143,7 +161,7 @@ export function Model() {
         <primitive
           object={scene}
           onClick={handleMeshClick}
-          onPointerMiss={handleMiss}
+          onPointerMissed={handleMiss}
         />
       </group>
     </>

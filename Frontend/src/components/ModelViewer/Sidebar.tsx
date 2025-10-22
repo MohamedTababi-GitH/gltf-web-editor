@@ -1,5 +1,4 @@
-import { useState } from "react";
-import type { ModelItem } from "@/types/ModelItem";
+import React, { useState } from "react";
 import {
   SidebarHeader,
   SidebarContent,
@@ -17,7 +16,6 @@ import { Minimize2, ChevronDown, ChevronRight } from "lucide-react";
 import { useModel } from "@/contexts/ModelContext";
 
 type SidebarProps = {
-  model: ModelItem | null;
   setShowViewer: (show: boolean) => void;
 };
 
@@ -58,8 +56,8 @@ const ExpandableSidebarGroup = ({
   );
 };
 
-const AppSidebar = ({ model, setShowViewer }: SidebarProps) => {
-  const { meshes } = useModel();
+const AppSidebar = ({ setShowViewer }: SidebarProps) => {
+  const { model, meshes } = useModel();
   if (!model) return null;
 
   const meta = [

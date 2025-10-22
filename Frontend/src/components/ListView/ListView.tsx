@@ -22,9 +22,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useModel } from "@/contexts/ModelContext";
 
 function ListView() {
-  const [model, setModel] = useState<ModelItem | null>(null);
   const [models, setModels] = useState<ModelItem[]>([]);
-  const { setUrl } = useModel();
+  const { setUrl, setModel, model } = useModel();
   const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
     "date",
   );
