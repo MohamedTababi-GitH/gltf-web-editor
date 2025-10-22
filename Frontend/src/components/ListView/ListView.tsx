@@ -111,9 +111,8 @@ function ListView() {
   return (
     <div className="grid justify-center w-full">
       <div className="m-4 md:m-8 lg:m-12 xl:m-16">
-        <div className="flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-x-20">
-          <div className="w-full max-w-xs space-y-2">
-            {/*<h1 className="m-2">Uploaded Models</h1>*/}
+        <div className="flex flex-col md:flex-row md:justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-y-4 md:gap-x-20">
+          <div className="w-full md:max-w-xs space-y-2">
             <Input
               id={id}
               type="text"
@@ -123,94 +122,120 @@ function ListView() {
               className="bg-muted border-transparent shadow-none mb-2"
             />
           </div>
-          <div className="flex items-center gap-8 text-muted-foreground mb-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 hover:text-foreground transition">
-                  <ListFilter className="w-5 h-5" />
-                  <span>Filter</span>
-                </button>
-              </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end">
-                {/* Submenu 1: Sort-by */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "name"}
-                      onCheckedChange={() => setSortBy("name")}
-                    >
-                      Name
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "size"}
-                      onCheckedChange={() => setSortBy("size")}
-                    >
-                      Size
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "date"}
-                      onCheckedChange={() => setSortBy("date")}
-                    >
-                      Date
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "fileType"}
-                      onCheckedChange={() => setSortBy("fileType")}
-                    >
-                      File Type
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+          {/* flex-col: --> filter and applied filters will be stacked on mobile screens vertically*/}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-muted-foreground mb-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 hover:text-foreground transition">
+                    <ListFilter className="w-5 h-5" />
+                    <span>Filter</span>
+                  </button>
+                </DropdownMenuTrigger>
 
-                {/* Submenu 2: Favorite filter */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuCheckboxItem
-                      checked={favoritesOnly}
-                      onCheckedChange={() => setFavoritesOnly(true)}
-                    >
-                      Show favourites only
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={!favoritesOnly}
-                      onCheckedChange={() => setFavoritesOnly(false)}
-                    >
-                      Show all
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                <DropdownMenuContent align="end">
+                  {/* Submenu 1: Sort-by */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuCheckboxItem
+                        checked={sortBy === "name"}
+                        onCheckedChange={() => setSortBy("name")}
+                      >
+                        Name
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={sortBy === "size"}
+                        onCheckedChange={() => setSortBy("size")}
+                      >
+                        Size
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={sortBy === "date"}
+                        onCheckedChange={() => setSortBy("date")}
+                      >
+                        Date
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={sortBy === "fileType"}
+                        onCheckedChange={() => setSortBy("fileType")}
+                      >
+                        File Type
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
 
-                {/* Submenu 3: File type */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>File type</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuCheckboxItem
-                      checked={fileTypeFilter === "glb"}
-                      onCheckedChange={() => setFileTypeFilter("glb")}
-                    >
-                      glb
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={fileTypeFilter === "gltf"}
-                      onCheckedChange={() => setFileTypeFilter("gltf")}
-                    >
-                      gltf
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={fileTypeFilter === "all"}
-                      onCheckedChange={() => setFileTypeFilter("all")}
-                    >
-                      All
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {/* Submenu 2: Favorite filter */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuCheckboxItem
+                        checked={favoritesOnly}
+                        onCheckedChange={() => setFavoritesOnly(true)}
+                      >
+                        Show favourites only
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={!favoritesOnly}
+                        onCheckedChange={() => setFavoritesOnly(false)}
+                      >
+                        Show all
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
 
-            <span>{filteredAndSortedModels?.length || 0} results found</span>
+                  {/* Submenu 3: File type */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>File type</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuCheckboxItem
+                        checked={fileTypeFilter === "glb"}
+                        onCheckedChange={() => setFileTypeFilter("glb")}
+                      >
+                        glb
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={fileTypeFilter === "gltf"}
+                        onCheckedChange={() => setFileTypeFilter("gltf")}
+                      >
+                        gltf
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem
+                        checked={fileTypeFilter === "all"}
+                        onCheckedChange={() => setFileTypeFilter("all")}
+                      >
+                        All
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Here we'll show the applied filters --> simply by checking the value of the consts we made! */}
+              <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
+                {sortBy && (
+                  <span className="bg-muted px-2 py-1 rounded-full">
+                    Sort: {sortBy}
+                  </span>
+                )}
+                {favoritesOnly && (
+                  <span className="bg-muted px-2 py-1 rounded-full">
+                    Favorites: On
+                  </span>
+                )}
+                {fileTypeFilter !== "all" && (
+                  <span className="bg-muted px-2 py-1 rounded-full">
+                    Type: {fileTypeFilter}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Counter for the number of models we have. */}
+            <span className="mt-2 sm:mt-0">
+              {filteredAndSortedModels?.length || 0} results found
+            </span>
           </div>
         </div>
 
