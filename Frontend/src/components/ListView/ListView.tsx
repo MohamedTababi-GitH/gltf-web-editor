@@ -20,18 +20,28 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useModel } from "@/contexts/ModelContext";
+import { ECADCategory } from "@/types/Category.ts";
+
+type ModelSearchParams = {
+  category?: string;
+  isFavorite?: boolean;
+  q?: string;
+  format?: string;
+  limit?: number;
+  cursor?: string;
+};
 
 function ListView() {
   const [models, setModels] = useState<ModelItem[]>([]);
   const { setUrl, setModel, model } = useModel();
-  const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
-    "date",
-  );
+  const [sortBy, setSortBy] = useState<"Date" | "Name" | "Size">("Date");
+  const [searchParams, setSearchParams] = useState<ModelSearchParams>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const id = useId();
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
@@ -57,18 +67,49 @@ function ListView() {
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
-  const fetchModels = useCallback(async () => {
-    try {
-      const res = await apiClient.get("/api/model");
-      const data = res.data;
-      setModels(data);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [apiClient]);
+  const fetchModels = useCallback(
+    async ({
+      category,
+      isFavorite,
+      q,
+      format,
+      limit,
+      cursor,
+    }: ModelSearchParams) => {
+      const params = new URLSearchParams();
+      if (category) params.append("category", category);
+      if (isFavorite) params.append("isFavourite", isFavorite.toString());
+      if (q) params.append("q", q);
+      if (format) params.append("format", format);
+      if (limit) params.append("limit", limit.toString());
+      if (cursor) params.append("cursor", cursor);
+      try {
+        const res = await apiClient.get(`/api/model?${params.toString()}`);
+        const data = (res.data.items as ModelItem[]) || [];
+        setModels(data);
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    [apiClient],
+  );
   useEffect(() => {
-    fetchModels();
+    fetchModels({});
   }, [fetchModels]);
+
+  useEffect(() => {
+    setSearchParams((prev) => {
+      const newSearchParams = {
+        ...prev,
+        category: categoryFilter !== "all" ? categoryFilter : undefined,
+        isFavorite: favoritesOnly ? favoritesOnly : undefined,
+        format: fileTypeFilter !== "all" ? fileTypeFilter : undefined,
+      };
+
+      fetchModels(newSearchParams);
+      return newSearchParams;
+    });
+  }, [fileTypeFilter, categoryFilter, favoritesOnly, fetchModels]);
 
   if (showViewer && model) {
     setUrl(model.url);
@@ -81,45 +122,36 @@ function ListView() {
     );
   }
 
-  const filteredAndSortedModels = models
-    .filter((model) => {
-      const matchesSearch = model.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesFileType =
-        fileTypeFilter === "all" ? true : model.format === fileTypeFilter;
-      const matchesFavorite = favoritesOnly ? model.isFavourite : true;
-      return matchesSearch && matchesFileType && matchesFavorite;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "size":
-          return (b.sizeBytes || 0) - (a.sizeBytes || 0);
-        case "fileType":
-          return (a.format || "").localeCompare(b.format || "");
-        case "date":
-        default:
-          return (
-            new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
-          );
-      }
-    });
+  const searchModels = async () => {
+    const newSearchParams = {
+      ...searchParams,
+      q: searchTerm.trim() ? searchTerm : undefined,
+    };
+    setSearchParams(newSearchParams);
+    await fetchModels(newSearchParams);
+  };
 
   return (
     <div className="h-full flex flex-col p-4 md:p-8 lg:p-12 xl:p-16 gap-4">
       <div className="flex flex-col md:flex-row md:justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-y-4 md:gap-x-20">
-        <div className="w-full md:max-w-xs">
+        <div className="w-full md:max-w-xs flex items-center">
           <div className="relative mb-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id={id}
               type="text"
               placeholder="Search a model"
               value={searchTerm}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  searchModels();
+                }
+              }}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-muted border-transparent shadow-none pl-10"
+              className="bg-muted border-transparent shadow-none pr-10"
+            />
+            <Search
+              onClick={searchModels}
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition cursor-pointer hover:bg-muted p-1 rounded-sm w-6 h-6"
             />
           </div>
         </div>
@@ -141,28 +173,22 @@ function ListView() {
                   <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     <DropdownMenuCheckboxItem
-                      checked={sortBy === "name"}
-                      onCheckedChange={() => setSortBy("name")}
+                      checked={sortBy === "Name"}
+                      onCheckedChange={() => setSortBy("Name")}
                     >
                       Name
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
-                      checked={sortBy === "size"}
-                      onCheckedChange={() => setSortBy("size")}
+                      checked={sortBy === "Size"}
+                      onCheckedChange={() => setSortBy("Size")}
                     >
                       Size
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
-                      checked={sortBy === "date"}
-                      onCheckedChange={() => setSortBy("date")}
+                      checked={sortBy === "Date"}
+                      onCheckedChange={() => setSortBy("Date")}
                     >
                       Date
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "fileType"}
-                      onCheckedChange={() => setSortBy("fileType")}
-                    >
-                      File Type
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
@@ -175,13 +201,13 @@ function ListView() {
                       checked={favoritesOnly}
                       onCheckedChange={() => setFavoritesOnly(true)}
                     >
-                      Show favourites only
+                      Favourites only
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={!favoritesOnly}
                       onCheckedChange={() => setFavoritesOnly(false)}
                     >
-                      Show all
+                      All
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
@@ -194,17 +220,40 @@ function ListView() {
                       checked={fileTypeFilter === "glb"}
                       onCheckedChange={() => setFileTypeFilter("glb")}
                     >
-                      glb
+                      .glb
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={fileTypeFilter === "gltf"}
                       onCheckedChange={() => setFileTypeFilter("gltf")}
                     >
-                      gltf
+                      .gltf
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={fileTypeFilter === "all"}
                       onCheckedChange={() => setFileTypeFilter("all")}
+                    >
+                      All
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                {/* Submenu 4: Categories */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Categories</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {Object.values(ECADCategory).map((category) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          checked={categoryFilter === category}
+                          onCheckedChange={() => setCategoryFilter(category)}
+                        >
+                          {category}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
+                    <DropdownMenuCheckboxItem
+                      checked={categoryFilter === "all"}
+                      onCheckedChange={() => setCategoryFilter("all")}
                     >
                       All
                     </DropdownMenuCheckboxItem>
@@ -217,18 +266,18 @@ function ListView() {
             <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
               {sortBy && (
                 <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
-                  Sort: {sortBy}
-                  {sortBy !== "date" && (
+                  Sort By: {sortBy}
+                  {sortBy !== "Date" && (
                     <X
-                      className="w-4 h-4 cursor-pointer"
-                      onClick={() => setSortBy("date")}
+                      className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
+                      onClick={() => setSortBy("Date")}
                     />
                   )}
                 </span>
               )}
               {favoritesOnly && (
                 <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
-                  Favorites: On
+                  Favorites Only
                   <X
                     className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
                     onClick={() => setFavoritesOnly(false)}
@@ -239,8 +288,17 @@ function ListView() {
                 <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
                   Type: {fileTypeFilter.toUpperCase()}
                   <X
-                    className="w-4 h-4 cursor-pointer"
+                    className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
                     onClick={() => setFileTypeFilter("all")}
+                  />
+                </span>
+              )}
+              {categoryFilter !== "all" && (
+                <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
+                  Category: {categoryFilter}
+                  <X
+                    className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
+                    onClick={() => setCategoryFilter("all")}
                   />
                 </span>
               )}
@@ -249,15 +307,15 @@ function ListView() {
 
           {/* Counter for the number of models we have. */}
           <span className="mt-2 sm:mt-0">
-            {filteredAndSortedModels?.length || 0} results found
+            {models?.length || 0} result{models?.length === 1 ? "" : "s"} found
           </span>
         </div>
       </div>
 
       <ScrollArea className="flex-1 min-h-0 w-full rounded-md border">
-        {filteredAndSortedModels && filteredAndSortedModels.length > 0 ? (
+        {models && models.length > 0 ? (
           <div className="grid grid-cols-[repeat(auto-fit,28rem)] justify-center gap-4 w-full items-center p-4">
-            {filteredAndSortedModels.map((item) => (
+            {models.map((item) => (
               <div
                 key={item.id}
                 onClick={() => {
@@ -268,7 +326,7 @@ function ListView() {
                 <ModelListItem
                   key={item.id}
                   item={item}
-                  refreshList={fetchModels}
+                  refreshList={() => fetchModels(searchParams)}
                   onClick={() => {
                     setModel(item);
                     setShowViewer(true);
