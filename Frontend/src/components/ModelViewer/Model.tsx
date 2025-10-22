@@ -26,7 +26,13 @@ function ListMeshes(scene: THREE.Group): MeshData[] {
   return meshes;
 }
 
-export function Model({ processedUrl }: { processedUrl: string }) {
+export function Model({
+  processedUrl,
+  setLoadingProgress,
+}: {
+  processedUrl: string;
+  setLoadingProgress: (progress: number) => void;
+}) {
   const { setMeshes } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
@@ -49,7 +55,15 @@ export function Model({ processedUrl }: { processedUrl: string }) {
     [],
   );
 
-  const gltf = useLoader(GLTFLoader, processedUrl);
+  const gltf = useLoader(GLTFLoader, processedUrl, (loader) => {
+    loader.manager.onProgress = (_url, loaded, total) => {
+      const progress = Math.round((loaded / total) * 100);
+      setLoadingProgress(progress);
+      if (progress === 100) {
+        setLoadingProgress(0);
+      }
+    };
+  });
 
   const scene = useMemo(() => {
     if (!gltf.scene) return new THREE.Group();

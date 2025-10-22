@@ -21,9 +21,9 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ setShowViewer }) => {
 
       <SidebarTrigger
         className={` absolute 
-            md:top-16 md:right-4
-            top-18 right-2
-            z-50 transition-all duration-300 ${open ? "md:right-[calc(var(--sidebar-width))]" : "right-0"}`}
+            md:top-18 md:right-4
+            top-18 right-2 md:h-10 md:w-10 h-8 w-8 bg-sidebar rounded-l-md 
+            z-50 transition-all duration-300 ${open ? "md:right-[calc(var(--sidebar-width))] rounded-r-none" : "right-0 rounded-r-md"}`}
       />
       <AppSidebar setShowViewer={setShowViewer} />
     </div>
