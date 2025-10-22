@@ -6,7 +6,7 @@ import ModelViewer from "../ModelViewer/ModelViewer";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { SidebarProvider } from "../ui/sidebar";
-import { ListFilter } from "lucide-react";
+import { ListFilter, X } from "lucide-react";
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,9 +22,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useModel } from "@/contexts/ModelContext";
 
 function ListView() {
-  const [model, setModel] = useState<ModelItem | null>(null);
   const [models, setModels] = useState<ModelItem[]>([]);
-  const { setUrl } = useModel();
+  const { setUrl, setModel, model } = useModel();
   const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
     "date",
   );
@@ -215,18 +214,32 @@ function ListView() {
               {/* Here we'll show the applied filters --> simply by checking the value of the consts we made! */}
               <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
                 {sortBy && (
-                  <span className="bg-muted px-2 py-1 rounded-full">
+                  <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
                     Sort: {sortBy}
+                    {sortBy !== "date" && (
+                      <X
+                        className="w-4 h-4 cursor-pointer"
+                        onClick={() => setSortBy("date")}
+                      />
+                    )}
                   </span>
                 )}
                 {favoritesOnly && (
-                  <span className="bg-muted px-2 py-1 rounded-full">
+                  <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
                     Favorites: On
+                    <X
+                      className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
+                      onClick={() => setFavoritesOnly(false)}
+                    />
                   </span>
                 )}
                 {fileTypeFilter !== "all" && (
-                  <span className="bg-muted px-2 py-1 rounded-full">
-                    Type: {fileTypeFilter}
+                  <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
+                    Type: {fileTypeFilter.toUpperCase()}
+                    <X
+                      className="w-4 h-4 cursor-pointer"
+                      onClick={() => setFileTypeFilter("all")}
+                    />
                   </span>
                 )}
               </div>
