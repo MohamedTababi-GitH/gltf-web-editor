@@ -1,0 +1,50 @@
+@startuml ECAD_Backend_Structure
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+package "Web" #LightBlue {
+  package "Controllers" {
+    [ModelController] as ModelController
+  }
+}
+
+package "Infrastructure" #LightGray {
+  package "Options" {
+    [BlobOptions] as BlobOptions
+  }
+  package "Storage" {
+    [AzureBlobModelStorage] as AzureBlobModelStorage
+  }
+  "Storage" *-- "Options" : uses
+}
+
+package "Domain" #LightYellow {
+  package "Entities" {
+    [ModelFile]
+    [AdditionalFile]
+    ModelFile *-- AdditionalFile : contains
+  }
+}
+
+package "Application" #LightGreen {
+  package "DTOs" {
+  [AdditionalFilesDto] as AdditionalFilesDto
+  [ModelItemDto] as ModelItemDto
+  [UpdateModelDetailsRequest] as UpdateModelDetailsRequest
+  [UploadModelRequest] as UploadModelRequest
+  [UploadResultDto] as UploadResultDto
+  }
+  package "Interface" {
+  [IModelService] as IModelService
+  [IModelStorage] as IModelStorage
+  }
+  package "Service" {
+  [ModelService] as ModelService
+  }
+}
+
+note right of [ModelController] #LightGray
+  Handles HTTP requests and responses
+end note
+@enduml
