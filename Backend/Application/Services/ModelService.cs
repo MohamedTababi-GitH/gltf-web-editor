@@ -50,12 +50,19 @@ public sealed class ModelService : IModelService
     /// <summary>
     /// Retrieves a list of all stored model items.
     /// </summary>
+    /// <param name="cursor"></param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <param name="limit"></param>
     /// <returns>A read-only list of <see cref="ModelItemDto"/> representing the stored models.</returns>
-    public async Task<IReadOnlyList<ModelItemDto>> ListAsync(CancellationToken cancellationToken = default)
+    public async Task<PageResult<ModelItemDto>> ListAsync(
+        int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
     {
-        var files = await _storage.ListAsync(cancellationToken);
-        return files.Select(Map).ToList();
+        if (limit <= 0 || limit > 100) throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
+
+        var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
+        var items = files.Select(Map).ToList();
+
+        return new PageResult<ModelItemDto>(items, next, next is not null);
     }
 
     /// <summary>
