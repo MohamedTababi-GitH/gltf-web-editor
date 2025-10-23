@@ -10,8 +10,8 @@ namespace ECAD_Backend.Tests;
 [TestClass]
 public class ModelControllerTests
 {
-    private Mock<IModelService> _mockService;
-    private ModelController _controller;
+    private Mock<IModelService> _mockService = null!;
+    private ModelController _controller = null!;
 
     [TestInitialize]
     public void SetUp()
@@ -21,72 +21,128 @@ public class ModelControllerTests
     }
 
     [TestMethod]
-    public async Task GetAll_ReturnsOk_WithListOfModels()
+    public async Task GetAll_ReturnsOk_WithPageResult()
     {
         // Arrange
-        var guid = Guid.NewGuid();
-        var name = "TestModel1";
-        var format = "glb";
-        var url = new Uri("http://localhost");
-        var expectedList = new List<ModelItemDto> {new ModelItemDto {Id = guid, Name = name, Format = format, Url = url}};
-        _mockService.Setup(s => s.ListAsync(It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(expectedList);
+        var name = "Model1";
+        var expectedPage = new PageResult<ModelItemDto>(
+            new List<ModelItemDto>{ new()
+                {
+                    Name = name,
+                    Id = Guid.NewGuid(),
+                    Format = "glb",
+                    Url = new Uri("http://localhost")
+                }
+            }, null, false);
+        _mockService.Setup(s => s.ListAsync(It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<ModelFilter>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(expectedPage);
 
         // Act
-        var result = await _controller.GetAll(CancellationToken.None);
+        var result = await _controller.GetAll(limit: 5, cancellationToken: CancellationToken.None);
+        var okObject = result.Result as OkObjectResult;
+        var receivedPage = okObject.Value as PageResult<ModelItemDto>;
 
         // Assert
-        var okResult = result.Result as OkObjectResult;
-        Assert.IsNotNull(okResult);
-        var actualList = okResult.Value as IReadOnlyList<ModelItemDto>;
-        Assert.IsNotNull(actualList);
-        Assert.AreEqual(1, actualList.Count);
-        Assert.AreEqual(name, actualList[0].Name);
-    }
-
-    [TestMethod]
-    public async Task Upload_ReturnsBadRequest_WhenFileIsNull()
-    {
-        // Act
-        var fileAlias = "alias";
-        var result = await _controller.Upload(null, fileAlias, CancellationToken.None);
-
-        // Assert
-        var badRequest = result as BadRequestObjectResult;
-        Assert.IsNotNull(badRequest);
-        Assert.AreEqual("No file uploaded.", badRequest.Value);
+        Assert.IsNotNull(okObject);
+        Assert.IsNotNull(receivedPage);
+        Assert.AreEqual(1, receivedPage.Items.Count);
+        Assert.AreEqual(name, receivedPage.Items[0].Name);
     }
 
     [TestMethod]
     public async Task Upload_ReturnsOk_WhenUploadSucceeds()
     {
         // Arrange
-        var mockFile = new Mock<IFormFile>();
+        var fileMocked = new Mock<IFormFile>();
         var fileName = "test.glb";
+        var memoryStream = new MemoryStream([1]);
         var message = "Uploaded successfully.";
         var alias = "alias";
         var blobName = "blob123";
-        mockFile.Setup(f => f.FileName).Returns(fileName);
-        mockFile.Setup(f => f.Length).Returns(10);
-        mockFile.Setup(f => f.OpenReadStream()).Returns(new MemoryStream(new byte[] { 1 }));
-
+        var expectedUploadResult = new UploadResultDto
+        {
+            Message = message,
+            Alias = alias,
+            BlobName = blobName
+        };
+        var files =  new List<IFormFile> { fileMocked.Object };
+        
+        fileMocked.Setup(f => f.FileName).Returns(fileName);
+        fileMocked.Setup(f => f.OpenReadStream()).Returns(memoryStream);
         _mockService.Setup(s => s.UploadAsync(It.IsAny<UploadModelRequest>(), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new UploadResultDto
-                    {
-                        Message = message,
-                        Alias = alias,
-                        BlobName = blobName
-                    });
+            .ReturnsAsync(expectedUploadResult);
 
         // Act
-        var result = await _controller.Upload(mockFile.Object, alias, CancellationToken.None);
+        var result = await _controller.Upload(files, alias, fileName, null, null, CancellationToken.None);
+        var okResult = result as OkObjectResult;
 
         // Assert
-        var okResult = result as OkObjectResult;
         Assert.IsNotNull(okResult);
-        dynamic value = okResult.Value;
-        Assert.AreEqual(message, value.message);
-        Assert.AreEqual(alias, value.alias);
-        Assert.AreEqual(blobName, value.blobName);
+        dynamic receivedUploadResult = okResult.Value!;
+        Assert.AreEqual(message, receivedUploadResult.message);
+        Assert.AreEqual(alias, receivedUploadResult.alias);
+        Assert.AreEqual(blobName, receivedUploadResult.blobName);
+    }
+
+    [TestMethod]
+    public async Task Upload_ReturnsBadRequest_WhenNoFiles()
+    {
+        // Arrange
+        var files = new List<IFormFile>();
+        var fileAlias = "alias";
+        var originalFileName = "test.glb";
+        var expectedBadRequest = "No files uploaded.";
+        
+        // Act
+        var result = await _controller.Upload(files, fileAlias, originalFileName, null, null, CancellationToken.None);
+        var badRequest = result as BadRequestObjectResult;
+
+        // Assert
+        Assert.IsNotNull(badRequest);
+        Assert.AreEqual(expectedBadRequest, badRequest.Value);
+    }
+
+    [TestMethod]
+    public async Task Delete_ReturnsNoContent_WhenDeleted()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        
+        // Act
+        var result = await _controller.Delete(id, CancellationToken.None);
+        
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(NoContentResult));
+    }
+
+    [TestMethod]
+    public async Task Delete_ReturnsNotFound_WhenNotDeleted()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        
+        // Act
+        var result = await _controller.Delete(id, CancellationToken.None);
+        
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(NotFoundResult));
+    }
+
+    [TestMethod]
+    public async Task Delete_ReturnsBadRequest_WhenNoFiles()
+    {
+        // Arrange
+        var emptyId = Guid.Empty;
+        var expectedBadRequest = "Invalid id.";
+        
+        // Act
+        var result = await _controller.Delete(emptyId, CancellationToken.None);
+        var badRequest = result as BadRequestObjectResult;
+        
+        // Assert
+        Assert.IsNotNull(badRequest);
+        Assert.AreEqual(expectedBadRequest, badRequest.Value);
     }
 }
