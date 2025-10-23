@@ -67,8 +67,9 @@ public class AzureBlobModelStorage : IModelStorage
             : _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, prefix: filter.Prefix,
                 cancellationToken: ct);
 
-        await foreach (var page in pageable.AsPages(nextCursor, pageSizeHint: Math.Min(500, Math.Max(50, limit * 3)))
-                           .WithCancellation(ct))
+        // TODO:var pageSizeHint = Math.Clamp(limit, 10, 500); Azure recommends 10-500, need to implemt ct Cursor support (check SCRUM-142)
+        var pageSizeHint = limit;
+        await foreach (var page in pageable.AsPages(cursor, pageSizeHint).WithCancellation(ct))
         {
             foreach (var blob in page.Values)
             {
@@ -110,8 +111,7 @@ public class AzureBlobModelStorage : IModelStorage
                     bool matches =
                         (alias?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                         (category?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        blob.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
+                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
 
                     if (!matches) continue;
                 }

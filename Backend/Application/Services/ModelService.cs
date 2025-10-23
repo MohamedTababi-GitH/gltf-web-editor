@@ -61,8 +61,9 @@ public sealed class ModelService : IModelService
 
         var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
         var items = files.Select(Map).ToList();
+        var hasMore = items.Count == limit && !string.IsNullOrWhiteSpace(next);
 
-        return new PageResult<ModelItemDto>(items, next, next is not null);
+        return new PageResult<ModelItemDto>(items, next, hasMore);
     }
 
     /// <summary>
@@ -154,7 +155,7 @@ public sealed class ModelService : IModelService
 
                 if (!string.IsNullOrWhiteSpace(request.Description))
                     metadata["description"] = request.Description.Trim();
-                
+
                 metadata["isFavourite"] = "false";
             }
 
@@ -189,7 +190,7 @@ public sealed class ModelService : IModelService
         // Normalize whitespace-only to null (treat as delete)
         string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-        var cat  = Normalize(category);
+        var cat = Normalize(category);
         var desc = Normalize(description);
         var alias = Normalize(newAlias);
 
