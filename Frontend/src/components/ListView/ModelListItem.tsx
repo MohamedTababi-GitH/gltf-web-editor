@@ -213,7 +213,7 @@ function ModelListItem({
                   <Button
                     variant="outline"
                     size="icon"
-                    className="flex-shrink-0 h-8 w-7 mr-2"
+                    className="flex-shrink-0 h-8 w-7"
                     onClick={stopPropagation}
                   >
                     <EllipsisVertical className="h-4 w-4" />
