@@ -66,8 +66,8 @@ public class AzureBlobModelStorage : IModelStorage
             ? _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct)
             : _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, prefix: filter.Prefix, cancellationToken: ct);
 
-        await foreach (var page in pageable.AsPages(nextCursor, pageSizeHint: Math.Min(500, Math.Max(50, limit * 3)))
-                           .WithCancellation(ct))
+        var pageSizeHint = Math.Clamp(limit, 10, 500); 
+        await foreach (var page in pageable.AsPages(cursor, pageSizeHint).WithCancellation(ct))
         {
             foreach (var blob in page.Values)
             {
