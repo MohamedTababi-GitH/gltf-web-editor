@@ -177,10 +177,8 @@ function ModelListItem({
         >
           <CardHeader className="pb-0 mt-2">
             <div className="flex justify-between items-start gap-4">
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-lg truncate w-50">
-                  {item.name}
-                </CardTitle>
+              <div className="flex-1 min-w-0 w-0">
+                <CardTitle className="text-lg truncate">{item.name}</CardTitle>
                 <CardDescription className={`min-h-8`}>
                   {item.category && (
                     <span className="inline-flex mt-1 items-center rounded-md gap-1 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">

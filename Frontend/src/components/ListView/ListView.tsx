@@ -320,7 +320,7 @@ function ListView() {
 
       <ScrollArea className="flex-1 min-h-0 w-full rounded-md border">
         {models && models.length > 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fit,22rem)] justify-center gap-4 w-full items-center p-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,24rem))] justify-center gap-4 w-full items-center p-4">
             {models.map((item) => (
               <div
                 key={item.id}
