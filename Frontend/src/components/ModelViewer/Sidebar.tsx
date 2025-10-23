@@ -104,7 +104,7 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
           ))}
         </ExpandableSidebarGroup>
 
-        <ExpandableSidebarGroup label="Mesh Tree" defaultOpen={false}>
+        <ExpandableSidebarGroup label="Component Tree" defaultOpen={false}>
           {meshes.map((mesh) => (
             <ExpandableSidebarGroup
               key={mesh.name}

@@ -4,9 +4,20 @@ import { Model } from "./Model";
 import { Suspense, useEffect, useState } from "react";
 import { loadModel } from "@/utils/ModelLoader.ts";
 import { useModel } from "@/contexts/ModelContext.tsx";
+import { Spinner } from "@/components/ui/spinner.tsx";
+
+function Loading({ progress }: { progress: number }) {
+  return (
+    <div className="w-full h-full flex flex-col justify-center items-center">
+      <Spinner className="text-primary w-20 h-20" />
+      <p className="mt-4 font-medium">Loading Model ({progress}%)</p>
+    </div>
+  );
+}
 
 export default function ThreeApp() {
   const { url, model } = useModel();
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
@@ -67,17 +78,29 @@ export default function ThreeApp() {
     };
   }, [url, model]);
   return (
-    <Canvas>
-      <color attach="background" args={["#888888"]} />
-      <Suspense fallback={null}>
-        <Environment preset="city" background={false} />
-        <Center>
-          <Resize scale={3}>
-            {processedModelURL && <Model processedUrl={processedModelURL} />}
-          </Resize>
-        </Center>
-      </Suspense>
-      <OrbitControls makeDefault enableDamping={false} />
-    </Canvas>
+    <div className="w-full h-full relative">
+      {loadingProgress > 0 && (
+        <div className="absolute inset-0 z-10 bg-background/80 flex justify-center items-center">
+          <Loading progress={loadingProgress} />
+        </div>
+      )}
+      <Canvas>
+        <color attach="background" args={["#888888"]} />
+        <Suspense fallback={null}>
+          <Environment preset="city" background={false} />
+          <Center>
+            <Resize scale={3}>
+              {processedModelURL && (
+                <Model
+                  processedUrl={processedModelURL}
+                  setLoadingProgress={setLoadingProgress}
+                />
+              )}
+            </Resize>
+          </Center>
+        </Suspense>
+        <OrbitControls makeDefault enableDamping={false} />
+      </Canvas>
+    </div>
   );
 }
