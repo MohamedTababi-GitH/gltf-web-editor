@@ -6,12 +6,14 @@ import { useEffect } from "react";
 import { formatBytes } from "@/utils/BytesConverter.ts";
 
 type UploaderProps = {
+  resetFields: () => void;
   onFileSelect: (file: File | null) => void;
   setIsUploadDisabled: (disabled: boolean) => void;
   setRequiredFiles: (files: File[]) => void;
 };
 
 export function Uploader({
+  resetFields,
   onFileSelect,
   setIsUploadDisabled,
   setRequiredFiles,
@@ -35,7 +37,7 @@ export function Uploader({
 
   useEffect(() => {
     onFileSelect(file);
-  }, [file, onFileSelect]);
+  }, [file, onFileSelect, resetFields]);
 
   useEffect(() => {
     setIsUploadDisabled(!allRequiredFilesUploaded());

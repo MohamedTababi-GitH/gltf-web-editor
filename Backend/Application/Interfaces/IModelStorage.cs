@@ -1,3 +1,4 @@
+using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Domain.Entities;
 
 namespace ECAD_Backend.Application.Interfaces;
@@ -12,8 +13,7 @@ public interface IModelStorage
     /// </summary>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of <see cref="ModelFile"/> instances.</returns>
-    Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default);
-
+    Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(int limit, string? cursor, ModelFilter filter, CancellationToken ct = default);    
     /// <summary>
     /// Uploads a model file to storage asynchronously.
     /// </summary>
@@ -45,5 +45,6 @@ public interface IModelStorage
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken ct = default);
 }

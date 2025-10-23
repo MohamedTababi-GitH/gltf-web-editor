@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu.tsx";
 import { Tags } from "lucide-react";
+import ModelThumbnail from "@/components/HomeView/ModelThumbnail.tsx";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
@@ -39,6 +40,34 @@ export default function ModelUploadDialog({
   const [category, setCategory] = useState<Category | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isUploadDisabled, setIsUploadDisabled] = useState<boolean>(false);
+  const [thumbnail, setThumbnail] = useState<string | null>();
+  const [needsRequiredFiles, setNeedsRequiredFiles] = useState(false);
+
+  useEffect(() => {
+    if (!file) {
+      setNeedsRequiredFiles(false);
+      return;
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    const isGltf = extension === "gltf";
+
+    setNeedsRequiredFiles(isGltf);
+  }, [file]);
+
+  const canRenderThumbnail = useMemo(() => {
+    if (!file) return false;
+
+    if (needsRequiredFiles) {
+      return requiredFiles.length > 0;
+    }
+
+    return true;
+  }, [file, needsRequiredFiles, requiredFiles]);
+
+  const handleSnapshot = useCallback((image: string) => {
+    setThumbnail(image);
+  }, []);
 
   useEffect(() => {
     if (!file) return;
@@ -63,12 +92,29 @@ export default function ModelUploadDialog({
   const handleUpload = async () => {
     if (!file || !fileAlias || isUploading || description.trim().length > 512)
       return;
+
+    if (needsRequiredFiles && requiredFiles.length === 0) {
+      alert("This model requires additional files. Please upload them.");
+      return;
+    }
+
     setIsUploading(true);
     const formData = new FormData();
     formData.append("files", file);
     for (const requiredFile of requiredFiles) {
       formData.append("files", requiredFile);
     }
+    if (thumbnail) {
+      const response = await fetch(thumbnail);
+      const blob = await response.blob();
+
+      const thumbnailFile = new File([blob], "thumbnail.png", {
+        type: "image/png",
+      });
+
+      formData.append("files", thumbnailFile);
+    }
+
     formData.append("fileAlias", fileAlias.trim());
     formData.append("originalFileName", file.name);
     if (category?.trim()) {
@@ -83,16 +129,25 @@ export default function ModelUploadDialog({
     } catch (error) {
       console.log(error);
     } finally {
-      setFile(null);
-      setFileAlias("");
-      setIsUploading(false);
+      resetFields();
     }
     onOpenChange(false);
   };
 
+  const resetFields = () => {
+    setFile(null);
+    setFileAlias("");
+    setDescription("");
+    setCategory(null);
+    setIsUploading(false);
+    setThumbnail(null);
+    setRequiredFiles([]);
+    setNeedsRequiredFiles(false);
+  };
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      setFile(null);
+      resetFields();
     }
     onOpenChange(open);
   };
@@ -140,13 +195,14 @@ export default function ModelUploadDialog({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  {Object.values(ECADCategory).map((value) => {
-                    return (
-                      <DropdownMenuItem onClick={() => setCategory(value)}>
-                        {value}
-                      </DropdownMenuItem>
-                    );
-                  })}
+                  {Object.values(ECADCategory).map((value) => (
+                    <DropdownMenuItem
+                      key={value}
+                      onClick={() => setCategory(value)}
+                    >
+                      {value}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               {category && (
@@ -159,10 +215,19 @@ export default function ModelUploadDialog({
                 </Button>
               )}
             </div>
+
+            {canRenderThumbnail && file && (
+              <ModelThumbnail
+                gltfFile={file}
+                dependentFiles={requiredFiles}
+                onSnapshot={handleSnapshot}
+              />
+            )}
           </>
         )}
-        <div className="py-4">
+        <div className="py-4 mt-8">
           <Uploader
+            resetFields={resetFields}
             onFileSelect={setFile}
             setIsUploadDisabled={setIsUploadDisabled}
             setRequiredFiles={setRequiredFiles}
@@ -170,11 +235,19 @@ export default function ModelUploadDialog({
         </div>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline" onClick={resetFields}>
+              Cancel
+            </Button>
           </DialogClose>
           <Button
             onClick={handleUpload}
-            disabled={!file || !fileAlias || isUploading || isUploadDisabled}
+            disabled={
+              !file ||
+              !fileAlias ||
+              isUploading ||
+              isUploadDisabled ||
+              (needsRequiredFiles && requiredFiles.length === 0)
+            }
           >
             {isUploading && <Spinner />}
             {isUploading ? "Uploading..." : "Upload"}

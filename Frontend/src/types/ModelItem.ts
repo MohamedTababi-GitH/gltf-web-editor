@@ -1,4 +1,5 @@
 import type { Category } from "@/types/Category.ts";
+import type { AdditionalFile } from "@/types/AdditionalFile.ts";
 
 export interface ModelItem {
   id: string;
@@ -9,4 +10,14 @@ export interface ModelItem {
   url: string;
   category: Category;
   description: string;
+  additionalFiles: AdditionalFile[];
+  isFavourite: boolean;
 }
+
+export type MeshData = {
+  name: string;
+  id: number;
+  X: string;
+  Y: string;
+  Z: string;
+};

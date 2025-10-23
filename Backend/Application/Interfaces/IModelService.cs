@@ -10,9 +10,12 @@ public interface IModelService
     /// <summary>
     /// Retrieves a read-only list of model items asynchronously.
     /// </summary>
+    /// <param name="limit"></param>
+    /// <param name="cursor"></param>
+    /// <param name="filter"></param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing a list of <see cref="ModelItemDto"/>.</returns>
-    Task<IReadOnlyList<ModelItemDto>> ListAsync(CancellationToken cancellationToken);
+    Task<PageResult<ModelItemDto>> ListAsync(int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken);
 
     /// <summary>
     /// Uploads a model asynchronously based on the specified request data.
@@ -36,5 +39,6 @@ public interface IModelService
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken cancellationToken);
 }

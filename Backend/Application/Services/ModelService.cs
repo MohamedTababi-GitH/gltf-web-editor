@@ -30,6 +30,7 @@ public sealed class ModelService : IModelService
         CreatedOn = f.CreatedOn,
         Category = f.Category,
         Description = f.Description,
+        IsFavourite = f.IsFavourite,
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
         {
             Name = x.Name,
@@ -49,12 +50,19 @@ public sealed class ModelService : IModelService
     /// <summary>
     /// Retrieves a list of all stored model items.
     /// </summary>
+    /// <param name="cursor"></param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <param name="limit"></param>
     /// <returns>A read-only list of <see cref="ModelItemDto"/> representing the stored models.</returns>
-    public async Task<IReadOnlyList<ModelItemDto>> ListAsync(CancellationToken cancellationToken = default)
+    public async Task<PageResult<ModelItemDto>> ListAsync(
+        int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
     {
-        var files = await _storage.ListAsync(cancellationToken);
-        return files.Select(Map).ToList();
+        if (limit <= 0 || limit > 100) throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
+
+        var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
+        var items = files.Select(Map).ToList();
+
+        return new PageResult<ModelItemDto>(items, next, next is not null);
     }
 
     /// <summary>
@@ -146,6 +154,8 @@ public sealed class ModelService : IModelService
 
                 if (!string.IsNullOrWhiteSpace(request.Description))
                     metadata["description"] = request.Description.Trim();
+                
+                metadata["isFavourite"] = "false";
             }
 
             await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
@@ -171,21 +181,23 @@ public sealed class ModelService : IModelService
         string? newAlias,
         string? category,
         string? description,
+        bool? isFavourite,
         CancellationToken cancellationToken)
     {
         if (id == Guid.Empty) throw new ArgumentException("Invalid id.", nameof(id));
 
-        // Alias validation
-        if (!string.IsNullOrWhiteSpace(newAlias) && !AliasRegex.IsMatch(newAlias))
+        // Normalize whitespace-only to null (treat as delete)
+        string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        var cat  = Normalize(category);
+        var desc = Normalize(description);
+        var alias = Normalize(newAlias);
+
+        // Validate alias only if it's being set (not deleted)
+        if (alias is not null && !AliasRegex.IsMatch(alias))
             throw new ArgumentException("Alias not valid.", nameof(newAlias));
 
-        // Normalize category and description
-        var cat = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
-        var desc = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-
-        if (newAlias is null && cat is null && desc is null)
-            throw new ArgumentException("No fields to update.");
-
-        return await _storage.UpdateDetailsAsync(id, newAlias, cat, desc, cancellationToken);
+        // NOTE: For PUT we DO allow all nulls (deletes all metadata)
+        return await _storage.UpdateDetailsAsync(id, alias, cat, desc, isFavourite, cancellationToken);
     }
 }
