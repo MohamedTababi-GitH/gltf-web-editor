@@ -4,6 +4,7 @@ import { Environment, Center, OrbitControls, Resize } from "@react-three/drei";
 import { Button } from "@/components/ui/button.tsx";
 import { Camera, Check } from "lucide-react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { loadModel } from "@/utils/ModelLoader.ts";
 
 type ModelThumbnailProps = {
   gltfFile: File;
@@ -36,55 +37,13 @@ const Model = memo(
       const objectUrlsToRevoke: string[] = [];
       let isMounted = true;
 
-      const loadModel = async () => {
-        if (gltfFile.name.toLowerCase().endsWith(".glb")) {
-          const url = URL.createObjectURL(gltfFile);
-          objectUrlsToRevoke.push(url);
-          if (isMounted) {
-            setProcessedModelUrl(url);
-          }
-          return;
-        }
-
-        const fileMap = new Map<string, string>();
-        dependentFiles.forEach((file) => {
-          const url = URL.createObjectURL(file);
-          fileMap.set(file.name, url);
-          objectUrlsToRevoke.push(url);
-        });
-
-        const gltfText = await gltfFile.text();
-        const gltfJson = JSON.parse(gltfText);
-
-        const replaceUri = (uri: string) => fileMap.get(uri) || uri;
-        if (gltfJson.buffers) {
-          for (const buffer of gltfJson.buffers) {
-            if (buffer.uri && fileMap.has(buffer.uri)) {
-              buffer.uri = replaceUri(buffer.uri);
-            }
-          }
-        }
-        if (gltfJson.images) {
-          for (const image of gltfJson.images) {
-            if (image.uri && fileMap.has(image.uri)) {
-              image.uri = replaceUri(image.uri);
-            }
-          }
-        }
-
-        const patchedGltfString = JSON.stringify(gltfJson);
-        const patchedGltfBlob = new Blob([patchedGltfString], {
-          type: "application/json",
-        });
-        const newGltfUrl = URL.createObjectURL(patchedGltfBlob);
-        objectUrlsToRevoke.push(newGltfUrl);
-
-        if (isMounted) {
-          setProcessedModelUrl(newGltfUrl);
-        }
-      };
-
-      loadModel();
+      loadModel({
+        file: gltfFile,
+        dependentFiles,
+        objectUrlsToRevoke,
+        setProcessedModelUrl,
+        isMounted,
+      });
 
       return () => {
         isMounted = false;
