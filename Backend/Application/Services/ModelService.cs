@@ -61,8 +61,10 @@ public sealed class ModelService : IModelService
 
         var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
         var items = files.Select(Map).ToList();
+        var hasMore = items.Count == limit || !string.IsNullOrWhiteSpace(next);
+        
 
-        return new PageResult<ModelItemDto>(items, next, next is not null);
+        return new PageResult<ModelItemDto>(items, next,hasMore);
     }
 
     /// <summary>
