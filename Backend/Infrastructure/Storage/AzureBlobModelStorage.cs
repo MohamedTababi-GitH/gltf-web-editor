@@ -110,8 +110,7 @@ public class AzureBlobModelStorage : IModelStorage
                     bool matches =
                         (alias?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                         (category?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        blob.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
+                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
 
                     if (!matches) continue;
                 }
