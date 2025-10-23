@@ -1,6 +1,7 @@
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Options;
@@ -55,67 +56,60 @@ public class AzureBlobModelStorage : IModelStorage
 
     #region CRUD Methods
 
-    public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
+    public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
+        int limit, string? cursor, ModelFilter filter, CancellationToken ct = default)
     {
         var result = new List<ModelFile>();
 
-        try
+        await foreach (var blob in _container.GetBlobsAsync(
+                           traits: BlobTraits.Metadata,
+                           states: BlobStates.None,
+                           cancellationToken: ct))
         {
-            await foreach (var blob in _container.GetBlobsAsync(
-                               traits: BlobTraits.Metadata,
-                               states: BlobStates.None,
-                               cancellationToken: ct))
+            var name = blob.Name;
+            var format = GetFormatOrNull(name);
+            if (format is null) continue; // only entry .glb/.gltf
+
+            // Build SAS-preserving URL for entry file
+            var fileUri = BuildBlobUri(name);
+
+            // Id
+            var id = TryGetGuidMetadata(blob.Metadata, MetaId) ?? Guid.NewGuid();
+
+            // Alias/Category/Description/Favourite
+            var alias = ReadStringMetadataOrDefault(blob.Metadata, MetaAlias, "Model");
+            var category = ReadStringMetadataOrNull(blob.Metadata, MetaCategory);
+            var description = ReadStringMetadataOrNull(blob.Metadata, MetaDescription);
+            var isFavourite = ParseBoolMetadata(blob.Metadata, MetaIsFavourite);
+
+            // Determine assetId
+            var assetId = ReadStringMetadataOrNull(blob.Metadata, MetaAssetId);
+            if (string.IsNullOrWhiteSpace(assetId))
             {
-                var name = blob.Name;
-                var format = GetFormatOrNull(name);
-                if (format is null) continue; // only entry .glb/.gltf
-
-                // Build SAS-preserving URL for entry file
-                var fileUri = BuildBlobUri(name);
-
-                // Id
-                var id = TryGetGuidMetadata(blob.Metadata, MetaId) ?? Guid.NewGuid();
-
-                // Alias/Category/Description/Favourite
-                var alias = ReadStringMetadataOrDefault(blob.Metadata, MetaAlias, "Model");
-                var category = ReadStringMetadataOrNull(blob.Metadata, MetaCategory);
-                var description = ReadStringMetadataOrNull(blob.Metadata, MetaDescription);
-                var isFavourite = ParseBoolMetadata(blob.Metadata, MetaIsFavourite);
-
-                // Determine assetId
-                var assetId = ReadStringMetadataOrNull(blob.Metadata, MetaAssetId);
-                if (string.IsNullOrWhiteSpace(assetId))
-                {
-                    // fallback to first virtual folder segment
-                    assetId = name.Split('/', 2)[0];
-                }
-
-                // Collect additional files under the same folder (skip entry)
-                var additional = await EnumerateAdditionalFilesAsync(assetId!, name, ct);
-
-                result.Add(new ModelFile
-                {
-                    Id = id,
-                    Name = alias,
-                    Format = format,
-                    SizeBytes = blob.Properties.ContentLength,
-                    CreatedOn = blob.Properties.CreatedOn,
-                    Url = fileUri,
-                    Category = category,
-                    Description = description,
-                    AssetId = assetId,
-                    AdditionalFiles = additional,
-                    IsFavourite = isFavourite
-                });
+                // fallback to first virtual folder segment
+                assetId = name.Split('/', 2)[0];
             }
 
-            return result;
+            // Collect additional files under the same folder (skip entry)
+            var additional = await EnumerateAdditionalFilesAsync(assetId!, name, ct);
+
+            result.Add(new ModelFile
+            {
+                Id = id,
+                Name = alias,
+                Format = format,
+                SizeBytes = blob.Properties.ContentLength,
+                CreatedOn = blob.Properties.CreatedOn,
+                Url = fileUri,
+                Category = category,
+                Description = description,
+                AssetId = assetId,
+                AdditionalFiles = additional,
+                IsFavourite = isFavourite
+            });
         }
-        catch (RequestFailedException)
-        {
-            // Let the global handler deal with this
-            throw;
-        }
+
+        return result;
     }
 
     public async Task UploadAsync(

@@ -13,3 +13,11 @@ export interface ModelItem {
   additionalFiles: AdditionalFile[];
   isFavourite: boolean;
 }
+
+export type MeshData = {
+  name: string;
+  id: number;
+  X: string;
+  Y: string;
+  Z: string;
+};

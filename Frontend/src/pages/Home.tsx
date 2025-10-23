@@ -9,7 +9,7 @@ function Home() {
   return (
     <div className="flex flex-col h-screen">
       <Navbar />
-      <main className="mt-16">
+      <main className="mt-16 flex-1 min-h-0">
         {activeTab === "home" ? <HomeView /> : <ListView />}
       </main>
     </div>

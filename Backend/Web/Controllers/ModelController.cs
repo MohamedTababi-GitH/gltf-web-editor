@@ -30,11 +30,36 @@ public class ModelController : ControllerBase
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<ModelItemDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<ModelItemDto>>> GetAll(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(PageResult<ModelItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
+        [FromQuery] int limit = 10,
+        [FromQuery] string? cursor = null,
+        [FromQuery] string? category = null,
+        [FromQuery] bool? isFavourite = null,
+        [FromQuery] string? q = null,
+        [FromQuery] string? format = null,
+        [FromQuery] DateTimeOffset? createdAfter = null,
+        [FromQuery] DateTimeOffset? createdBefore = null,
+        [FromQuery] string? prefix = null,
+        CancellationToken cancellationToken = default)
     {
-        var items = await _service.ListAsync(cancellationToken);
-        return Ok(items);
+        var filter = new ModelFilter
+        {
+            Category = category,
+            IsFavourite = isFavourite,
+            Q = q,
+            Format = format,
+            CreatedAfter = createdAfter,
+            CreatedBefore = createdBefore,
+            Prefix = prefix
+        };
+
+        var page = await _service.ListAsync(limit, cursor, filter, cancellationToken);
+
+        if (page.NextCursor is not null)
+            Response.Headers["X-Next-Cursor"] = page.NextCursor;
+
+        return Ok(page);
     }
 
     /// <summary>

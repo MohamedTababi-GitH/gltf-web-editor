@@ -2,15 +2,15 @@ import AppSidebar from "./Sidebar";
 import type { ModelItem } from "@/types/ModelItem";
 import { SidebarTrigger, useSidebar } from "../ui/sidebar";
 import ThreeApp from "./ThreeApp";
+import React from "react";
 
 type ModelViewerProps = {
   model: ModelItem | null;
   setShowViewer: (show: boolean) => void;
 };
 
-const ModelViewer: React.FC<ModelViewerProps> = ({ model, setShowViewer }) => {
+const ModelViewer: React.FC<ModelViewerProps> = ({ setShowViewer }) => {
   const { open } = useSidebar();
-  console.log(model);
   return (
     <div className="flex w-full h-full overflow-hidden">
       <div
@@ -21,11 +21,11 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ model, setShowViewer }) => {
 
       <SidebarTrigger
         className={` absolute 
-            md:top-16 md:right-4
-            top-18 right-2
-            z-50 transition-all duration-300 ${open ? "md:right-[calc(var(--sidebar-width))]" : "right-0"}`}
+            md:top-18 md:right-4
+            top-18 right-2 md:h-10 md:w-10 h-8 w-8 bg-sidebar rounded-l-md 
+            z-50 transition-all duration-300 ${open ? "md:right-[calc(var(--sidebar-width))] rounded-r-none" : "right-0 rounded-r-md"}`}
       />
-      <AppSidebar model={model} setShowViewer={setShowViewer} />
+      <AppSidebar setShowViewer={setShowViewer} />
     </div>
   );
 };
