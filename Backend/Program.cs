@@ -14,13 +14,17 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// adding Global exception handeler
+// Add ProblemDetails (used for structured error responses)
+builder.Services.AddProblemDetails();
+
+// Add specific exception handlers
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+
+// adding Global exception handeler
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>(); // Keep this last
-builder.Services.AddProblemDetails(); ;
+
 
 
 //CORS for frontend dev host(adjust if needed)
