@@ -47,7 +47,7 @@ public class ModelServiceTests
         var alias = "Invalid Alias!";
         var request = new UploadModelRequest
         {
-            Content = new MemoryStream(),
+            Files = new (string FileName, Stream Content)[];
             OriginalFileName = filename,
             Alias = alias
         };
