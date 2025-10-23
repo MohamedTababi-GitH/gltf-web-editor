@@ -51,9 +51,7 @@ function ListView() {
     /* Added this const part that finds the most recently created model by simply comparing all "createdOn" timestamps! */
   }
   const toTs = (d: string | Date) => new Date(d).getTime();
-  const latestCreatedOn = new Date(
-    Math.max(...models.map((i) => toTs(i.createdOn))),
-  ).toISOString();
+  const latestCreatedOn = Math.max(...models.map((i) => toTs(i.createdOn)));
 
   const [showAnimation, setShowAnimation] = useState(true);
   useEffect(() => {
@@ -335,9 +333,7 @@ function ListView() {
                   key={item.id}
                   item={item}
                   refreshList={() => fetchModels(searchParams)}
-                  isLatest={
-                    new Date(item.createdOn).toISOString() === latestCreatedOn
-                  }
+                  isLatest={toTs(item.createdOn) === latestCreatedOn}
                   onClick={() => {
                     setModel(item);
                     setShowViewer(true);
