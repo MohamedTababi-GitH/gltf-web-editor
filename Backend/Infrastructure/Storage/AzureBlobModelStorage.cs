@@ -64,7 +64,8 @@ public class AzureBlobModelStorage : IModelStorage
         // Build async pageable with optional prefix optimization
         AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
             ? _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct)
-            : _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, prefix: filter.Prefix, cancellationToken: ct);
+            : _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, prefix: filter.Prefix,
+                cancellationToken: ct);
 
         // TODO:var pageSizeHint = Math.Clamp(limit, 10, 500); Azure recommends 10-500, need to implemt ct Cursor support (check SCRUM-142)
         var pageSizeHint = limit;
