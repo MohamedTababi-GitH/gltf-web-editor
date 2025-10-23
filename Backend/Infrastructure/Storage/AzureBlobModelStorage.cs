@@ -66,7 +66,7 @@ public class AzureBlobModelStorage : IModelStorage
             ? _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct)
             : _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, prefix: filter.Prefix, cancellationToken: ct);
 
-        // var pageSizeHint = Math.Clamp(limit, 10, 500); // Azure recommends 10-500, need to implemt ct Cursor support
+        // TODO:var pageSizeHint = Math.Clamp(limit, 10, 500); Azure recommends 10-500, need to implemt ct Cursor support (check SCRUM-142)
         var pageSizeHint = limit;
         await foreach (var page in pageable.AsPages(cursor, pageSizeHint).WithCancellation(ct))
         {
