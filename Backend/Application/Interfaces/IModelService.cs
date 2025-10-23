@@ -1,4 +1,5 @@
 using ECAD_Backend.Application.DTOs;
+
 namespace ECAD_Backend.Application.Interfaces;
 
 /// <summary>
@@ -19,5 +20,21 @@ public interface IModelService
     /// <param name="request">The request containing model upload details.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing the upload result as <see cref="UploadResultDto"/>.</returns>
-    Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken);
+    Task<UploadResultDto> UploadAsync(
+        UploadModelRequest request,
+        CancellationToken cancellationToken);
+
+    Task<bool> DeleteAsync(
+        Guid id,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates the alias metadata of a model by its Id.
+    /// </summary>
+    Task<bool> UpdateDetailsAsync(
+        Guid id,
+        string? newAlias,
+        string? category,
+        string? description,
+        CancellationToken cancellationToken);
 }

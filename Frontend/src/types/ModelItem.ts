@@ -1,3 +1,5 @@
+import type { Category } from "@/types/Category.ts";
+
 export interface ModelItem {
   id: string;
   name: string;
@@ -5,4 +7,6 @@ export interface ModelItem {
   createdOn: string;
   format: string;
   url: string;
+  category: Category;
+  description: string;
 }

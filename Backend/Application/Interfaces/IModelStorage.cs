@@ -1,4 +1,5 @@
 using ECAD_Backend.Domain.Entities;
+
 namespace ECAD_Backend.Application.Interfaces;
 
 /// <summary>
@@ -22,9 +23,27 @@ public interface IModelStorage
     /// <param name="metadata">Optional metadata to associate with the uploaded file.</param>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous upload operation.</returns>
-    Task UploadAsync(string blobName, 
-                     Stream content, 
-                     string contentType, 
-                     IDictionary<string, string>? metadata = null,
-                     CancellationToken ct = default);
+    Task UploadAsync(string blobName,
+        Stream content,
+        string contentType,
+        IDictionary<string, string>? metadata = null,
+        CancellationToken ct = default);
+
+    /// <summary>Deletes blobs whose metadata "Id" equals the provided id.</summary>
+    Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes all blobs under the virtual folder of an asset (e.g. "{assetId}/...").
+    /// Useful if one model results in multiple blobs.
+    /// </summary>
+    Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates the alias metadata for the blob(s) matching the given Id.
+    /// </summary>
+    Task<bool> UpdateDetailsAsync(Guid id,
+        string? newAlias,
+        string? category,
+        string? description,
+        CancellationToken ct = default);
 }

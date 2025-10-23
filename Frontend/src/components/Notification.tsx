@@ -59,8 +59,8 @@ const Notification: React.FC<NotificationProps> = ({
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: "100%", opacity: 0 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      // Base classes for the notification container, positioned fixed to the screen.
-      className="fixed top-20 right-5 z-50 w-full max-w-sm bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-lg"
+      // Base classes for the notification container
+      className="w-full bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 shadow-lg"
     >
       <div className="flex items-start gap-3 p-4">
         {/* Icon for the notification type */}
