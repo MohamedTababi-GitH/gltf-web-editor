@@ -5,10 +5,10 @@ using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.DTOs;
 using Microsoft.AspNetCore.Http;
 
-namespace ECAD_Backend.Tests;
+namespace ECAD_Backend.UnitTests;
 
 [TestClass]
-public class ModelControllerTests
+public class ModelControllerTest
 {
     private Mock<IModelService> _mockService = null!;
     private ModelController _controller = null!;
