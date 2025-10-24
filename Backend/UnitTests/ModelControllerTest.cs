@@ -75,13 +75,13 @@ public class ModelControllerTest
         // Act
         var result = await _controller.Upload(files, alias, fileName, null, null, CancellationToken.None);
         var okResult = result as OkObjectResult;
+        var uploadResult = okResult!.Value as UploadResultDto;
 
         // Assert
         Assert.IsNotNull(okResult);
-        dynamic receivedUploadResult = okResult.Value!;
-        Assert.AreEqual(message, receivedUploadResult.message);
-        Assert.AreEqual(alias, receivedUploadResult.alias);
-        Assert.AreEqual(blobName, receivedUploadResult.blobName);
+        Assert.AreEqual(message, uploadResult!.Message);
+        Assert.AreEqual(alias, uploadResult.Alias);
+        Assert.AreEqual(blobName, uploadResult.BlobName);
     }
 
     [TestMethod]

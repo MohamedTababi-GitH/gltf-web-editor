@@ -104,7 +104,7 @@ public class ModelController : ControllerBase
             };
 
             var result = await _service.UploadAsync(request, cancellationToken);
-            return Ok(new { message = result.Message, alias = result.Alias, blobName = result.BlobName });
+            return Ok(new UploadResultDto{ Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         catch (ArgumentException ex)
         {
