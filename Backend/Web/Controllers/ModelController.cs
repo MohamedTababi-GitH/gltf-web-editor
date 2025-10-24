@@ -53,7 +53,7 @@ public class ModelController : ControllerBase
 
         var page = await _service.ListAsync(limit, cursor, filter, cancellationToken);
 
-        if (page.NextCursor is not null)
+        if (!string.IsNullOrWhiteSpace(page.NextCursor))
             Response.Headers["X-Next-Cursor"] = page.NextCursor;
 
         return Ok(page);
