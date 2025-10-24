@@ -143,7 +143,7 @@ export function Model() {
         <primitive
           object={scene}
           onClick={handleMeshClick}
-          onPointerMiss={handleMiss}
+          onPointerMissed={handleMiss}
         />
       </group>
     </>
