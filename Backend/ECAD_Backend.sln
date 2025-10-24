@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36202.13 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECAD_Backend", "ECAD_Backend.csproj", "{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{8B76FEE4-4142-46A6-BBA3-C1A52C3F6D80}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3B979DE1-6DFC-4ABE-B161-7B27FA08917E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B76FEE4-4142-46A6-BBA3-C1A52C3F6D80}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B76FEE4-4142-46A6-BBA3-C1A52C3F6D80}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B76FEE4-4142-46A6-BBA3-C1A52C3F6D80}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B76FEE4-4142-46A6-BBA3-C1A52C3F6D80}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
