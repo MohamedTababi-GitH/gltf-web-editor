@@ -153,8 +153,7 @@ public class AzureBlobModelStorage : IModelStorage
                 if (items.Count >= limit)
                 {
                     // Decide if there is ACTUALLY more (either later in this page or in the next Azure page)
-                    bool moreInCurrentPage =
-                        HasAnotherEligibleInCurrentPage(page.Values, blob.Name, resumeAfter, filter);
+                    bool moreInCurrentPage = HasAnotherEligibleInCurrentPage(page.Values, blob.Name, resumeAfter, filter);
                     if (!moreInCurrentPage && nextAzureCt is null)
                     {
                         // no more anywhere → no cursor
@@ -173,63 +172,6 @@ public class AzureBlobModelStorage : IModelStorage
 
         // Exhausted everything
         return (items, null);
-
-        // -------- local helper to peek the rest of the current server page --------
-        bool HasAnotherEligibleInCurrentPage(IEnumerable<BlobItem> values, string currentName, string? resume,
-            ModelFilter f)
-        {
-            bool localSkipping = !string.IsNullOrEmpty(resume);
-
-            foreach (var b in values)
-            {
-                // only consider items strictly AFTER currentName
-                if (string.CompareOrdinal(b.Name, currentName) <= 0) continue;
-
-                if (localSkipping)
-                {
-                    if (string.CompareOrdinal(b.Name, resume) <= 0) continue;
-                    localSkipping = false;
-                }
-
-                // cheap eligibility test mirroring main filters (fast path first)
-                var fmt = GetFormatOrNull(b.Name);
-                if (fmt is null) continue;
-
-                if (!string.IsNullOrWhiteSpace(f.Format) &&
-                    !string.Equals(fmt, f.Format, StringComparison.OrdinalIgnoreCase)) continue;
-
-                var md2 = b.Metadata ?? new Dictionary<string, string>();
-                var fav2 = ParseBoolMetadata(md2, MetaIsFavourite);
-                var created2 = b.Properties.CreatedOn;
-
-                if (f.IsFavourite is not null && fav2 != f.IsFavourite.Value) continue;
-                if (!string.IsNullOrWhiteSpace(f.Category))
-                {
-                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
-                    if (!string.Equals(cat2, f.Category, StringComparison.OrdinalIgnoreCase)) continue;
-                }
-
-                if (f.CreatedAfter is not null && created2 is not null && created2 < f.CreatedAfter) continue;
-                if (f.CreatedBefore is not null && created2 is not null && created2 >= f.CreatedBefore) continue;
-
-                if (!string.IsNullOrWhiteSpace(f.Q))
-                {
-                    var q2 = f.Q.Trim();
-                    var alias2 = ReadStringMetadataOrDefault(md2, MetaAlias, "Model");
-                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
-                    var desc2 = ReadStringMetadataOrNull(md2, MetaDescription);
-                    if (!((alias2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                          (cat2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                          (desc2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                          b.Name.Contains(q2, StringComparison.OrdinalIgnoreCase)))
-                        continue;
-                }
-
-                return true; // found another eligible item
-            }
-
-            return false;
-        }
     }
 
     public async Task UploadAsync(
@@ -371,6 +313,62 @@ public class AzureBlobModelStorage : IModelStorage
         if (blobName.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase)) return "gltf";
         return null;
     }
+    
+    private bool HasAnotherEligibleInCurrentPage(IEnumerable<BlobItem> values, string currentName, string? resume,
+            ModelFilter f)
+        {
+            bool localSkipping = !string.IsNullOrEmpty(resume);
+
+            foreach (var b in values)
+            {
+                // only consider items strictly AFTER currentName
+                if (string.CompareOrdinal(b.Name, currentName) <= 0) continue;
+
+                if (localSkipping)
+                {
+                    if (string.CompareOrdinal(b.Name, resume) <= 0) continue;
+                    localSkipping = false;
+                }
+
+                // cheap eligibility test mirroring main filters (fast path first)
+                var fmt = GetFormatOrNull(b.Name);
+                if (fmt is null) continue;
+
+                if (!string.IsNullOrWhiteSpace(f.Format) &&
+                    !string.Equals(fmt, f.Format, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var md2 = b.Metadata ?? new Dictionary<string, string>();
+                var fav2 = ParseBoolMetadata(md2, MetaIsFavourite);
+                var created2 = b.Properties.CreatedOn;
+
+                if (f.IsFavourite is not null && fav2 != f.IsFavourite.Value) continue;
+                if (!string.IsNullOrWhiteSpace(f.Category))
+                {
+                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
+                    if (!string.Equals(cat2, f.Category, StringComparison.OrdinalIgnoreCase)) continue;
+                }
+
+                if (f.CreatedAfter is not null && created2 is not null && created2 < f.CreatedAfter) continue;
+                if (f.CreatedBefore is not null && created2 is not null && created2 >= f.CreatedBefore) continue;
+
+                if (!string.IsNullOrWhiteSpace(f.Q))
+                {
+                    var q2 = f.Q.Trim();
+                    var alias2 = ReadStringMetadataOrDefault(md2, MetaAlias, "Model");
+                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
+                    var desc2 = ReadStringMetadataOrNull(md2, MetaDescription);
+                    if (!((alias2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          (cat2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          (desc2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          b.Name.Contains(q2, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+                }
+
+                return true; // found another eligible item
+            }
+
+            return false;
+        }
 
     private Uri BuildBlobUri(string blobName)
     {
