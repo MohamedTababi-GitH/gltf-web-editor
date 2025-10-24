@@ -6,6 +6,7 @@ using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Options;
+using FuzzySharp;
 using Microsoft.Extensions.Options;
 
 namespace ECAD_Backend.Infrastructure.Storage;
@@ -112,18 +113,15 @@ public class AzureBlobModelStorage : IModelStorage
                 if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value) continue;
                 if (!string.IsNullOrWhiteSpace(filter.Category) &&
                     !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase)) continue;
-                if (filter.CreatedAfter is not null && created is not null && created < filter.CreatedAfter) continue;
-                if (filter.CreatedBefore is not null && created is not null &&
-                    created >= filter.CreatedBefore) continue;
 
                 if (!string.IsNullOrWhiteSpace(filter.Q))
                 {
                     var q = filter.Q.Trim();
                     bool matches =
-                        (alias?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        (category?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        blob.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
+                        Fuzz.PartialRatio(q, alias ?? "") > 80 ||
+                        Fuzz.PartialRatio(q, category ?? "") > 80 ||
+                        Fuzz.PartialRatio(q, description ?? "") > 80;
+
                     if (!matches) continue;
                 }
 
@@ -347,9 +345,6 @@ public class AzureBlobModelStorage : IModelStorage
                     var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
                     if (!string.Equals(cat2, f.Category, StringComparison.OrdinalIgnoreCase)) continue;
                 }
-
-                if (f.CreatedAfter is not null && created2 is not null && created2 < f.CreatedAfter) continue;
-                if (f.CreatedBefore is not null && created2 is not null && created2 >= f.CreatedBefore) continue;
 
                 if (!string.IsNullOrWhiteSpace(f.Q))
                 {

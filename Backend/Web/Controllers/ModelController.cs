@@ -35,8 +35,6 @@ public class ModelController : ControllerBase
         [FromQuery] bool? isFavourite = null,
         [FromQuery] string? q = null,
         [FromQuery] string? format = null,
-        [FromQuery] DateTimeOffset? createdAfter = null,
-        [FromQuery] DateTimeOffset? createdBefore = null,
         [FromQuery] string? prefix = null,
         CancellationToken cancellationToken = default)
     {
@@ -46,8 +44,6 @@ public class ModelController : ControllerBase
             IsFavourite = isFavourite,
             Q = q,
             Format = format,
-            CreatedAfter = createdAfter,
-            CreatedBefore = createdBefore,
             Prefix = prefix
         };
 

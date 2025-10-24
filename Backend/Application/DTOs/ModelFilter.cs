@@ -14,12 +14,7 @@ public sealed class ModelFilter
     // case-insensitive contains against Name/Alias/Description/Category
     // e.g. /api/model?q=oak
     public string? Q { get; init; }
-
-    // Optional date filters (UTC)
-    // e.g. /api/model?createdAfter=2025-01-01T00:00:00Z
-    public DateTimeOffset? CreatedAfter { get; init; }
-    public DateTimeOffset? CreatedBefore { get; init; }
-
+    
     // Optional path prefix to narrow scanning by folder
     // e.g. /api/model?prefix=furniture/
     public string? Prefix { get; init; }
