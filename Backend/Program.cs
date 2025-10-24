@@ -1,34 +1,58 @@
+using Azure.Storage.Blobs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Services;
-using ECAD_Backend.Infrastructure;
+using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+var services = builder.Services;
 
-// Add services to the container.
+// Options: bind once
+services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// Cursor serializer (stateless)
+services.AddSingleton<ICursorSerializer, Base64JsonCursorSerializer>();
 
-//CORS for frontend dev host(adjust if needed)
-builder.Services.AddCors(o => o.AddPolicy("frontend", p => p
+// Blob container factory: supports either a SAS container URL or a real connection string
+services.AddSingleton<BlobContainerClient>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<BlobOptions>>().Value;
+    if (string.IsNullOrWhiteSpace(opts.ConnectionString))
+        throw new InvalidOperationException("Storage:ConnectionString is required.");
+
+    // If it's a SAS URL to a *container*, construct the client from the Uri directly.
+    if (opts.ConnectionString.TrimStart().StartsWith("http", StringComparison.OrdinalIgnoreCase))
+    {
+        // Ex: https://account.blob.core.windows.net/data?<SAS>
+        return new BlobContainerClient(new Uri(opts.ConnectionString));
+    }
+
+    // Otherwise treat it as an account connection string and use the configured container name.
+    var containerName = string.IsNullOrWhiteSpace(opts.ContainerModels) ? "data" : opts.ContainerModels;
+    var serviceClient = new BlobServiceClient(opts.ConnectionString);
+    return serviceClient.GetBlobContainerClient(containerName);
+});
+
+// App services
+services.AddScoped<IModelStorage, AzureBlobModelStorage>();
+services.AddScoped<IModelService, ModelService>();
+
+// MVC / Swagger / CORS
+services.AddControllers();
+services.AddEndpointsApiExplorer();
+services.AddSwaggerGen();
+
+services.AddCors(o => o.AddPolicy("frontend", p => p
     .WithOrigins("http://localhost:5173", "https://localhost:3000")
-    .AllowAnyHeader().AllowAnyMethod()));
-
-// bind option
-builder.Services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
-// register storage service
-builder.Services.AddScoped<IModelStorage, AzureBlobModelStorage>();
-builder.Services.AddScoped<IModelService, ModelService>();
+    .AllowAnyHeader()
+    .AllowAnyMethod()));
 
 var app = builder.Build();
 
 app.UseCors("frontend");
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -36,19 +60,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseDefaultFiles();
-
-// Enable static files (React build in wwwroot)
 app.UseStaticFiles();
-
-// Optional: enable routing middleware
 app.UseRouting();
-
-
-
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapFallbackToFile("index.html");
+
 app.Run();

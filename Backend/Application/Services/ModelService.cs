@@ -54,14 +54,20 @@ public sealed class ModelService : IModelService
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <param name="limit"></param>
     /// <returns>A read-only list of <see cref="ModelItemDto"/> representing the stored models.</returns>
+    // ModelService.cs
     public async Task<PageResult<ModelItemDto>> ListAsync(
         int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
     {
-        if (limit <= 0 || limit > 100) throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
+        if (limit <= 0 || limit > 100)
+            throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
 
         var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
         var items = files.Select(Map).ToList();
-        var hasMore = items.Count == limit && !string.IsNullOrWhiteSpace(next);
+
+        next = string.IsNullOrWhiteSpace(next) ? null : next;
+
+        // hasMore strictly follows whether we returned a usable nextCursor
+        var hasMore = next is not null;
 
         return new PageResult<ModelItemDto>(items, next, hasMore);
     }

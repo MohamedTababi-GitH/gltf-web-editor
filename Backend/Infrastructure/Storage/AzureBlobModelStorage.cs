@@ -4,6 +4,7 @@ using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
+using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 
@@ -29,26 +30,32 @@ public class AzureBlobModelStorage : IModelStorage
 
     // Represents a specific blob container within the Azure Storage account
     private readonly BlobContainerClient _container;
+    private readonly ICursorSerializer _cursor;
 
     // Cached container URL parts for SAS-preserving links
     private readonly string _baseUri; // https://.../container
     private readonly string _sasQuery; // ?sp=...&sig=...
 
-    public AzureBlobModelStorage(IOptions<BlobOptions> opts)
+    public AzureBlobModelStorage(IOptions<BlobOptions> opts, ICursorSerializer cursor)
     {
-        var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
+        _cursor = cursor;
+        var o = opts.Value;
+
         if (string.IsNullOrWhiteSpace(o.ConnectionString))
-            throw new InvalidOperationException("Storage:ConnectionString is missing.");
-        if (string.IsNullOrWhiteSpace(o.ContainerModels))
-            throw new InvalidOperationException("Storage:ContainerModels is missing.");
+            throw new InvalidOperationException("Storage:ConnectionString is required.");
 
-        _container = new BlobContainerClient(new Uri(o.ConnectionString));
-
-        // Precompute SAS-preserving base URL pieces
-        var containerUriStr = _container.Uri.ToString();
-        var parts = containerUriStr.Split('?', 2);
-        _baseUri = parts[0].TrimEnd('/'); // https://.../container
-        _sasQuery = parts.Length == 2 ? "?" + parts[1] : string.Empty; // ?sp=...&sig=...
+        // If SAS URL to a container: construct from Uri
+        if (o.ConnectionString.TrimStart().StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            _container = new BlobContainerClient(new Uri(o.ConnectionString));
+        }
+        else
+        {
+            // Account connection string: use container name
+            var container = string.IsNullOrWhiteSpace(o.ContainerModels) ? "data" : o.ContainerModels;
+            var service = new BlobServiceClient(o.ConnectionString);
+            _container = service.GetBlobContainerClient(container);
+        }
     }
 
     #endregion
@@ -56,54 +63,58 @@ public class AzureBlobModelStorage : IModelStorage
     #region CRUD Methods
 
     public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
-        int limit, string? cursor, ModelFilter filter, CancellationToken ct = default)
+        int limit, string? cursorRaw, ModelFilter filter, CancellationToken ct = default)
     {
         var items = new List<ModelFile>(limit);
-        string? nextCursor = cursor;
 
-        // Build async pageable with optional prefix optimization
+        // Parse incoming cursor (opaque or legacy)
+        _ = _cursor.TryDeserialize(cursorRaw, out var cur);
+        var azureCt = cur.AzureCt; // may be null
+        var resumeAfter = cur.LastName; // may be null
+
         AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
-            ? _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, cancellationToken: ct)
-            : _container.GetBlobsAsync(traits: BlobTraits.Metadata, states: BlobStates.None, prefix: filter.Prefix,
+            ? _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, cancellationToken: ct)
+            : _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, prefix: filter.Prefix,
                 cancellationToken: ct);
 
-        // TODO:var pageSizeHint = Math.Clamp(limit, 10, 500); Azure recommends 10-500, need to implemt ct Cursor support (check SCRUM-142)
-        var pageSizeHint = limit;
-        await foreach (var page in pageable.AsPages(cursor, pageSizeHint).WithCancellation(ct))
+        var pageSizeHint = Math.Clamp(limit, 1, 500);
+
+        // cross-page skip until strictly after `resumeAfter`
+        bool skipping = !string.IsNullOrEmpty(resumeAfter);
+        string? lastEmittedName = resumeAfter;
+
+        await foreach (var page in pageable.AsPages(azureCt, pageSizeHint).WithCancellation(ct))
         {
+            var nextAzureCt = string.IsNullOrWhiteSpace(page.ContinuationToken) ? null : page.ContinuationToken;
+
             foreach (var blob in page.Values)
             {
-                // Entry files only
+                if (skipping)
+                {
+                    if (string.CompareOrdinal(blob.Name, resumeAfter) <= 0) continue;
+                    skipping = false; // first > resumeAfter reached
+                }
+
+                // --- filters (unchanged) ---
                 var format = GetFormatOrNull(blob.Name);
                 if (format is null) continue;
 
-                // Quick format filter
                 if (!string.IsNullOrWhiteSpace(filter.Format) &&
-                    !string.Equals(format, filter.Format, StringComparison.OrdinalIgnoreCase))
-                    continue;
+                    !string.Equals(format, filter.Format, StringComparison.OrdinalIgnoreCase)) continue;
 
-                // Read metadata fields used by filters
                 var md = blob.Metadata ?? new Dictionary<string, string>();
                 var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
                 var category = ReadStringMetadataOrNull(md, MetaCategory);
                 var description = ReadStringMetadataOrNull(md, MetaDescription);
                 var fav = ParseBoolMetadata(md, MetaIsFavourite);
-
-                // Date filters (use Properties.CreatedOn if present; otherwise skip date filtering)
                 var created = blob.Properties.CreatedOn;
 
-                if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value)
-                    continue;
-
+                if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value) continue;
                 if (!string.IsNullOrWhiteSpace(filter.Category) &&
-                    !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (filter.CreatedAfter is not null && created is not null && created < filter.CreatedAfter)
-                    continue;
-
-                if (filter.CreatedBefore is not null && created is not null && created >= filter.CreatedBefore)
-                    continue;
+                    !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase)) continue;
+                if (filter.CreatedAfter is not null && created is not null && created < filter.CreatedAfter) continue;
+                if (filter.CreatedBefore is not null && created is not null &&
+                    created >= filter.CreatedBefore) continue;
 
                 if (!string.IsNullOrWhiteSpace(filter.Q))
                 {
@@ -111,19 +122,16 @@ public class AzureBlobModelStorage : IModelStorage
                     bool matches =
                         (alias?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                         (category?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false);
-
+                        (description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        blob.Name.Contains(q, StringComparison.OrdinalIgnoreCase);
                     if (!matches) continue;
                 }
 
-                // Passed filters → now build ModelFile (do the heavier work after filtering)
+                // Build only after passing filters
                 var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
                 var fileUri = BuildBlobUri(blob.Name);
-                var assetId = ReadStringMetadataOrNull(md, MetaAssetId);
-                if (string.IsNullOrWhiteSpace(assetId))
-                    assetId = blob.Name.Split('/', 2)[0];
-
-                var additional = await EnumerateAdditionalFilesAsync(assetId!, blob.Name, ct);
+                var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
+                var additional = await EnumerateAdditionalFilesAsync(assetId, blob.Name, ct);
 
                 items.Add(new ModelFile
                 {
@@ -140,24 +148,88 @@ public class AzureBlobModelStorage : IModelStorage
                     IsFavourite = fav
                 });
 
-                if (items.Count >= limit) break;
+                lastEmittedName = blob.Name;
+
+                if (items.Count >= limit)
+                {
+                    // Decide if there is ACTUALLY more (either later in this page or in the next Azure page)
+                    bool moreInCurrentPage =
+                        HasAnotherEligibleInCurrentPage(page.Values, blob.Name, resumeAfter, filter);
+                    if (!moreInCurrentPage && nextAzureCt is null)
+                    {
+                        // no more anywhere → no cursor
+                        return (items, null);
+                    }
+
+                    // there is more (either in this page or in a next server page) → return opaque cursor
+                    var outCursor = _cursor.Serialize(new PaginationCursor(nextAzureCt, lastEmittedName));
+                    return (items, outCursor);
+                }
             }
 
-            // If we filled the page, return keeping Azure's continuation token for the *next* server page.
-            if (items.Count >= limit)
-            {
-                return (items, page.ContinuationToken);
-            }
-
-            // Otherwise, continue to next Azure page.
-            nextCursor = page.ContinuationToken;
-
-            // If Azure has no more pages, we're done.
-            if (nextCursor is null)
-                break;
+            azureCt = nextAzureCt;
+            if (azureCt is null) break; // no more server pages
         }
 
-        return (items, nextCursor);
+        // Exhausted everything
+        return (items, null);
+
+        // -------- local helper to peek the rest of the current server page --------
+        bool HasAnotherEligibleInCurrentPage(IEnumerable<BlobItem> values, string currentName, string? resume,
+            ModelFilter f)
+        {
+            bool localSkipping = !string.IsNullOrEmpty(resume);
+
+            foreach (var b in values)
+            {
+                // only consider items strictly AFTER currentName
+                if (string.CompareOrdinal(b.Name, currentName) <= 0) continue;
+
+                if (localSkipping)
+                {
+                    if (string.CompareOrdinal(b.Name, resume) <= 0) continue;
+                    localSkipping = false;
+                }
+
+                // cheap eligibility test mirroring main filters (fast path first)
+                var fmt = GetFormatOrNull(b.Name);
+                if (fmt is null) continue;
+
+                if (!string.IsNullOrWhiteSpace(f.Format) &&
+                    !string.Equals(fmt, f.Format, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var md2 = b.Metadata ?? new Dictionary<string, string>();
+                var fav2 = ParseBoolMetadata(md2, MetaIsFavourite);
+                var created2 = b.Properties.CreatedOn;
+
+                if (f.IsFavourite is not null && fav2 != f.IsFavourite.Value) continue;
+                if (!string.IsNullOrWhiteSpace(f.Category))
+                {
+                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
+                    if (!string.Equals(cat2, f.Category, StringComparison.OrdinalIgnoreCase)) continue;
+                }
+
+                if (f.CreatedAfter is not null && created2 is not null && created2 < f.CreatedAfter) continue;
+                if (f.CreatedBefore is not null && created2 is not null && created2 >= f.CreatedBefore) continue;
+
+                if (!string.IsNullOrWhiteSpace(f.Q))
+                {
+                    var q2 = f.Q.Trim();
+                    var alias2 = ReadStringMetadataOrDefault(md2, MetaAlias, "Model");
+                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
+                    var desc2 = ReadStringMetadataOrNull(md2, MetaDescription);
+                    if (!((alias2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          (cat2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          (desc2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          b.Name.Contains(q2, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+                }
+
+                return true; // found another eligible item
+            }
+
+            return false;
+        }
     }
 
     public async Task UploadAsync(
