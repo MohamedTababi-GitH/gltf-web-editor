@@ -428,5 +428,30 @@ public class AzureBlobModelStorage : IModelStorage
         return additional;
     }
 
+    public async Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default)
+    {
+        int count = 0; 
+        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix) 
+            ? _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, cancellationToken: ct) 
+            : _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, prefix: filter.Prefix, cancellationToken: ct);
+        
+        await foreach(var blob in pageable.WithCancellation(ct))
+        {
+            var format = GetFormatOrNull(blob.Name);
+            if (format is null) continue;
+            
+            var md = blob.Metadata ?? new Dictionary<string, string>();
+            var fv = ParseBoolMetadata(md, MetaIsFavourite);
+            var cat = ReadStringMetadataOrNull(md, MetaCategory);
+            var created = blob.Properties.CreatedOn;
+            
+            if (filter.IsFavourite is not null && fv != filter.IsFavourite.Value) continue;
+            if (!string.IsNullOrWhiteSpace(filter.Category) && !string.Equals(cat, filter.Category, StringComparison.OrdinalIgnoreCase)) continue;
+            
+            count++;
+        }
+        return count;
+    }
+
     #endregion
 }

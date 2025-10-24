@@ -54,7 +54,6 @@ public sealed class ModelService : IModelService
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <param name="limit"></param>
     /// <returns>A read-only list of <see cref="ModelItemDto"/> representing the stored models.</returns>
-    // ModelService.cs
     public async Task<PageResult<ModelItemDto>> ListAsync(
         int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
     {
@@ -68,8 +67,9 @@ public sealed class ModelService : IModelService
 
         // hasMore strictly follows whether we returned a usable nextCursor
         var hasMore = next is not null;
+        var total = await _storage.CountAsync(filter,cancellationToken);
 
-        return new PageResult<ModelItemDto>(items, next, hasMore);
+        return new PageResult<ModelItemDto>(items, next, hasMore, total);
     }
 
     /// <summary>
