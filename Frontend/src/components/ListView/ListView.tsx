@@ -21,6 +21,8 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useModel } from "@/contexts/ModelContext";
 import { ECADCategory } from "@/types/Category.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { ButtonGroup } from "../ui/button-group";
 
 type ModelSearchParams = {
   category?: string;
@@ -28,41 +30,50 @@ type ModelSearchParams = {
   q?: string;
   format?: string;
   limit?: number;
-  cursor?: string;
 };
 
+const API_LIMIT = 2;
+
 function ListView() {
-  const [models, setModels] = useState<ModelItem[]>([]);
   const { setUrl, setModel, model } = useModel();
   const [sortBy, setSortBy] = useState<"Date" | "Name" | "Size">("Date");
   const [searchParams, setSearchParams] = useState<ModelSearchParams>({});
-  const [searchTerm, setSearchTerm] = useState("");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
-  const id = useId();
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+
+  const [pagesData, setPagesData] = useState<ModelItem[][]>([]);
+  const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const models = pagesData[currentPage - 1] || [];
 
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
+  const id = useId();
 
-  {
-    /* Added this const part that finds the most recently created model by simply comparing all "createdOn" timestamps! */
-  }
   const toTs = (d: string | Date) => new Date(d).getTime();
-  const latestCreatedOn = Math.max(...models.map((i) => toTs(i.createdOn)));
+  const latestCreatedOn =
+    models.length > 0 ? Math.max(...models.map((i) => toTs(i.createdOn))) : 0;
 
-  const [showAnimation, setShowAnimation] = useState(true);
+  const [showNoResults, setShowNoResults] = useState(false);
   useEffect(() => {
-    if (!models || models.length === 0) {
-      setShowAnimation(true);
-      const timer = setTimeout(() => setShowAnimation(false), 3000);
-      return () => clearTimeout(timer);
+    if (isLoading) {
+      setShowNoResults(false);
+    } else if (!isLoading && models.length === 0) {
+      setShowNoResults(true);
     } else {
-      setShowAnimation(false);
+      setShowNoResults(false);
     }
-  }, [models]);
+  }, [isLoading, models.length]);
 
   const isDarkTheme =
     theme.theme === "dark" ||
@@ -73,49 +84,126 @@ function ListView() {
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
-  const fetchModels = useCallback(
-    async ({
-      category,
-      isFavorite,
-      q,
-      format,
-      limit,
-      cursor,
-    }: ModelSearchParams) => {
+  useEffect(() => {
+    const newSearchParams: ModelSearchParams = {
+      category: categoryFilter !== "all" ? categoryFilter : undefined,
+      isFavorite: favoritesOnly ? favoritesOnly : undefined,
+      format: fileTypeFilter !== "all" ? fileTypeFilter : undefined,
+      q: searchTerm.trim() ? searchTerm.trim() : undefined,
+    };
+
+    if (JSON.stringify(newSearchParams) !== JSON.stringify(searchParams)) {
+      setSearchParams(newSearchParams);
+      setCurrentPage(1);
+      setPagesData([]);
+      setPageCursors([null]);
+      setTotalCount(0);
+      setTotalPages(0);
+      setIsLoading(true);
+    }
+  }, [fileTypeFilter, categoryFilter, favoritesOnly, searchTerm, searchParams]);
+
+  const handleSearch = () => {
+    setSearchTerm(searchInput);
+  };
+
+  useEffect(() => {
+    /**
+     * Fetches a specific page.
+     * @param pageToFetch - The 1-based page number to fetch.
+     * @param isPreload - True if this is a background preload, false if it's for the current view.
+     */
+    const fetchPage = async (pageToFetch: number, isPreload = false) => {
+      if (pagesData[pageToFetch - 1]) {
+        return;
+      }
+
+      const cursor = pageCursors[pageToFetch - 1];
+      if (pageToFetch > 1 && cursor === undefined) {
+        return;
+      }
+
+      if (!isPreload) {
+        setIsLoading(true);
+      }
+
       const params = new URLSearchParams();
-      if (category) params.append("category", category);
-      if (isFavorite) params.append("isFavourite", isFavorite.toString());
-      if (q) params.append("q", q);
-      if (format) params.append("format", format);
-      if (limit) params.append("limit", limit.toString());
+      if (searchParams.category)
+        params.append("category", searchParams.category);
+      if (searchParams.isFavorite)
+        params.append("isFavourite", searchParams.isFavorite.toString());
+      if (searchParams.q) params.append("q", searchParams.q);
+      if (searchParams.format) params.append("format", searchParams.format);
+      params.append("limit", API_LIMIT.toString());
       if (cursor) params.append("cursor", cursor);
+
       try {
         const res = await apiClient.get(`/api/model?${params.toString()}`);
         const data = (res.data.items as ModelItem[]) || [];
-        setModels(data);
+        const nextCursor = res.data.nextCursor || null;
+        const newHasMore = res.data.hasMore;
+
+        setPagesData((prevData) => {
+          const newData = [...prevData];
+          newData[pageToFetch - 1] = data;
+          return newData;
+        });
+
+        if (!isPreload || totalCount === 0) {
+          const newTotalCount = res.data.totalCount;
+          const newTotalPages = Math.ceil(newTotalCount / API_LIMIT);
+          setTotalCount(newTotalCount);
+          setTotalPages(newTotalPages);
+        }
+
+        if (newHasMore && nextCursor) {
+          setPageCursors((prevCursors) => {
+            const newCursors = [...prevCursors];
+            newCursors[pageToFetch] = nextCursor;
+            return newCursors;
+          });
+
+          if (!isPreload) {
+            fetchPage(pageToFetch + 1, true);
+          }
+        }
       } catch (e) {
         console.error(e);
+      } finally {
+        if (!isPreload) {
+          setIsLoading(false);
+        }
       }
-    },
-    [apiClient],
-  );
-  useEffect(() => {
-    fetchModels({});
-  }, [fetchModels]);
+    };
 
-  useEffect(() => {
-    setSearchParams((prev) => {
-      const newSearchParams = {
-        ...prev,
-        category: categoryFilter !== "all" ? categoryFilter : undefined,
-        isFavorite: favoritesOnly ? favoritesOnly : undefined,
-        format: fileTypeFilter !== "all" ? fileTypeFilter : undefined,
-      };
+    if (pagesData[currentPage - 1]) {
+      setIsLoading(false);
 
-      fetchModels(newSearchParams);
-      return newSearchParams;
+      const nextCursor = pageCursors[currentPage];
+      const hasNextPageData = pagesData[currentPage];
+
+      if (nextCursor && !hasNextPageData) {
+        fetchPage(currentPage + 1, true);
+      }
+    } else {
+      fetchPage(currentPage, false);
+    }
+  }, [
+    currentPage,
+    searchParams,
+    apiClient,
+    pagesData,
+    pageCursors,
+    totalCount,
+  ]);
+
+  const refreshCurrentPage = useCallback(() => {
+    setPagesData((prevData) => {
+      const newData = [...prevData];
+      newData[currentPage - 1] = [];
+      return newData;
     });
-  }, [fileTypeFilter, categoryFilter, favoritesOnly, fetchModels]);
+  }, [currentPage]);
 
   if (showViewer && model) {
     setUrl(model.url);
@@ -128,41 +216,32 @@ function ListView() {
     );
   }
 
-  const searchModels = async () => {
-    const newSearchParams = {
-      ...searchParams,
-      q: searchTerm.trim() ? searchTerm : undefined,
-    };
-    setSearchParams(newSearchParams);
-    await fetchModels(newSearchParams);
-  };
-
   return (
     <div className="h-full flex flex-col p-4 md:p-8 lg:p-12 xl:p-16 gap-4">
       <div className="flex flex-col md:flex-row md:justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-y-4 md:gap-x-20">
         <div className="w-full md:max-w-xs flex items-center">
-          <div className="relative mb-2">
-            <Input
-              id={id}
-              type="text"
-              placeholder="Search a model"
-              value={searchTerm}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  searchModels();
-                }
-              }}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-muted border-transparent shadow-none pr-10"
-            />
-            <Search
-              onClick={searchModels}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition cursor-pointer hover:bg-muted p-1 rounded-sm w-6 h-6"
-            />
+          <div className="mb-2">
+            <ButtonGroup>
+              <Input
+                id={id}
+                type="text"
+                placeholder="Search a model"
+                value={searchInput}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="bg-muted shadow-none pr-10"
+              />
+              <Button onClick={handleSearch} variant={"outline"}>
+                <Search />
+              </Button>
+            </ButtonGroup>
           </div>
         </div>
 
-        {/* flex-col: --> filter and applied filters will be stacked on mobile screens vertically*/}
         <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-muted-foreground mb-3">
           <div className="flex items-center gap-3 flex-wrap">
             <DropdownMenu>
@@ -172,9 +251,7 @@ function ListView() {
                   <span>Filter</span>
                 </button>
               </DropdownMenuTrigger>
-
               <DropdownMenuContent align="end">
-                {/* Submenu 1: Sort-by */}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
@@ -198,8 +275,6 @@ function ListView() {
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-
-                {/* Submenu 2: Favorite filter */}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
@@ -217,8 +292,6 @@ function ListView() {
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-
-                {/* Submenu 3: File type */}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>File type</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
@@ -242,14 +315,13 @@ function ListView() {
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-
-                {/* Submenu 4: Categories */}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Categories</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     {Object.values(ECADCategory).map((category) => {
                       return (
                         <DropdownMenuCheckboxItem
+                          key={category}
                           checked={categoryFilter === category}
                           onCheckedChange={() => setCategoryFilter(category)}
                         >
@@ -268,7 +340,6 @@ function ListView() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Here we'll show the applied filters --> simply by checking the value of the consts we made! */}
             <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
               {sortBy && (
                 <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
@@ -311,15 +382,23 @@ function ListView() {
             </div>
           </div>
 
-          {/* Counter for the number of models we have. */}
           <span className="mt-2 sm:mt-0">
-            {models?.length || 0} result{models?.length === 1 ? "" : "s"} found
+            {totalCount} result{totalCount === 1 ? "" : "s"} found
           </span>
         </div>
       </div>
 
       <ScrollArea className="flex-1 min-h-0 w-full rounded-md border">
-        {models && models.length > 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full w-full">
+            <DotLottieReact
+              className="w-90 h-90"
+              src={animationSrc}
+              loop
+              autoplay
+            />
+          </div>
+        ) : models.length > 0 ? (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,24rem))] justify-center gap-4 w-full items-center p-4">
             {models.map((item) => (
               <div
@@ -332,7 +411,7 @@ function ListView() {
                 <ModelListItem
                   key={item.id}
                   item={item}
-                  refreshList={() => fetchModels(searchParams)}
+                  refreshList={refreshCurrentPage}
                   isLatest={toTs(item.createdOn) === latestCreatedOn}
                   onClick={() => {
                     setModel(item);
@@ -342,22 +421,54 @@ function ListView() {
               </div>
             ))}
           </div>
-        ) : showAnimation ? (
-          <div className="flex justify-center items-center h-full w-full">
-            <DotLottieReact
-              className="w-90 h-90"
-              src={animationSrc}
-              loop
-              autoplay
-            />
-          </div>
-        ) : (
+        ) : showNoResults ? (
           <div className="flex justify-center items-center h-full w-full text-gray-400">
             No models found
           </div>
-        )}
+        ) : null}
         <ScrollBar orientation="vertical" />
       </ScrollArea>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center w-full h-12">
+          <ButtonGroup>
+            <ButtonGroup>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+            </ButtonGroup>
+            <ButtonGroup>
+              {Array.from(Array(totalPages).keys()).map((page, index) => (
+                <Button
+                  key={index}
+                  variant={page + 1 === currentPage ? "default" : "outline"}
+                  onClick={() => setCurrentPage(page + 1)}
+                  disabled={pageCursors[page] === undefined}
+                >
+                  {page + 1}
+                </Button>
+              ))}
+            </ButtonGroup>
+
+            <ButtonGroup>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={
+                  currentPage === totalPages ||
+                  pageCursors[currentPage] === undefined
+                }
+              >
+                Next
+              </Button>
+            </ButtonGroup>
+          </ButtonGroup>
+        </div>
+      )}
     </div>
   );
 }
