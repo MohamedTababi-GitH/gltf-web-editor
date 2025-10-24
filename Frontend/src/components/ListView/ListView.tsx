@@ -47,6 +47,12 @@ function ListView() {
   const apiClient = useAxiosConfig();
   const theme = useTheme();
 
+  {
+    /* Added this const part that finds the most recently created model by simply comparing all "createdOn" timestamps! */
+  }
+  const toTs = (d: string | Date) => new Date(d).getTime();
+  const latestCreatedOn = Math.max(...models.map((i) => toTs(i.createdOn)));
+
   const [showAnimation, setShowAnimation] = useState(true);
   useEffect(() => {
     if (!models || models.length === 0) {
@@ -151,7 +157,7 @@ function ListView() {
             />
             <Search
               onClick={searchModels}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition cursor-pointer hover:bg-muted p-1 rounded-sm w-6 h-6"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition cursor-pointer hover:bg-muted p-1 rounded-sm w-6 h-6"
             />
           </div>
         </div>
@@ -314,7 +320,7 @@ function ListView() {
 
       <ScrollArea className="flex-1 min-h-0 w-full rounded-md border">
         {models && models.length > 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fit,28rem)] justify-center gap-4 w-full items-center p-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,24rem))] justify-center gap-4 w-full items-center p-4">
             {models.map((item) => (
               <div
                 key={item.id}
@@ -327,6 +333,7 @@ function ListView() {
                   key={item.id}
                   item={item}
                   refreshList={() => fetchModels(searchParams)}
+                  isLatest={toTs(item.createdOn) === latestCreatedOn}
                   onClick={() => {
                     setModel(item);
                     setShowViewer(true);
