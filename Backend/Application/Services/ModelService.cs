@@ -57,13 +57,19 @@ public sealed class ModelService : IModelService
     public async Task<PageResult<ModelItemDto>> ListAsync(
         int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
     {
-        if (limit <= 0 || limit > 100) throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
+        if (limit <= 0 || limit > 100)
+            throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
 
         var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
         var items = files.Select(Map).ToList();
-        var hasMore = items.Count == limit && !string.IsNullOrWhiteSpace(next);
 
-        return new PageResult<ModelItemDto>(items, next, hasMore);
+        next = string.IsNullOrWhiteSpace(next) ? null : next;
+
+        // hasMore strictly follows whether we returned a usable nextCursor
+        var hasMore = next is not null;
+        var total = await _storage.CountAsync(filter,cancellationToken);
+
+        return new PageResult<ModelItemDto>(items, next, hasMore, total);
     }
 
     /// <summary>
