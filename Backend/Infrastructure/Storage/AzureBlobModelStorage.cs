@@ -95,7 +95,7 @@ public class AzureBlobModelStorage : IModelStorage
                     skipping = false; // first > resumeAfter reached
                 }
 
-                // --- filters (unchanged) ---
+                //  filters 
                 var format = GetFormatOrNull(blob.Name);
                 if (format is null) continue;
 
@@ -373,7 +373,13 @@ public class AzureBlobModelStorage : IModelStorage
     }
 
     private Uri BuildBlobUri(string blobName)
-        => new($"{_baseUri}/{Uri.EscapeDataString(blobName)}{_sasQuery}");
+    {
+        if (string.IsNullOrWhiteSpace(blobName))
+            throw new ArgumentNullException(nameof(blobName));
+
+        blobName = blobName.TrimStart('/');             // avoid leading slash = different blob name
+        return _container.GetBlobClient(blobName).Uri;  // includes SAS if the container client has it
+    }
 
     private static Guid? TryGetGuidMetadata(IDictionary<string, string> metadata, string key)
         => metadata.TryGetValue(key, out var idStr) && Guid.TryParse(idStr, out var g) ? g : null;
