@@ -420,29 +420,62 @@ public class AzureBlobModelStorage : IModelStorage
 
         return additional;
     }
+    private static bool Matches(ModelFilter filter, BlobItem blob, IDictionary<string, string> md)
+    {
+        var format = GetFormatOrNull(blob.Name);
+        if (format is null) return false;
 
+        // FORMAT
+        if (!string.IsNullOrWhiteSpace(filter.Format) &&
+            !string.Equals(format, filter.Format, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // METADATA
+        var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
+        var category = ReadStringMetadataOrNull(md, MetaCategory);
+        var description = ReadStringMetadataOrNull(md, MetaDescription);
+        var fav = ParseBoolMetadata(md, MetaIsFavourite);
+
+        // IS FAVOURITE
+        if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value)
+            return false;
+
+        // CATEGORY
+        if (!string.IsNullOrWhiteSpace(filter.Category) &&
+            !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // QUERY (fuzzy or partial)
+        if (!string.IsNullOrWhiteSpace(filter.Q))
+        {
+            var q = filter.Q.Trim();
+            bool matches =
+                Fuzz.PartialRatio(q, alias ?? "") > 80 ||
+                Fuzz.PartialRatio(q, category ?? "") > 80 ||
+                Fuzz.PartialRatio(q, description ?? "") > 80 ||
+                Fuzz.PartialRatio(q, blob.Name ?? "") > 80;
+
+            if (!matches) return false;
+        }
+
+        return true;
+    }
+    
     public async Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default)
     {
-        int count = 0; 
-        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix) 
-            ? _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, cancellationToken: ct) 
+        int count = 0;
+
+        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
+            ? _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, cancellationToken: ct)
             : _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, prefix: filter.Prefix, cancellationToken: ct);
-        
-        await foreach(var blob in pageable.WithCancellation(ct))
+
+        await foreach (var blob in pageable.WithCancellation(ct))
         {
-            var format = GetFormatOrNull(blob.Name);
-            if (format is null) continue;
-            
             var md = blob.Metadata ?? new Dictionary<string, string>();
-            var fv = ParseBoolMetadata(md, MetaIsFavourite);
-            var cat = ReadStringMetadataOrNull(md, MetaCategory);
-            var created = blob.Properties.CreatedOn;
-            
-            if (filter.IsFavourite is not null && fv != filter.IsFavourite.Value) continue;
-            if (!string.IsNullOrWhiteSpace(filter.Category) && !string.Equals(cat, filter.Category, StringComparison.OrdinalIgnoreCase)) continue;
-            
-            count++;
+            if (Matches(filter, blob, md))
+                count++;
         }
+
         return count;
     }
 
