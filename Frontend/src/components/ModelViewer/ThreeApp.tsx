@@ -5,6 +5,9 @@ import { Suspense, useEffect, useState } from "react";
 import { loadModel } from "@/utils/ModelLoader.ts";
 import { useModel } from "@/contexts/ModelContext.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
+import Cursors from "@/components/ModelViewer/Cursors.tsx";
+import type { Cursor } from "@/types/Cursor.ts";
+import * as THREE from "three";
 
 function Loading({ progress }: { progress: number }) {
   return (
@@ -18,6 +21,7 @@ function Loading({ progress }: { progress: number }) {
 export default function ThreeApp() {
   const { url, model } = useModel();
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
@@ -26,7 +30,6 @@ export default function ThreeApp() {
     const objectUrlsToRevoke: string[] = [];
 
     const processAndLoad = async () => {
-      console.log("Processing model:", url, model);
       if (!url || !model) {
         if (isMounted) setProcessedModelURL(null);
         return;
@@ -36,7 +39,6 @@ export default function ThreeApp() {
         const mainFileName = url
           .substring(url.lastIndexOf("%2F") + 1)
           .split("?")[0];
-        console.log("Processing model files:", mainFileName);
         const mainFileResponse = await fetch(url);
         const mainFileBlob = await mainFileResponse.blob();
         const mainFile = new File([mainFileBlob], mainFileName);
@@ -77,13 +79,15 @@ export default function ThreeApp() {
       objectUrlsToRevoke.forEach(URL.revokeObjectURL);
     };
   }, [url, model]);
+
   return (
-    <div className="w-full h-full relative">
+    <div className={`w-full h-full relative`}>
       {loadingProgress > 0 && (
         <div className="absolute inset-0 z-10 bg-background/80 flex justify-center items-center">
           <Loading progress={loadingProgress} />
         </div>
       )}
+      <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
       <Canvas>
         <color attach="background" args={["#888888"]} />
         <Suspense fallback={null}>
@@ -92,6 +96,7 @@ export default function ThreeApp() {
             <Resize scale={3}>
               {processedModelURL && (
                 <Model
+                  selectedTool={selectedTool}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
                 />
@@ -99,7 +104,17 @@ export default function ThreeApp() {
             </Resize>
           </Center>
         </Suspense>
-        <OrbitControls makeDefault enableDamping={false} />
+        <OrbitControls
+          makeDefault
+          enableDamping={false}
+          mouseButtons={{
+            LEFT:
+              selectedTool === "Move" ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
+          }}
+          touches={{
+            ONE: selectedTool === "Move" ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE,
+          }}
+        />
       </Canvas>
     </div>
   );

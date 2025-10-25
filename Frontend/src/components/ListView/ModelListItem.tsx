@@ -62,7 +62,7 @@ function ModelListItem({
   item,
   onClick,
   refreshList,
-  isLatest = false,
+  //isLatest = false,
 }: {
   item: ModelItem;
   onClick: () => void;
@@ -165,11 +165,11 @@ function ModelListItem({
   return (
     <>
       <div className={`relative p-0 select-none`}>
-        {isLatest && (
-          <span className="absolute cursor-pointer top-0 left-0 inline-flex items-center w-15 rounded-br-xl rounded-tl-xl justify-center bg-linear-to-r from-indigo-500 to-indigo-700 px-2 py-1 text-xs font-semibold text-white">
-            New
-          </span>
-        )}
+        {/*{isLatest && (*/}
+        {/*  <span className="absolute cursor-pointer top-0 left-0 inline-flex items-center w-15 rounded-br-xl rounded-tl-xl justify-center bg-linear-to-r from-indigo-500 to-indigo-700 px-2 py-1 text-xs font-semibold text-white">*/}
+        {/*    New*/}
+        {/*  </span>*/}
+        {/*)}*/}
 
         <Card
           className="flex flex-col max-w-md hover:bg-muted/65 transition-colors cursor-pointer overflow-hidden pb-0 gap-2"
@@ -264,31 +264,44 @@ function ModelListItem({
           </CardContent>
 
           <CardFooter className="p-0">
-            <div className="w-full border-t dark:bg-black">
-              {item.additionalFiles && item.additionalFiles.length > 0 ? (
-                item.additionalFiles.some(
-                  (file) =>
-                    file.contentType === "image/png" &&
-                    file.name === "thumbnail.png",
-                ) ? (
-                  <img
-                    src={
-                      item.additionalFiles.find(
-                        (file) =>
-                          file.contentType === "image/png" &&
-                          file.name === "thumbnail.png",
-                      )?.url
-                    }
-                    alt="thumbnail"
-                    className="w-full"
-                  />
-                ) : (
-                  <DotLottieReact src={animationSrc} loop autoplay={false} />
-                )
-              ) : (
-                <DotLottieReact src={animationSrc} loop autoplay={false} />
-              )}
-            </div>
+            {(() => {
+              const thumbnailFile = item.additionalFiles?.find(
+                (file) =>
+                  file.contentType === "image/png" &&
+                  file.name === "thumbnail.png",
+              );
+
+              return (
+                <div
+                  className="
+          w-full
+          border-t
+          dark:bg-black
+          aspect-video
+          overflow-hidden
+          relative
+          flex
+          items-center
+          justify-center
+        "
+                >
+                  {thumbnailFile ? (
+                    <img
+                      src={thumbnailFile.url}
+                      alt="thumbnail"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <DotLottieReact
+                      src={animationSrc}
+                      loop
+                      autoplay={false}
+                      className="w-32 h-32"
+                    />
+                  )}
+                </div>
+              );
+            })()}
           </CardFooter>
         </Card>
       </div>

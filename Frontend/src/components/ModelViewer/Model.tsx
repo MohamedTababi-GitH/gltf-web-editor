@@ -29,9 +29,11 @@ function ListMeshes(scene: THREE.Group): MeshData[] {
 export function Model({
   processedUrl,
   setLoadingProgress,
+  selectedTool,
 }: {
   processedUrl: string;
   setLoadingProgress: (progress: number) => void;
+  selectedTool: string;
 }) {
   const { setMeshes } = useModel();
 
@@ -164,13 +166,18 @@ export function Model({
 
   return (
     <>
-      {selectedComponent && (
-        <TransformControls
-          object={selectedComponent}
-          size={1}
-          onObjectChange={handleGizmoChange}
-        />
-      )}
+      {selectedComponent &&
+        selectedTool !== "Select" &&
+        selectedTool !== "Multi-Select" && (
+          <TransformControls
+            object={selectedComponent}
+            mode={
+              selectedTool.toLowerCase() as "translate" | "rotate" | "scale"
+            }
+            size={1}
+            onObjectChange={handleGizmoChange}
+          />
+        )}
       <group ref={groupRef}>
         <primitive
           object={scene}

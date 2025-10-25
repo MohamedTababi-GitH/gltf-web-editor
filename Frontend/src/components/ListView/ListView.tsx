@@ -32,11 +32,11 @@ type ModelSearchParams = {
   limit?: number;
 };
 
-const API_LIMIT = 2;
+const API_LIMIT = 12;
 
 function ListView() {
   const { setUrl, setModel, model } = useModel();
-  const [sortBy, setSortBy] = useState<"Date" | "Name" | "Size">("Date");
+  //const [sortBy, setSortBy] = useState<"Date" | "Name" | "Size">("Date");
   const [searchParams, setSearchParams] = useState<ModelSearchParams>({});
 
   const [searchInput, setSearchInput] = useState("");
@@ -60,9 +60,9 @@ function ListView() {
   const theme = useTheme();
   const id = useId();
 
-  const toTs = (d: string | Date) => new Date(d).getTime();
-  const latestCreatedOn =
-    models.length > 0 ? Math.max(...models.map((i) => toTs(i.createdOn))) : 0;
+  // const toTs = (d: string | Date) => new Date(d).getTime();
+  // const latestCreatedOn =
+  //   models.length > 0 ? Math.max(...models.map((i) => toTs(i.createdOn))) : 0;
 
   const [showNoResults, setShowNoResults] = useState(false);
   useEffect(() => {
@@ -108,11 +108,6 @@ function ListView() {
   };
 
   useEffect(() => {
-    /**
-     * Fetches a specific page.
-     * @param pageToFetch - The 1-based page number to fetch.
-     * @param isPreload - True if this is a background preload, false if it's for the current view.
-     */
     const fetchPage = async (pageToFetch: number, isPreload = false) => {
       if (pagesData[pageToFetch - 1]) {
         return;
@@ -164,7 +159,7 @@ function ListView() {
           });
 
           if (!isPreload) {
-            fetchPage(pageToFetch + 1, true);
+            await fetchPage(pageToFetch + 1, true);
           }
         }
       } catch (e) {
@@ -198,12 +193,13 @@ function ListView() {
   ]);
 
   const refreshCurrentPage = useCallback(() => {
-    setPagesData((prevData) => {
-      const newData = [...prevData];
-      newData[currentPage - 1] = [];
-      return newData;
-    });
-  }, [currentPage]);
+    setCurrentPage(1);
+    setPagesData([]);
+    setPageCursors([null]);
+    setTotalCount(0);
+    setTotalPages(0);
+    setIsLoading(true);
+  }, []);
 
   if (showViewer && model) {
     setUrl(model.url);
@@ -235,6 +231,17 @@ function ListView() {
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="bg-muted shadow-none pr-10"
               />
+              {searchTerm && (
+                <Button
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSearchInput("");
+                  }}
+                  variant={"outline"}
+                >
+                  <X className={`text-muted-foreground`} />
+                </Button>
+              )}
               <Button onClick={handleSearch} variant={"outline"}>
                 <Search />
               </Button>
@@ -252,29 +259,29 @@ function ListView() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "Name"}
-                      onCheckedChange={() => setSortBy("Name")}
-                    >
-                      Name
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "Size"}
-                      onCheckedChange={() => setSortBy("Size")}
-                    >
-                      Size
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "Date"}
-                      onCheckedChange={() => setSortBy("Date")}
-                    >
-                      Date
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                {/*<DropdownMenuSub>*/}
+                {/*  <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>*/}
+                {/*  <DropdownMenuSubContent>*/}
+                {/*    <DropdownMenuCheckboxItem*/}
+                {/*      checked={sortBy === "Name"}*/}
+                {/*      onCheckedChange={() => setSortBy("Name")}*/}
+                {/*    >*/}
+                {/*      Name*/}
+                {/*    </DropdownMenuCheckboxItem>*/}
+                {/*    <DropdownMenuCheckboxItem*/}
+                {/*      checked={sortBy === "Size"}*/}
+                {/*      onCheckedChange={() => setSortBy("Size")}*/}
+                {/*    >*/}
+                {/*      Size*/}
+                {/*    </DropdownMenuCheckboxItem>*/}
+                {/*    <DropdownMenuCheckboxItem*/}
+                {/*      checked={sortBy === "Date"}*/}
+                {/*      onCheckedChange={() => setSortBy("Date")}*/}
+                {/*    >*/}
+                {/*      Date*/}
+                {/*    </DropdownMenuCheckboxItem>*/}
+                {/*  </DropdownMenuSubContent>*/}
+                {/*</DropdownMenuSub>*/}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
@@ -341,17 +348,17 @@ function ListView() {
             </DropdownMenu>
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
-              {sortBy && (
-                <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
-                  Sort By: {sortBy}
-                  {sortBy !== "Date" && (
-                    <X
-                      className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
-                      onClick={() => setSortBy("Date")}
-                    />
-                  )}
-                </span>
-              )}
+              {/*{sortBy && (*/}
+              {/*  <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">*/}
+              {/*    Sort By: {sortBy}*/}
+              {/*    {sortBy !== "Date" && (*/}
+              {/*      <X*/}
+              {/*        className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"*/}
+              {/*        onClick={() => setSortBy("Date")}*/}
+              {/*      />*/}
+              {/*    )}*/}
+              {/*  </span>*/}
+              {/*)}*/}
               {favoritesOnly && (
                 <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
                   Favorites Only
@@ -363,7 +370,7 @@ function ListView() {
               )}
               {fileTypeFilter !== "all" && (
                 <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
-                  Type: {fileTypeFilter.toUpperCase()}
+                  Type: .{fileTypeFilter}
                   <X
                     className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
                     onClick={() => setFileTypeFilter("all")}
@@ -412,7 +419,7 @@ function ListView() {
                   key={item.id}
                   item={item}
                   refreshList={refreshCurrentPage}
-                  isLatest={toTs(item.createdOn) === latestCreatedOn}
+                  //isLatest={toTs(item.createdOn) === latestCreatedOn}
                   onClick={() => {
                     setModel(item);
                     setShowViewer(true);
