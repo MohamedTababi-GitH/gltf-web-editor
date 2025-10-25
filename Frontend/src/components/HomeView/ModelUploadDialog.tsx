@@ -126,12 +126,13 @@ export default function ModelUploadDialog({
 
     try {
       await apiClient.post("/api/model/upload", formData);
+      onOpenChange(false);
+      resetFields();
     } catch (error) {
       console.log(error);
     } finally {
-      resetFields();
+      setIsUploading(false);
     }
-    onOpenChange(false);
   };
 
   const resetFields = () => {

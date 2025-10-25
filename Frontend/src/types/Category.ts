@@ -9,6 +9,6 @@
   SwitchRelay: "Switches & Relays",
   Mechanical: "Mechanical & Hardware",
   Sensor: "Sensors & Transducers",
-};
+} as const;
 
 export type Category = (typeof ECADCategory)[keyof typeof ECADCategory];

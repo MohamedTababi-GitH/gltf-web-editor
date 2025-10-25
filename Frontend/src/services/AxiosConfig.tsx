@@ -54,8 +54,12 @@ export function useAxiosConfig() {
           return response;
         },
         (error: AxiosError) => {
-          const message =
-            String(error?.response?.data) || "An unexpected error occurred";
+          const data = error?.response?.data as {
+            detail?: string;
+            status?: number;
+            title?: string;
+          };
+          const message = data?.detail || "An unexpected error occurred";
 
           showNotification(message, "error");
 
