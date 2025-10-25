@@ -4,8 +4,8 @@ using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
+using ECAD_Backend.Web.Middleware;
 using Microsoft.Extensions.Options;
-using ECAD_Backend.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;

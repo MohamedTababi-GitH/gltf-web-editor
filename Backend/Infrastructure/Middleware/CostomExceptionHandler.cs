@@ -1,26 +1,31 @@
+using ECAD_Backend.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using ECAD_Backend.Exceptions;
 
-namespace ECAD_Backend.Middleware
+namespace ECAD_Backend.Web.Middleware
 {
     internal sealed class BadRequestExceptionHandler : BaseExceptionHandler<BadRequestException>
     {
         public BadRequestExceptionHandler(ILogger<BadRequestExceptionHandler> logger)
-            : base(logger, StatusCodes.Status400BadRequest, "Bad Request") { }
+            : base(logger, StatusCodes.Status400BadRequest, "Bad Request")
+        {
+        }
     }
 
     internal sealed class NotFoundExceptionHandler : BaseExceptionHandler<NotFoundException>
     {
         public NotFoundExceptionHandler(ILogger<NotFoundExceptionHandler> logger)
-            : base(logger, StatusCodes.Status404NotFound, "Not Found") { }
+            : base(logger, StatusCodes.Status404NotFound, "Not Found")
+        {
+        }
     }
 
     internal sealed class ValidationExceptionHandler : BaseExceptionHandler<ValidationException>
     {
         public ValidationExceptionHandler(ILogger<ValidationExceptionHandler> logger)
-            : base(logger, StatusCodes.Status422UnprocessableEntity, "Validation Error") { }
+            : base(logger, StatusCodes.Status422UnprocessableEntity, "Validation Error")
+        {
+        }
     }
 
     /// <summary>
