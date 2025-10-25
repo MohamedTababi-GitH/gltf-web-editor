@@ -14,7 +14,6 @@ public sealed class ModelService : IModelService
 {
     private readonly IModelStorage _storage;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
-
     public ModelService(IModelStorage storage) => _storage = storage;
 
     /// <summary>
@@ -64,12 +63,19 @@ public sealed class ModelService : IModelService
     public async Task<PageResult<ModelItemDto>> ListAsync(
         int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
     {
-        if (limit <= 0 || limit > 100) throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
+        if (limit <= 0 || limit > 100)
+            throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
 
         var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
         var items = files.Select(Map).ToList();
 
-        return new PageResult<ModelItemDto>(items, next, next is not null);
+        next = string.IsNullOrWhiteSpace(next) ? null : next;
+
+        // hasMore strictly follows whether we returned a usable nextCursor
+        var hasMore = next is not null;
+        var total = await _storage.CountAsync(filter,cancellationToken);
+
+        return new PageResult<ModelItemDto>(items, next, hasMore, total);
     }
 
     /// <summary>
@@ -147,7 +153,7 @@ public sealed class ModelService : IModelService
                 _ => "application/octet-stream"
             };
 
-            // Metadata: alias only on the entry .glb/.gltf
+            // Metadata: alias ONLY on the entry .glb/.gltf
             var metadata = new Dictionary<string, string>
             {
                 ["basename"] = fileName,
@@ -225,7 +231,11 @@ public sealed class ModelService : IModelService
         // Normalize whitespace-only strings to null (treat as deletion)
         string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
+        var cat = Normalize(category);
+        var desc = Normalize(description);
         var alias = Normalize(newAlias);
+
+        // Validate alias only if it's being set (not deleted)
         if (alias is not null && !AliasRegex.IsMatch(alias))
             throw new ValidationException("Alias format is invalid.");
 

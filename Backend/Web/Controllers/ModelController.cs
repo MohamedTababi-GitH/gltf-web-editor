@@ -38,8 +38,6 @@ public class ModelController : ControllerBase
         [FromQuery] bool? isFavourite = null,
         [FromQuery] string? q = null,
         [FromQuery] string? format = null,
-        [FromQuery] DateTimeOffset? createdAfter = null,
-        [FromQuery] DateTimeOffset? createdBefore = null,
         [FromQuery] string? prefix = null,
         CancellationToken cancellationToken = default)
     {
@@ -49,14 +47,12 @@ public class ModelController : ControllerBase
             IsFavourite = isFavourite,
             Q = q,
             Format = format,
-            CreatedAfter = createdAfter,
-            CreatedBefore = createdBefore,
             Prefix = prefix
         };
 
         var page = await _service.ListAsync(limit, cursor, filter, cancellationToken);
 
-        if (page.NextCursor is not null)
+        if (!string.IsNullOrWhiteSpace(page.NextCursor))
             Response.Headers["X-Next-Cursor"] = page.NextCursor;
 
         return Ok(page);
@@ -112,28 +108,23 @@ public class ModelController : ControllerBase
 
             // Perform upload via the service layer
             var result = await _service.UploadAsync(request, cancellationToken);
-
-            // Return a success response
-            return Ok(new
-            {
-                message = result.Message,
-                alias = result.Alias,
-                blobName = result.BlobName
-            });
+            return Ok(new UploadResultDto{ Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
         }
         finally
         {
-            // Always dispose file streams after use
+            // Ensure all streams are disposed
             foreach (var (_, stream) in uploadFiles)
                 stream.Dispose();
         }
     }
 
-    /// <summary>
-    /// Deletes a model by its unique identifier.
-    /// </summary>
-    /// <param name="id">The GUID that was exposed as <see cref="ModelItemDto.Id"/>.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <summary>Deletes a model by its Id.</summary>
+    /// <param name="id">The GUID that was exposed as ModelItemDto.Id</param>
+    /// <param name="cancellationToken"></param>
     /// <response code="204">Delete succeeded.</response>
     /// <response code="404">No model with the given Id was found.</response>
     [HttpDelete("{id:guid}")]
