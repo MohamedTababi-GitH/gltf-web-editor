@@ -413,7 +413,18 @@ function ModelListItem({
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button
+                onClick={() => {
+                  setEditData({
+                    alias: item.name || "",
+                    description: item.description || "",
+                    category: item.category || "",
+                  });
+                }}
+                variant="outline"
+              >
+                Cancel
+              </Button>
             </DialogClose>
             <Button onClick={handleSaveInfo} disabled={isSaving}>
               {isSaving && <Spinner />}
