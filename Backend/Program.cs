@@ -4,6 +4,7 @@ using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
+using ECAD_Backend.Web.Middleware;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,15 @@ services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 // Cursor serializer (stateless)
 services.AddSingleton<ICursorSerializer, Base64JsonCursorSerializer>();
 
+builder.Services.AddProblemDetails();
+
+// Add specific exception handlers
+builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+
+// adding Global exception handeler
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>(); // Keep this last
 // Blob container factory: supports either a SAS container URL or a real connection string
 services.AddSingleton<BlobContainerClient>(sp =>
 {
@@ -60,6 +70,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Enable Global exception handler
+app.UseExceptionHandler();
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
