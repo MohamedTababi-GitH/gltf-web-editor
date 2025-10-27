@@ -452,8 +452,7 @@ public class AzureBlobModelStorage : IModelStorage
             bool matches =
                 Fuzz.PartialRatio(q, alias ?? "") > 80 ||
                 Fuzz.PartialRatio(q, category ?? "") > 80 ||
-                Fuzz.PartialRatio(q, description ?? "") > 80 ||
-                Fuzz.PartialRatio(q, blob.Name ?? "") > 80;
+                Fuzz.PartialRatio(q, description ?? "") > 80;
 
             if (!matches) return false;
         }
