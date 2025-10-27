@@ -60,14 +60,15 @@ const ExpandableSidebarGroup = ({
 const AppSidebar = ({ setShowViewer }: SidebarProps) => {
   const { model, meshes } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
-    "metadata"
+    "metadata",
   );
 
   if (!model) return null;
 
   const meta = [
-    { label: "ID", value: model.id },
     { label: "Name", value: model.name },
+    { label: "Category", value: model.category },
+    { label: "Description", value: model.description },
     { label: "Size", value: formatBytes(model.sizeBytes) },
     { label: "Format", value: "." + model.format },
     { label: "Created On", value: formatDateTime(model.createdOn).fullStr },
@@ -124,13 +125,13 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
                 {meta.map((item) => (
                   <SidebarMenuItem key={item.label}>
                     <SidebarMenuButton asChild>
-                      <div className="flex justify-between w-full text-left cursor-default">
+                      <div className="justify-between w-full h-fit items-start text-left cursor-default space-x-2">
                         <span className="font-medium text-sidebar-foreground/70">
                           {item.label}
                         </span>
-                        <span className="truncate text-sidebar-foreground">
+                        <div className="text-sidebar-foreground text-end">
                           {item.value}
-                        </span>
+                        </div>
                       </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
