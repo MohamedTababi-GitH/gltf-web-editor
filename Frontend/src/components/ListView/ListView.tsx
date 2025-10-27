@@ -60,10 +60,6 @@ function ListView() {
   const theme = useTheme();
   const id = useId();
 
-  // const toTs = (d: string | Date) => new Date(d).getTime();
-  // const latestCreatedOn =
-  //   models.length > 0 ? Math.max(...models.map((i) => toTs(i.createdOn))) : 0;
-
   const [showNoResults, setShowNoResults] = useState(false);
   useEffect(() => {
     if (isLoading) {
@@ -419,7 +415,6 @@ function ListView() {
                   key={item.id}
                   item={item}
                   refreshList={refreshCurrentPage}
-                  //isLatest={toTs(item.createdOn) === latestCreatedOn}
                   onClick={() => {
                     setModel(item);
                     setShowViewer(true);

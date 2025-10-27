@@ -62,12 +62,10 @@ function ModelListItem({
   item,
   onClick,
   refreshList,
-  //isLatest = false,
 }: {
   item: ModelItem;
   onClick: () => void;
   refreshList: () => void;
-  isLatest?: boolean;
 }) {
   const { theme } = useTheme();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -165,7 +163,7 @@ function ModelListItem({
   return (
     <>
       <div className={`relative p-0 select-none`}>
-        {/*{isLatest && (*/}
+        {/*{item.isLatest/isNew && (*/}
         {/*  <span className="absolute cursor-pointer top-0 left-0 inline-flex items-center w-15 rounded-br-xl rounded-tl-xl justify-center bg-linear-to-r from-indigo-500 to-indigo-700 px-2 py-1 text-xs font-semibold text-white">*/}
         {/*    New*/}
         {/*  </span>*/}
