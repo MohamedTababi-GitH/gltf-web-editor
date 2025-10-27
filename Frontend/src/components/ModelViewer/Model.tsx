@@ -198,9 +198,9 @@ export function Model({
   return (
     <>
       {componentToControl &&
-        selectedTool !== "Select" &&
-        selectedTool !== "Multi-Select" &&
-        selectedTool !== "Move" && (
+        (selectedTool === "Translate" ||
+          selectedTool === "Rotate" ||
+          selectedTool === "Scale") && (
           <TransformControls
             object={componentToControl}
             mode={
