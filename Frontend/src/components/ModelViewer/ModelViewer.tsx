@@ -1,4 +1,4 @@
-import AppSidebar from "./Sidebar";
+import AppSidebar from "./SidebarApp";
 import type { ModelItem } from "@/types/ModelItem";
 import { SidebarTrigger, useSidebar } from "../ui/sidebar";
 import ThreeApp from "./ThreeApp";
