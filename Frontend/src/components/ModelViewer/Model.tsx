@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { TransformControls } from "@react-three/drei";
 import { useModel } from "@/contexts/ModelContext";
 import * as THREE from "three";
-import type { MeshData } from "@/types/ModelItem";
 import { useLoader } from "@react-three/fiber";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
