@@ -25,7 +25,7 @@ export function Model({
     THREE.Object3D[]
   >([]);
   const originalMaterials = useRef(
-    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>()
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
   );
 
   const highlightMaterial = useMemo(
@@ -39,7 +39,7 @@ export function Model({
         roughness: 0.5,
         metalness: 0.5,
       }),
-    []
+    [],
   );
 
   const updateSidebarMeshes = useCallback(
@@ -51,10 +51,10 @@ export function Model({
           X: component.position.x.toFixed(3),
           Y: component.position.y.toFixed(3),
           Z: component.position.z.toFixed(3),
-        }))
+        })),
       );
     },
-    [setMeshes]
+    [setMeshes],
   );
 
   const gltf = useLoader(GLTFLoader, processedUrl, (loader) => {
@@ -108,7 +108,7 @@ export function Model({
         }
       });
     },
-    [highlightMaterial]
+    [highlightMaterial],
   );
 
   const removeHighlight = useCallback((component: THREE.Object3D) => {
@@ -141,13 +141,13 @@ export function Model({
       if (!componentParent) return;
 
       const isSelected = selectedComponents.some(
-        (comp) => comp.id === componentParent.id
+        (comp) => comp.id === componentParent.id,
       );
 
       if (selectedTool === "Multi-Select") {
         if (isSelected) {
           const newSelection = selectedComponents.filter(
-            (comp) => comp.id !== componentParent.id
+            (comp) => comp.id !== componentParent.id,
           );
           setSelectedComponents(newSelection);
           removeHighlight(componentParent);
@@ -178,7 +178,7 @@ export function Model({
       applyHighlight,
       removeHighlight,
       restoreOriginalMaterials,
-    ]
+    ],
   );
 
   const handleMiss = useCallback(() => {
@@ -199,7 +199,8 @@ export function Model({
     <>
       {componentToControl &&
         selectedTool !== "Select" &&
-        selectedTool !== "Multi-Select" && (
+        selectedTool !== "Multi-Select" &&
+        selectedTool !== "Move" && (
           <TransformControls
             object={componentToControl}
             mode={
