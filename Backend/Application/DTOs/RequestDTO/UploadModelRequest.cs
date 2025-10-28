@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Application.DTOs;
+namespace ECAD_Backend.Application.DTOs.RequestDTO;
 
 /// <summary>
 /// Data Transfer Object (DTO) representing an upload request for a 3D model.

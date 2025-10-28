@@ -1,8 +1,11 @@
 using System.Text.RegularExpressions;
-using ECAD_Backend.Application.DTOs;
+using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
+using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
-using ECAD_Backend.Exceptions;
+using ECAD_Backend.Infrastructure.Exceptions;
 
 namespace ECAD_Backend.Application.Services;
 
@@ -10,11 +13,9 @@ namespace ECAD_Backend.Application.Services;
 /// Provides application logic for managing 3D model files, including validation and interaction with storage.
 /// Orchestrates the validation of model uploads and retrieval of stored models.
 /// </summary>
-public sealed class ModelService : IModelService
+public sealed class ModelService(IModelStorage storage) : IModelService
 {
-    private readonly IModelStorage _storage;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
-    public ModelService(IModelStorage storage) => _storage = storage;
 
     /// <summary>
     /// Maps a <see cref="ModelFile"/> entity to a <see cref="ModelItemDto"/> data transfer object.
@@ -57,6 +58,7 @@ public sealed class ModelService : IModelService
     /// Retrieves a list of all stored model items.
     /// </summary>
     /// <param name="cursor"></param>
+    /// <param name="filter"></param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <param name="limit"></param>
     /// <returns>A read-only list of <see cref="ModelItemDto"/> representing the stored models.</returns>
@@ -66,14 +68,14 @@ public sealed class ModelService : IModelService
         if (limit <= 0 || limit > 100)
             throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
 
-        var (files, next) = await _storage.ListPageAsync(limit, cursor, filter, cancellationToken);
+        var (files, next) = await storage.ListPageAsync(limit, cursor, filter, cancellationToken);
         var items = files.Select(Map).ToList();
 
         next = string.IsNullOrWhiteSpace(next) ? null : next;
 
         // hasMore strictly follows whether we returned a usable nextCursor
         var hasMore = next is not null;
-        var total = await _storage.CountAsync(filter,cancellationToken);
+        var total = await storage.CountAsync(filter,cancellationToken);
 
         return new PageResult<ModelItemDto>(items, next, hasMore, total);
     }
@@ -98,7 +100,7 @@ public sealed class ModelService : IModelService
         if (request.Files is null || request.Files.Count == 0)
             throw new BadRequestException("No files provided in the upload request.");
 
-        // Validate alias once (applies only to entry file)
+        // Validate alias once (applies only to an entry file)
         if (string.IsNullOrWhiteSpace(request.Alias))
             throw new ValidationException("Alias is required.");
         if (!AliasRegex.IsMatch(request.Alias))
@@ -174,7 +176,7 @@ public sealed class ModelService : IModelService
                 metadata["isFavourite"] = "false";
             }
 
-            await _storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
+            await storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
         }
 
         return new UploadResultDto
@@ -198,7 +200,7 @@ public sealed class ModelService : IModelService
         if (id == Guid.Empty)
             throw new ValidationException("Invalid model ID.");
 
-        var deleted = await _storage.DeleteByIdAsync(id, cancellationToken);
+        var deleted = await storage.DeleteByIdAsync(id, cancellationToken);
         if (!deleted)
             throw new NotFoundException($"Model with ID '{id}' not found.");
 
@@ -212,7 +214,7 @@ public sealed class ModelService : IModelService
     /// <param name="newAlias">The new alias to assign, or null to remove it.</param>
     /// <param name="category">The new category to assign, or null to remove it.</param>
     /// <param name="description">The new description to assign, or null to remove it.</param>
-    /// <param name="isFavourite">Whether the model is marked as favourite.</param>
+    /// <param name="isFavourite">Whether the model is marked as a favourite.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>True if the update succeeded.</returns>
     /// <exception cref="ValidationException">Thrown when the provided ID or alias is invalid.</exception>
@@ -231,15 +233,15 @@ public sealed class ModelService : IModelService
         // Normalize whitespace-only strings to null (treat as deletion)
         string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-        var cat = Normalize(category);
-        var desc = Normalize(description);
+        Normalize(category);
+        Normalize(description);
         var alias = Normalize(newAlias);
 
         // Validate alias only if it's being set (not deleted)
         if (alias is not null && !AliasRegex.IsMatch(alias))
             throw new ValidationException("Alias format is invalid.");
 
-        var updated = await _storage.UpdateDetailsAsync(
+        var updated = await storage.UpdateDetailsAsync(
             id, alias, Normalize(category), Normalize(description), isFavourite, cancellationToken);
 
         if (!updated)

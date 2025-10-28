@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Application.DTOs;
+namespace ECAD_Backend.Application.DTOs.General;
 
 /// <summary>
 /// Data Transfer Object (DTO) representing a stored model file.

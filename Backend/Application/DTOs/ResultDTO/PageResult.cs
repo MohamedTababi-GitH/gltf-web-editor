@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Application.DTOs;
+namespace ECAD_Backend.Application.DTOs.ResultDTO;
 
 public sealed record PageResult<T>(
     IReadOnlyList<T> Items,

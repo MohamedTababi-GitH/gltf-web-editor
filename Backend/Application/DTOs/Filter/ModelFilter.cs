@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Application.DTOs;
+namespace ECAD_Backend.Application.DTOs.Filter;
 
 public sealed class ModelFilter
 {

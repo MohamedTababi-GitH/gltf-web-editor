@@ -7,9 +7,9 @@ public sealed class Base64JsonCursorSerializer : ICursorSerializer
 {
     private sealed class Payload
     {
-        public int v { get; set; } = 1;      // versioned for future-proofing
-        public string? ct { get; set; }      // Azure continuation token
-        public string? last { get; set; }    // last emitted blob name
+        public int V { get; set; } = 1;      // versioned for future-proofing
+        public string? Ct { get; set; }      // Azure continuation token
+        public string? Last { get; set; }    // last emitted blob name
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -28,9 +28,9 @@ public sealed class Base64JsonCursorSerializer : ICursorSerializer
         {
             var json = System.Text.Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(raw));
             var p = JsonSerializer.Deserialize<Payload>(json, JsonOptions);
-            if (p is not null && p.v >= 1)
+            if (p is not null && p.V >= 1)
             {
-                cursor = new PaginationCursor(p.ct, p.last);
+                cursor = new PaginationCursor(p.Ct, p.Last);
                 return true;
             }
         }
@@ -43,7 +43,7 @@ public sealed class Base64JsonCursorSerializer : ICursorSerializer
 
     public string Serialize(PaginationCursor cursor)
     {
-        var payload = new Payload { v = 1, ct = cursor.AzureCt, last = cursor.LastName };
+        var payload = new Payload { V = 1, Ct = cursor.AzureCt, Last = cursor.LastName };
         var json = JsonSerializer.Serialize(payload, JsonOptions);
         var bytes = System.Text.Encoding.UTF8.GetBytes(json);
         return WebEncoders.Base64UrlEncode(bytes);

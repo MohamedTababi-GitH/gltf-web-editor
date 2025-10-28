@@ -1,7 +1,10 @@
-using ECAD_Backend.Application.DTOs;
+using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
+using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
+using ECAD_Backend.Infrastructure.Exceptions;
 using Microsoft.AspNetCore.Mvc;
-using ECAD_Backend.Exceptions;
 
 namespace ECAD_Backend.Web.Controllers;
 
@@ -26,7 +29,14 @@ public class ModelController : ControllerBase
     /// <summary>
     /// Retrieves a list of all model items.
     /// </summary>
+    /// <param name="prefix"></param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <param name="limit"></param>
+    /// <param name="cursor"></param>
+    /// <param name="category"></param>
+    /// <param name="isFavourite"></param>
+    /// <param name="q"></param>
+    /// <param name="format"></param>
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
@@ -88,7 +98,7 @@ public class ModelController : ControllerBase
         if (files.Count == 0)
             throw new BadRequestException("No files uploaded.");
 
-        // Prepare upload file streams
+        // Prepare to upload file streams
         var uploadFiles = new List<(string FileName, Stream Content)>();
 
         try
@@ -118,7 +128,7 @@ public class ModelController : ControllerBase
         {
             // Ensure all streams are disposed
             foreach (var (_, stream) in uploadFiles)
-                stream.Dispose();
+                await stream.DisposeAsync();
         }
     }
 

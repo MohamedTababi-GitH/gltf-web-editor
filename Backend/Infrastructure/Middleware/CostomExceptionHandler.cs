@@ -1,32 +1,18 @@
-using ECAD_Backend.Exceptions;
+using ECAD_Backend.Infrastructure.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECAD_Backend.Web.Middleware
+namespace ECAD_Backend.Infrastructure.Middleware
 {
-    internal sealed class BadRequestExceptionHandler : BaseExceptionHandler<BadRequestException>
-    {
-        public BadRequestExceptionHandler(ILogger<BadRequestExceptionHandler> logger)
-            : base(logger, StatusCodes.Status400BadRequest, "Bad Request")
-        {
-        }
-    }
+    internal sealed class BadRequestExceptionHandler(ILogger<BadRequestExceptionHandler> logger)
+        : BaseExceptionHandler<BadRequestException>(logger, StatusCodes.Status400BadRequest, "Bad Request");
 
-    internal sealed class NotFoundExceptionHandler : BaseExceptionHandler<NotFoundException>
-    {
-        public NotFoundExceptionHandler(ILogger<NotFoundExceptionHandler> logger)
-            : base(logger, StatusCodes.Status404NotFound, "Not Found")
-        {
-        }
-    }
+    internal sealed class NotFoundExceptionHandler(ILogger<NotFoundExceptionHandler> logger)
+        : BaseExceptionHandler<NotFoundException>(logger, StatusCodes.Status404NotFound, "Not Found");
 
-    internal sealed class ValidationExceptionHandler : BaseExceptionHandler<ValidationException>
-    {
-        public ValidationExceptionHandler(ILogger<ValidationExceptionHandler> logger)
-            : base(logger, StatusCodes.Status422UnprocessableEntity, "Validation Error")
-        {
-        }
-    }
+    internal sealed class ValidationExceptionHandler(ILogger<ValidationExceptionHandler> logger)
+        : BaseExceptionHandler<ValidationException>(logger, StatusCodes.Status422UnprocessableEntity,
+            "Validation Error");
 
     /// <summary>
     /// Base handler to reduce repetition for all specific exception handlers.

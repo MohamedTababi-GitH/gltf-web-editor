@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECAD_Backend.Web.Middleware
+namespace ECAD_Backend.Infrastructure.Middleware
 {
     /// <summary>
     /// Global fallback exception handler for unhandled or unexpected errors.

@@ -1,4 +1,7 @@
-using ECAD_Backend.Application.DTOs;
+using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
+using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 
 namespace ECAD_Backend.Application.Interfaces;
 

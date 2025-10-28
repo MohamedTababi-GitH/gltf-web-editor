@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Application.DTOs;
+namespace ECAD_Backend.Application.DTOs.ResultDTO;
 
 /// <summary>
 /// Represents the result of an upload operation, containing details about the uploaded content.

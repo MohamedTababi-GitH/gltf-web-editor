@@ -2,6 +2,8 @@
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.DTOs;
+using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Domain.Entities;
 
 namespace ECAD_Backend.UnitTests;
