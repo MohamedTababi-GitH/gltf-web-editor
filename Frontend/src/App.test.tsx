@@ -1,6 +1,7 @@
 // trying it out a test a file
 import { render, screen, fireEvent } from "@testing-library/react";
 import App from "./App";
+import { test, expect } from "vitest";
 
 test("renders App and opens upload dialog", () => {
   render(<App />);
