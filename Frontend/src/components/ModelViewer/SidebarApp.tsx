@@ -10,11 +10,13 @@ import {
   Sidebar,
   SidebarGroupLabel,
 } from "../ui/sidebar";
+import { Slider } from "@/components/ui/slider";
 
 import { formatDateTime } from "@/utils/DateTime";
 import { formatBytes } from "@/utils/BytesConverter.ts";
 import { Minimize2, ChevronDown, ChevronRight } from "lucide-react";
 import { useModel } from "@/contexts/ModelContext";
+//import { Slider } from "radix-ui";
 
 type SidebarProps = {
   setShowViewer: (show: boolean) => void;
@@ -169,7 +171,6 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
                       </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <div className="flex justify-between w-full text-left cursor-default">
@@ -182,7 +183,6 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
                       </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <div className="flex justify-between w-full text-left cursor-default">
@@ -205,12 +205,40 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
                           type="checkbox"
                           checked={mesh.isVisible}
                           onChange={(e) =>
-                            toggleComponentVisibility(mesh.id, e.target.checked)
+                            toggleComponentVisibility(
+                              mesh.id,
+                              e.target.checked,
+                              mesh.opacity,
+                            )
                           }
                           className="cursor-pointer"
                         />
                       </div>
                     </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <div className="flex justify-between w-full text-left cursor-default p-1">
+                      <span className="font-medium text-sidebar-foreground/70 pl-1">
+                        Opacity
+                      </span>
+                      <Slider
+                        value={[mesh.opacity ? mesh.opacity * 100 : 100]}
+                        min={0}
+                        max={100}
+                        step={1}
+                        onValueChange={(value: number[]) =>
+                          toggleComponentVisibility(
+                            mesh.id,
+                            mesh.isVisible,
+                            value[0] / 100,
+                          )
+                        }
+                        className="w-40 cursor-pointer"
+                      />
+                      <span className="text-xs w-8 text-right">
+                        {Math.round(mesh.opacity ? mesh.opacity * 100 : 100)}%
+                      </span>
+                    </div>
                   </SidebarMenuItem>
                 </ExpandableSidebarGroup>
               ))}
