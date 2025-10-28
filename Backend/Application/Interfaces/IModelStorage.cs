@@ -45,7 +45,7 @@ public interface IModelStorage
     /// </summary>
     Task<bool> UpdateDetailsAsync(Guid id,
         string? newAlias,
-        string? category,
+        List<string>? categories,
         string? description,
         bool? isFavourite,
         CancellationToken ct = default);

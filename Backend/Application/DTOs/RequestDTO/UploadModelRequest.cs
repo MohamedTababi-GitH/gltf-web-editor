@@ -24,6 +24,6 @@ public sealed class UploadModelRequest
     /// </summary>
     public required string Alias { get; init; }
 
-    public string? Category { get; init; }
+    public List<string>? Categories { get; set; }
     public string? Description { get; init; }
 }

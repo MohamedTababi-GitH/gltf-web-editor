@@ -40,7 +40,7 @@ public interface IModelService
     Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
-        string? category,
+        List<string>? categories,
         string? description,
         bool? isFavourite,
         CancellationToken cancellationToken);

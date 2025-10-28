@@ -20,7 +20,7 @@ public class AzureBlobModelStorage : IModelStorage
     private const string DefaultContentType = "application/octet-stream";
     private const string MetaId = "Id";
     private const string MetaAlias = "alias";
-    private const string MetaCategory = "category";
+    private const string MetaCategories = "categories";
     private const string MetaDescription = "description";
     private const string MetaIsFavourite = "isFavourite";
     private const string MetaAssetId = "assetId";
@@ -105,7 +105,8 @@ public class AzureBlobModelStorage : IModelStorage
                 var additional = await EnumerateAdditionalFilesAsync(assetId, blob.Name, ct);
                 var format = GetFormatOrNull(blob.Name)!; // safe due to Matches() check
                 var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
-                var category = ReadStringMetadataOrNull(md, MetaCategory);
+                var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
+                var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                 var description = ReadStringMetadataOrNull(md, MetaDescription);
                 var fav = ParseBoolMetadata(md, MetaIsFavourite);
                 var created = blob.Properties.CreatedOn;
@@ -118,7 +119,7 @@ public class AzureBlobModelStorage : IModelStorage
                     SizeBytes = blob.Properties.ContentLength,
                     CreatedOn = created,
                     Url = fileUri,
-                    Category = category,
+                    Categories = categories,
                     Description = description,
                     AssetId = assetId,
                     AdditionalFiles = additional,
@@ -238,7 +239,7 @@ public class AzureBlobModelStorage : IModelStorage
     public async Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
-        string? category,
+        List<string>? categories,
         string? description,
         bool? isFavourite,
         CancellationToken ct = default)
@@ -266,7 +267,10 @@ public class AzureBlobModelStorage : IModelStorage
             }
 
             SetOrRemove(MetaAlias, newAlias);
-            SetOrRemove(MetaCategory, category);
+            if (categories is { Count: > 0 })
+                metadata[MetaCategories] = string.Join(",", categories.Select(c => c.Trim()));
+            else
+                metadata.Remove(MetaCategories);
             SetOrRemove(MetaDescription, description);
 
             if (isFavourite.HasValue)
@@ -383,7 +387,8 @@ public class AzureBlobModelStorage : IModelStorage
 
         // METADATA
         var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
-        var category = ReadStringMetadataOrNull(md, MetaCategory);
+        var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
+        var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
         var description = ReadStringMetadataOrNull(md, MetaDescription);
         var fav = ParseBoolMetadata(md, MetaIsFavourite);
 
@@ -392,9 +397,12 @@ public class AzureBlobModelStorage : IModelStorage
             return false;
 
         // CATEGORY
-        if (!string.IsNullOrWhiteSpace(filter.Category) &&
-            !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase))
-            return false;
+        if (filter.Categories is { Count: > 0 })
+        {
+            // Require any overlap between filter.Categories and blob categories
+            if (!categories.Any(c => filter.Categories.Contains(c, StringComparer.OrdinalIgnoreCase)))
+                return false;
+        }
 
         // QUERY (fuzzy or partial)
         if (!string.IsNullOrWhiteSpace(filter.Q))
@@ -402,7 +410,7 @@ public class AzureBlobModelStorage : IModelStorage
             var q = filter.Q.Trim();
             bool matches =
                 Fuzz.PartialRatio(q, alias) > 80 ||
-                Fuzz.PartialRatio(q, category ?? "") > 80 ||
+                Fuzz.PartialRatio(q, string.Join(" ", categories)) > 80 ||
                 Fuzz.PartialRatio(q, description ?? "") > 80;
 
             if (!matches) return false;

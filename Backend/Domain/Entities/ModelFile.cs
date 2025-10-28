@@ -35,7 +35,7 @@ public class ModelFile
     /// </summary>
     public DateTimeOffset? CreatedOn { get; init; }
 
-    public string? Category { get; init; }
+    public List<string>? Categories { get; set; }
     public string? Description { get; init; }
 
     public string? AssetId { get; init; }

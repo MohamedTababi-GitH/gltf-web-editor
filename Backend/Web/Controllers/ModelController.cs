@@ -44,7 +44,7 @@ public class ModelController : ControllerBase
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
         [FromQuery] int limit = 10,
         [FromQuery] string? cursor = null,
-        [FromQuery] string? category = null,
+        [FromQuery] List<string>? categories = null,        
         [FromQuery] bool? isFavourite = null,
         [FromQuery] string? q = null,
         [FromQuery] string? format = null,
@@ -53,7 +53,7 @@ public class ModelController : ControllerBase
     {
         var filter = new ModelFilter
         {
-            Category = category,
+            Categories = categories,
             IsFavourite = isFavourite,
             Q = q,
             Format = format,
@@ -90,7 +90,7 @@ public class ModelController : ControllerBase
         [FromForm] List<IFormFile> files,
         [FromForm] string fileAlias,
         [FromForm] string originalFileName,
-        [FromForm] string? category,
+        [FromForm] List<string>? categories,
         [FromForm] string? description,
         CancellationToken cancellationToken)
     {
@@ -112,7 +112,7 @@ public class ModelController : ControllerBase
                 OriginalFileName = originalFileName,
                 Files = uploadFiles,
                 Alias = fileAlias,
-                Category = category,
+                Categories = categories,
                 Description = description
             };
 
@@ -173,7 +173,7 @@ public class ModelController : ControllerBase
         var ok = await _service.UpdateDetailsAsync(
             id,
             request.NewAlias,
-            request.Category,
+            request.Categories,
             request.Description,
             request.IsFavourite,
             cancellationToken);

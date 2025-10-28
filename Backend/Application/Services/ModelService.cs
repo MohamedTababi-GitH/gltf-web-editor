@@ -30,7 +30,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         SizeBytes = f.SizeBytes,
         Url = f.Url,
         CreatedOn = f.CreatedOn,
-        Category = f.Category,
+        Categories = f.Categories,
         Description = f.Description,
         IsFavourite = f.IsFavourite,
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
@@ -167,8 +167,8 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             {
                 metadata["alias"] = request.Alias;
 
-                if (!string.IsNullOrWhiteSpace(request.Category))
-                    metadata["category"] = request.Category.Trim();
+                if (request.Categories is { Count: > 0 })
+                    metadata["categories"] = string.Join(",", request.Categories.Select(c => c.Trim()));
 
                 if (!string.IsNullOrWhiteSpace(request.Description))
                     metadata["description"] = request.Description.Trim();
@@ -222,7 +222,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     public async Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
-        string? category,
+        List<string>? categories,
         string? description,
         bool? isFavourite,
         CancellationToken cancellationToken)
@@ -233,7 +233,9 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         // Normalize whitespace-only strings to null (treat as deletion)
         string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-        Normalize(category);
+        List<string>? NormalizeList(List<string>? list) =>
+            list is null ? null : list.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+        var normalizedCategories = NormalizeList(categories);
         Normalize(description);
         var alias = Normalize(newAlias);
 
@@ -242,7 +244,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             throw new ValidationException("Alias format is invalid.");
 
         var updated = await storage.UpdateDetailsAsync(
-            id, alias, Normalize(category), Normalize(description), isFavourite, cancellationToken);
+            id, alias, normalizedCategories, Normalize(description), isFavourite, cancellationToken);
 
         if (!updated)
             throw new NotFoundException($"Model with ID '{id}' not found.");
