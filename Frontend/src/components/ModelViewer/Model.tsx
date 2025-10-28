@@ -18,14 +18,18 @@ export function Model({
   setLoadingProgress: (progress: number) => void;
   selectedTool: string;
 }) {
-  const { setMeshes } = useModel();
+  const { setMeshes, setToggleComponentVisibility } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
+  const initialOffsets = useRef(new Map<THREE.Object3D, THREE.Vector3>());
+  const initialRotations = useRef(new Map<THREE.Object3D, THREE.Quaternion>());
+  const initialScales = useRef(new Map<THREE.Object3D, THREE.Vector3>());
+
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
   >([]);
   const originalMaterials = useRef(
-    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>()
   );
 
   const highlightMaterial = useMemo(
@@ -39,8 +43,32 @@ export function Model({
         roughness: 0.5,
         metalness: 0.5,
       }),
-    [],
+    []
   );
+
+  const toggleComponentVisibility = useCallback(
+    (componentId: number, newVisibility: boolean) => {
+      const componentToToggle = selectedComponents.find(
+        (comp) => comp.id === componentId
+      );
+
+      if (componentToToggle) {
+        componentToToggle.visible = newVisibility;
+      }
+
+      // 2. Update the context state (meshes array)
+      setMeshes((prevMeshes) =>
+        prevMeshes.map((mesh) =>
+          mesh.id === componentId ? { ...mesh, isVisible: newVisibility } : mesh
+        )
+      );
+    },
+    [selectedComponents, setMeshes]
+  );
+
+  useEffect(() => {
+    setToggleComponentVisibility(() => toggleComponentVisibility);
+  }, [setToggleComponentVisibility, toggleComponentVisibility]);
 
   const updateSidebarMeshes = useCallback(
     (components: THREE.Object3D[]) => {
@@ -51,10 +79,11 @@ export function Model({
           X: component.position.x.toFixed(3),
           Y: component.position.y.toFixed(3),
           Z: component.position.z.toFixed(3),
-        })),
+          isVisible: component.visible,
+        }))
       );
     },
-    [setMeshes],
+    [setMeshes]
   );
 
   const gltf = useLoader(GLTFLoader, processedUrl, (loader) => {
@@ -84,10 +113,90 @@ export function Model({
     return clonedScene;
   }, [gltf.scene]);
 
-  const handleGizmoChange = useCallback(() => {
+  useEffect(() => {
+    initialOffsets.current.clear();
+    initialRotations.current.clear();
+    initialScales.current.clear();
+
     if (selectedComponents.length > 0) {
-      updateSidebarMeshes(selectedComponents);
+      const leader = selectedComponents[0];
+
+      leader.updateWorldMatrix(true, false);
+      const leaderWorldPos = leader.getWorldPosition(new THREE.Vector3());
+      const leaderWorldRot = leader.getWorldQuaternion(new THREE.Quaternion());
+      const leaderWorldScale = leader.getWorldScale(new THREE.Vector3());
+
+      for (let i = 1; i < selectedComponents.length; i++) {
+        const follower = selectedComponents[i];
+        follower.updateWorldMatrix(true, false);
+
+        const followerWorldPos = follower.getWorldPosition(new THREE.Vector3());
+        const offset = followerWorldPos.clone().sub(leaderWorldPos);
+        initialOffsets.current.set(follower, offset);
+
+        const followerWorldRot = follower.getWorldQuaternion(
+          new THREE.Quaternion()
+        );
+        const rotationDelta = new THREE.Quaternion().copy(followerWorldRot);
+        rotationDelta.premultiply(
+          new THREE.Quaternion().copy(leaderWorldRot).invert()
+        );
+        initialRotations.current.set(follower, rotationDelta);
+
+        const followerWorldScale = follower.getWorldScale(new THREE.Vector3());
+        const scaleRatio = followerWorldScale.clone().divide(leaderWorldScale);
+        initialScales.current.set(follower, scaleRatio);
+      }
     }
+  }, [selectedComponents]);
+
+  const handleGizmoChange = useCallback(() => {
+    const leader = selectedComponents[0];
+    if (!leader) return;
+
+    leader.updateWorldMatrix(true, false);
+
+    const leaderNewWorldPos = leader.getWorldPosition(new THREE.Vector3());
+    const leaderNewWorldRot = leader.getWorldQuaternion(new THREE.Quaternion());
+    const leaderNewWorldScale = leader.getWorldScale(new THREE.Vector3());
+
+    for (let i = 1; i < selectedComponents.length; i++) {
+      const follower = selectedComponents[i];
+
+      const offset = initialOffsets.current.get(follower);
+      if (offset) {
+        const newWorldPos = leaderNewWorldPos.clone().add(offset);
+        follower.parent?.updateWorldMatrix(true, false);
+        follower.parent?.worldToLocal(newWorldPos);
+        follower.position.copy(newWorldPos);
+      }
+
+      const rotationDelta = initialRotations.current.get(follower);
+      if (rotationDelta) {
+        const newWorldRot = new THREE.Quaternion().copy(leaderNewWorldRot);
+        newWorldRot.multiply(rotationDelta);
+
+        const localRot = new THREE.Quaternion();
+        follower.parent?.updateWorldMatrix(true, true);
+        const parentWorldRotInv = follower.parent
+          ? follower.parent.getWorldQuaternion(new THREE.Quaternion()).invert()
+          : new THREE.Quaternion();
+        localRot.copy(newWorldRot).premultiply(parentWorldRotInv);
+        follower.quaternion.copy(localRot);
+      }
+
+      const scaleRatio = initialScales.current.get(follower);
+      if (scaleRatio) {
+        const newWorldScale = leaderNewWorldScale.clone().multiply(scaleRatio);
+        const parentWorldScale = follower.parent
+          ? follower.parent.getWorldScale(new THREE.Vector3())
+          : new THREE.Vector3(1, 1, 1);
+        const localScale = newWorldScale.divide(parentWorldScale);
+        follower.scale.copy(localScale);
+      }
+    }
+
+    updateSidebarMeshes(selectedComponents);
   }, [selectedComponents, updateSidebarMeshes]);
 
   const restoreOriginalMaterials = useCallback(() => {
@@ -108,7 +217,7 @@ export function Model({
         }
       });
     },
-    [highlightMaterial],
+    [highlightMaterial]
   );
 
   const removeHighlight = useCallback((component: THREE.Object3D) => {
@@ -141,13 +250,13 @@ export function Model({
       if (!componentParent) return;
 
       const isSelected = selectedComponents.some(
-        (comp) => comp.id === componentParent.id,
+        (comp) => comp.id === componentParent.id
       );
 
       if (selectedTool === "Multi-Select") {
         if (isSelected) {
           const newSelection = selectedComponents.filter(
-            (comp) => comp.id !== componentParent.id,
+            (comp) => comp.id !== componentParent.id
           );
           setSelectedComponents(newSelection);
           removeHighlight(componentParent);
@@ -178,7 +287,7 @@ export function Model({
       applyHighlight,
       removeHighlight,
       restoreOriginalMaterials,
-    ],
+    ]
   );
 
   const handleMiss = useCallback(() => {
