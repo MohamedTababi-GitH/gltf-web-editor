@@ -58,7 +58,7 @@ const ExpandableSidebarGroup = ({
 };
 
 const AppSidebar = ({ setShowViewer }: SidebarProps) => {
-  const { model, meshes } = useModel();
+  const { model, meshes, toggleComponentVisibility } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
     "metadata"
   );
@@ -186,6 +186,23 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
                       <span className="truncate text-sidebar-foreground">
                         {mesh.Z}
                       </span>
+                    </div>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <div className="flex justify-between w-full text-left cursor-default">
+                      <span className="font-medium text-sidebar-foreground/70">
+                        Is Visible
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={mesh.isVisible}
+                        onChange={(e) =>
+                          toggleComponentVisibility(mesh.id, e.target.checked)
+                        }
+                        className="cursor-pointer"
+                      />
                     </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

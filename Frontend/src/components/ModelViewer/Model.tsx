@@ -18,7 +18,7 @@ export function Model({
   setLoadingProgress: (progress: number) => void;
   selectedTool: string;
 }) {
-  const { setMeshes } = useModel();
+  const { setMeshes, setToggleComponentVisibility } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
   const initialOffsets = useRef(new Map<THREE.Object3D, THREE.Vector3>());
@@ -46,6 +46,30 @@ export function Model({
     []
   );
 
+  const toggleComponentVisibility = useCallback(
+    (componentId: number, newVisibility: boolean) => {
+      const componentToToggle = selectedComponents.find(
+        (comp) => comp.id === componentId
+      );
+
+      if (componentToToggle) {
+        componentToToggle.visible = newVisibility;
+      }
+
+      // 2. Update the context state (meshes array)
+      setMeshes((prevMeshes) =>
+        prevMeshes.map((mesh) =>
+          mesh.id === componentId ? { ...mesh, isVisible: newVisibility } : mesh
+        )
+      );
+    },
+    [selectedComponents, setMeshes]
+  );
+
+  useEffect(() => {
+    setToggleComponentVisibility(() => toggleComponentVisibility);
+  }, [setToggleComponentVisibility, toggleComponentVisibility]);
+
   const updateSidebarMeshes = useCallback(
     (components: THREE.Object3D[]) => {
       setMeshes(
@@ -55,6 +79,7 @@ export function Model({
           X: component.position.x.toFixed(3),
           Y: component.position.y.toFixed(3),
           Z: component.position.z.toFixed(3),
+          isVisible: component.visible,
         }))
       );
     },
