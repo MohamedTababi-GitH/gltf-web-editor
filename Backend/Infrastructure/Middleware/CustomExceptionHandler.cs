@@ -17,19 +17,10 @@ namespace ECAD_Backend.Infrastructure.Middleware
     /// <summary>
     /// Base handler to reduce repetition for all specific exception handlers.
     /// </summary>
-    internal abstract class BaseExceptionHandler<TException> : IExceptionHandler where TException : Exception
+    internal abstract class BaseExceptionHandler<TException>(ILogger logger, int statusCode, string title)
+        : IExceptionHandler
+        where TException : Exception
     {
-        private readonly ILogger _logger;
-        private readonly int _statusCode;
-        private readonly string _title;
-
-        protected BaseExceptionHandler(ILogger logger, int statusCode, string title)
-        {
-            _logger = logger;
-            _statusCode = statusCode;
-            _title = title;
-        }
-
         public async ValueTask<bool> TryHandleAsync(
             HttpContext httpContext,
             Exception exception,
@@ -38,16 +29,16 @@ namespace ECAD_Backend.Infrastructure.Middleware
             if (exception is not TException typedException)
                 return false;
 
-            _logger.LogWarning(typedException, "{Title}: {Message}", _title, typedException.Message);
+            logger.LogWarning(typedException, "{Title}: {Message}", title, typedException.Message);
 
             var problem = new ProblemDetails
             {
-                Status = _statusCode,
-                Title = _title,
+                Status = statusCode,
+                Title = title,
                 Detail = typedException.Message
             };
 
-            httpContext.Response.StatusCode = _statusCode;
+            httpContext.Response.StatusCode = statusCode;
             await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
 
             return true;
