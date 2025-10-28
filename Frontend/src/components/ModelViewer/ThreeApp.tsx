@@ -113,6 +113,7 @@ export default function ThreeApp() {
           }}
           touches={{
             ONE: selectedTool === "Move" ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN,
           }}
         />
       </Canvas>

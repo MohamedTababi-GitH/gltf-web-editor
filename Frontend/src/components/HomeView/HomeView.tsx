@@ -45,7 +45,7 @@ export default function HomeView() {
 
           <p className="mt-6 text-lg text-muted-foreground sm:text-xl">
             View, rotate, and interact with electronic CAD models directly in
-            your browser — fast, accessible and powered by Babylon.js.
+            your browser — fast, accessible and powered by Three.js.
           </p>
 
           <div className="mt-10 flex items-center justify-center gap-x-4">

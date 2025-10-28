@@ -58,16 +58,17 @@ const ExpandableSidebarGroup = ({
 };
 
 const AppSidebar = ({ setShowViewer }: SidebarProps) => {
-  const { model, meshes } = useModel();
+  const { model, meshes, toggleComponentVisibility } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
-    "metadata"
+    "metadata",
   );
 
   if (!model) return null;
 
   const meta = [
-    { label: "ID", value: model.id },
     { label: "Name", value: model.name },
+    { label: "Category", value: model.category },
+    { label: "Description", value: model.description },
     { label: "Size", value: formatBytes(model.sizeBytes) },
     { label: "Format", value: "." + model.format },
     { label: "Created On", value: formatDateTime(model.createdOn).fullStr },
@@ -124,13 +125,13 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
                 {meta.map((item) => (
                   <SidebarMenuItem key={item.label}>
                     <SidebarMenuButton asChild>
-                      <div className="flex justify-between w-full text-left cursor-default">
+                      <div className="justify-between w-full h-fit items-start text-left cursor-default space-x-2">
                         <span className="font-medium text-sidebar-foreground/70">
                           {item.label}
                         </span>
-                        <span className="truncate text-sidebar-foreground">
+                        <div className="text-sidebar-foreground text-end">
                           {item.value}
-                        </span>
+                        </div>
                       </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -140,59 +141,81 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
           </SidebarGroup>
         )}
 
-        {activeTab === "components" && (
-          <ExpandableSidebarGroup
-            label="Selected components"
-            defaultOpen={false}
-          >
-            {meshes.map((mesh) => (
-              <ExpandableSidebarGroup
-                key={mesh.name}
-                label={mesh.name}
-                defaultOpen={true}
-              >
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <div className="flex justify-between w-full text-left cursor-default">
-                      <span className="font-medium text-sidebar-foreground/70">
-                        X Position
-                      </span>
-                      <span className="truncate text-sidebar-foreground">
-                        {mesh.X}
-                      </span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+        {activeTab === "components" &&
+          (meshes.length === 0 ? (
+            <div className="p-4 text-sm opacity-70">
+              No selected components currently
+            </div>
+          ) : (
+            <ExpandableSidebarGroup
+              label="Selected components"
+              defaultOpen={false}
+            >
+              {meshes.map((mesh) => (
+                <ExpandableSidebarGroup
+                  key={mesh.name}
+                  label={mesh.name}
+                  defaultOpen={true}
+                >
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <div className="flex justify-between w-full text-left cursor-default">
+                        <span className="font-medium text-sidebar-foreground/70">
+                          X Position
+                        </span>
+                        <span className="truncate text-sidebar-foreground">
+                          {mesh.X}
+                        </span>
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
 
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <div className="flex justify-between w-full text-left cursor-default">
-                      <span className="font-medium text-sidebar-foreground/70">
-                        Y Position
-                      </span>
-                      <span className="truncate text-sidebar-foreground">
-                        {mesh.Y}
-                      </span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <div className="flex justify-between w-full text-left cursor-default">
+                        <span className="font-medium text-sidebar-foreground/70">
+                          Y Position
+                        </span>
+                        <span className="truncate text-sidebar-foreground">
+                          {mesh.Y}
+                        </span>
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
 
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <div className="flex justify-between w-full text-left cursor-default">
-                      <span className="font-medium text-sidebar-foreground/70">
-                        Z Position
-                      </span>
-                      <span className="truncate text-sidebar-foreground">
-                        {mesh.Z}
-                      </span>
-                    </div>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </ExpandableSidebarGroup>
-            ))}
-          </ExpandableSidebarGroup>
-        )}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <div className="flex justify-between w-full text-left cursor-default">
+                        <span className="font-medium text-sidebar-foreground/70">
+                          Z Position
+                        </span>
+                        <span className="truncate text-sidebar-foreground">
+                          {mesh.Z}
+                        </span>
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <div className="flex justify-between w-full text-left cursor-default">
+                        <span className="font-medium text-sidebar-foreground/70">
+                          Is Visible
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={mesh.isVisible}
+                          onChange={(e) =>
+                            toggleComponentVisibility(mesh.id, e.target.checked)
+                          }
+                          className="cursor-pointer"
+                        />
+                      </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </ExpandableSidebarGroup>
+              ))}
+            </ExpandableSidebarGroup>
+          ))}
       </SidebarContent>
     </Sidebar>
   );

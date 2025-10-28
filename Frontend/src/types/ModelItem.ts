@@ -20,4 +20,6 @@ export type MeshData = {
   X: string;
   Y: string;
   Z: string;
+  isVisible: boolean;
+  //opacity: number;
 };

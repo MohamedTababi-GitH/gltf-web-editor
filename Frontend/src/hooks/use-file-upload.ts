@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { type Accept, type FileRejection, useDropzone } from "react-dropzone";
+import { useNotification } from "@/contexts/NotificationContext.tsx";
 
 type FileUploadProps = {
   accept?: Accept;
@@ -76,6 +77,7 @@ export const useFileUpload = ({
   const [additionalFiles, setAdditionalFiles] = useState<Map<string, File>>(
     new Map(),
   );
+  const { showNotification } = useNotification();
 
   const onDrop = useCallback(
     async (acceptedFiles: File[], fileRejections: FileRejection[]) => {
@@ -135,8 +137,9 @@ export const useFileUpload = ({
   const onDropAdditionalFile = useCallback(
     (acceptedFiles: File[], fileRejections: FileRejection[]) => {
       if (fileRejections.length > 0) {
-        setError(
+        showNotification(
           "One or more required files could not be uploaded. Please check and try again.",
+          "error",
         );
         return;
       }
@@ -153,13 +156,14 @@ export const useFileUpload = ({
             new Map(prev).set(newFile.name, newFile),
           );
         } else {
-          setError(
+          showNotification(
             `File ${newFile.name} does not match any of the required files.`,
+            "error",
           );
         }
       }
     },
-    [requiredFiles],
+    [requiredFiles, showNotification],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
