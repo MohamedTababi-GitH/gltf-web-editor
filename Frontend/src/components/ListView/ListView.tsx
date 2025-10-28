@@ -6,7 +6,7 @@ import ModelViewer from "../ModelViewer/ModelViewer";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useTheme } from "@/components/theme-provider.tsx";
 import { SidebarProvider } from "../ui/sidebar";
-import { ListFilter } from "lucide-react";
+import { ListFilter, Search, X } from "lucide-react";
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,34 +20,56 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useModel } from "@/contexts/ModelContext";
+import { ECADCategory } from "@/types/Category.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { ButtonGroup } from "../ui/button-group";
+
+type ModelSearchParams = {
+  category?: string;
+  isFavorite?: boolean;
+  q?: string;
+  format?: string;
+  limit?: number;
+};
+
+const API_LIMIT = 12;
 
 function ListView() {
-  const [model, setModel] = useState<ModelItem | null>(null);
-  const [models, setModels] = useState<ModelItem[]>([]);
-  const { setUrl } = useModel();
-  const [sortBy, setSortBy] = useState<"date" | "name" | "size" | "fileType">(
-    "date",
-  );
-  const [searchTerm, setSearchTerm] = useState("");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const { setUrl, setModel, model } = useModel();
+  //const [sortBy, setSortBy] = useState<"Date" | "Name" | "Size">("Date");
+  const [searchParams, setSearchParams] = useState<ModelSearchParams>({});
 
-  const id = useId();
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
+  const [pagesData, setPagesData] = useState<ModelItem[][]>([]);
+  const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const models = pagesData[currentPage - 1] || [];
 
   const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
+  const id = useId();
 
-  const [showAnimation, setShowAnimation] = useState(true);
+  const [showNoResults, setShowNoResults] = useState(false);
   useEffect(() => {
-    if (!models || models.length === 0) {
-      setShowAnimation(true);
-      const timer = setTimeout(() => setShowAnimation(false), 3000);
-      return () => clearTimeout(timer);
+    if (isLoading) {
+      setShowNoResults(false);
+    } else if (!isLoading && models.length === 0) {
+      setShowNoResults(true);
     } else {
-      setShowAnimation(false);
+      setShowNoResults(false);
     }
-  }, [models]);
+  }, [isLoading, models.length]);
 
   const isDarkTheme =
     theme.theme === "dark" ||
@@ -58,18 +80,122 @@ function ListView() {
     ? "https://lottie.host/84a02394-70c0-4d50-8cdb-8bc19f297682/iIKdhe0iAy.lottie"
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
-  const fetchModels = useCallback(async () => {
-    try {
-      const res = await apiClient.get("/api/model");
-      const data = res.data;
-      setModels(data);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [apiClient]);
   useEffect(() => {
-    fetchModels();
-  }, [fetchModels]);
+    const newSearchParams: ModelSearchParams = {
+      category: categoryFilter !== "all" ? categoryFilter : undefined,
+      isFavorite: favoritesOnly ? favoritesOnly : undefined,
+      format: fileTypeFilter !== "all" ? fileTypeFilter : undefined,
+      q: searchTerm.trim() ? searchTerm.trim() : undefined,
+    };
+
+    if (JSON.stringify(newSearchParams) !== JSON.stringify(searchParams)) {
+      setSearchParams(newSearchParams);
+      setCurrentPage(1);
+      setPagesData([]);
+      setPageCursors([null]);
+      setTotalCount(0);
+      setTotalPages(0);
+      setIsLoading(true);
+    }
+  }, [fileTypeFilter, categoryFilter, favoritesOnly, searchTerm, searchParams]);
+
+  const handleSearch = () => {
+    setSearchTerm(searchInput);
+  };
+
+  useEffect(() => {
+    const fetchPage = async (pageToFetch: number, isPreload = false) => {
+      if (pagesData[pageToFetch - 1]) {
+        return;
+      }
+
+      const cursor = pageCursors[pageToFetch - 1];
+      if (pageToFetch > 1 && cursor === undefined) {
+        return;
+      }
+
+      if (!isPreload) {
+        setIsLoading(true);
+      }
+
+      const params = new URLSearchParams();
+      if (searchParams.category)
+        params.append("category", searchParams.category);
+      if (searchParams.isFavorite)
+        params.append("isFavourite", searchParams.isFavorite.toString());
+      if (searchParams.q) params.append("q", searchParams.q);
+      if (searchParams.format) params.append("format", searchParams.format);
+      params.append("limit", API_LIMIT.toString());
+      if (cursor) params.append("cursor", cursor);
+
+      try {
+        const res = await apiClient.get(`/api/model?${params.toString()}`);
+        const data = (res.data.items as ModelItem[]) || [];
+        const nextCursor = res.data.nextCursor || null;
+        const newHasMore = res.data.hasMore;
+
+        setPagesData((prevData) => {
+          const newData = [...prevData];
+          newData[pageToFetch - 1] = data;
+          return newData;
+        });
+
+        if (!isPreload || totalCount === 0) {
+          const newTotalCount = res.data.totalCount;
+          const newTotalPages = Math.ceil(newTotalCount / API_LIMIT);
+          setTotalCount(newTotalCount);
+          setTotalPages(newTotalPages);
+        }
+
+        if (newHasMore && nextCursor) {
+          setPageCursors((prevCursors) => {
+            const newCursors = [...prevCursors];
+            newCursors[pageToFetch] = nextCursor;
+            return newCursors;
+          });
+
+          if (!isPreload) {
+            await fetchPage(pageToFetch + 1, true);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!isPreload) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    if (pagesData[currentPage - 1]) {
+      setIsLoading(false);
+
+      const nextCursor = pageCursors[currentPage];
+      const hasNextPageData = pagesData[currentPage];
+
+      if (nextCursor && !hasNextPageData) {
+        fetchPage(currentPage + 1, true);
+      }
+    } else {
+      fetchPage(currentPage, false);
+    }
+  }, [
+    currentPage,
+    searchParams,
+    apiClient,
+    pagesData,
+    pageCursors,
+    totalCount,
+  ]);
+
+  const refreshCurrentPage = useCallback(() => {
+    setCurrentPage(1);
+    setPagesData([]);
+    setPageCursors([null]);
+    setTotalCount(0);
+    setTotalPages(0);
+    setIsLoading(true);
+  }, []);
 
   if (showViewer && model) {
     setUrl(model.url);
@@ -82,48 +208,45 @@ function ListView() {
     );
   }
 
-  const filteredAndSortedModels = models
-    .filter((model) => {
-      const matchesSearch = model.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesFileType =
-        fileTypeFilter === "all" ? true : model.format === fileTypeFilter;
-      const matchesFavorite = favoritesOnly ? model.isFavourite : true;
-      return matchesSearch && matchesFileType && matchesFavorite;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "size":
-          return (b.sizeBytes || 0) - (a.sizeBytes || 0);
-        case "fileType":
-          return (a.format || "").localeCompare(b.format || "");
-        case "date":
-        default:
-          return (
-            new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime()
-          );
-      }
-    });
-
   return (
-    <div className="grid justify-center w-full">
-      <div className="m-4 md:m-8 lg:m-12 xl:m-16">
-        <div className="flex justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-x-20">
-          <div className="w-full max-w-xs space-y-2">
-            {/*<h1 className="m-2">Uploaded Models</h1>*/}
-            <Input
-              id={id}
-              type="text"
-              placeholder="Search a model..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-muted border-transparent shadow-none mb-2"
-            />
+    <div className="h-full flex flex-col p-4 md:p-8 lg:p-12 xl:p-16 gap-4">
+      <div className="flex flex-col md:flex-row md:justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-y-4 md:gap-x-20">
+        <div className="w-full md:max-w-xs flex items-center">
+          <div className="mb-2">
+            <ButtonGroup>
+              <Input
+                id={id}
+                type="text"
+                placeholder="Search a model"
+                value={searchInput}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="bg-muted shadow-none pr-10"
+              />
+              {searchTerm && (
+                <Button
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSearchInput("");
+                  }}
+                  variant={"outline"}
+                >
+                  <X className={`text-muted-foreground`} />
+                </Button>
+              )}
+              <Button onClick={handleSearch} variant={"outline"}>
+                <Search />
+              </Button>
+            </ButtonGroup>
           </div>
-          <div className="flex items-center gap-8 text-muted-foreground mb-3">
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 text-muted-foreground mb-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 hover:text-foreground transition">
@@ -131,40 +254,30 @@ function ListView() {
                   <span>Filter</span>
                 </button>
               </DropdownMenuTrigger>
-
               <DropdownMenuContent align="end">
-                {/* Submenu 1: Sort-by */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "name"}
-                      onCheckedChange={() => setSortBy("name")}
-                    >
-                      Name
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "size"}
-                      onCheckedChange={() => setSortBy("size")}
-                    >
-                      Size
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "date"}
-                      onCheckedChange={() => setSortBy("date")}
-                    >
-                      Date
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                      checked={sortBy === "fileType"}
-                      onCheckedChange={() => setSortBy("fileType")}
-                    >
-                      File Type
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-
-                {/* Submenu 2: Favorite filter */}
+                {/*<DropdownMenuSub>*/}
+                {/*  <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>*/}
+                {/*  <DropdownMenuSubContent>*/}
+                {/*    <DropdownMenuCheckboxItem*/}
+                {/*      checked={sortBy === "Name"}*/}
+                {/*      onCheckedChange={() => setSortBy("Name")}*/}
+                {/*    >*/}
+                {/*      Name*/}
+                {/*    </DropdownMenuCheckboxItem>*/}
+                {/*    <DropdownMenuCheckboxItem*/}
+                {/*      checked={sortBy === "Size"}*/}
+                {/*      onCheckedChange={() => setSortBy("Size")}*/}
+                {/*    >*/}
+                {/*      Size*/}
+                {/*    </DropdownMenuCheckboxItem>*/}
+                {/*    <DropdownMenuCheckboxItem*/}
+                {/*      checked={sortBy === "Date"}*/}
+                {/*      onCheckedChange={() => setSortBy("Date")}*/}
+                {/*    >*/}
+                {/*      Date*/}
+                {/*    </DropdownMenuCheckboxItem>*/}
+                {/*  </DropdownMenuSubContent>*/}
+                {/*</DropdownMenuSub>*/}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
@@ -172,18 +285,16 @@ function ListView() {
                       checked={favoritesOnly}
                       onCheckedChange={() => setFavoritesOnly(true)}
                     >
-                      Show favourites only
+                      Favourites only
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={!favoritesOnly}
                       onCheckedChange={() => setFavoritesOnly(false)}
                     >
-                      Show all
+                      All
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-
-                {/* Submenu 3: File type */}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>File type</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
@@ -191,13 +302,13 @@ function ListView() {
                       checked={fileTypeFilter === "glb"}
                       onCheckedChange={() => setFileTypeFilter("glb")}
                     >
-                      glb
+                      .glb
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={fileTypeFilter === "gltf"}
                       onCheckedChange={() => setFileTypeFilter("gltf")}
                     >
-                      gltf
+                      .gltf
                     </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                       checked={fileTypeFilter === "all"}
@@ -207,53 +318,159 @@ function ListView() {
                     </DropdownMenuCheckboxItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Categories</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {Object.values(ECADCategory).map((category) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={category}
+                          checked={categoryFilter === category}
+                          onCheckedChange={() => setCategoryFilter(category)}
+                        >
+                          {category}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
+                    <DropdownMenuCheckboxItem
+                      checked={categoryFilter === "all"}
+                      onCheckedChange={() => setCategoryFilter("all")}
+                    >
+                      All
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <span>{filteredAndSortedModels?.length || 0} results found</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
+              {/*{sortBy && (*/}
+              {/*  <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">*/}
+              {/*    Sort By: {sortBy}*/}
+              {/*    {sortBy !== "Date" && (*/}
+              {/*      <X*/}
+              {/*        className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"*/}
+              {/*        onClick={() => setSortBy("Date")}*/}
+              {/*      />*/}
+              {/*    )}*/}
+              {/*  </span>*/}
+              {/*)}*/}
+              {favoritesOnly && (
+                <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
+                  Favorites Only
+                  <X
+                    className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
+                    onClick={() => setFavoritesOnly(false)}
+                  />
+                </span>
+              )}
+              {fileTypeFilter !== "all" && (
+                <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
+                  Type: .{fileTypeFilter}
+                  <X
+                    className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
+                    onClick={() => setFileTypeFilter("all")}
+                  />
+                </span>
+              )}
+              {categoryFilter !== "all" && (
+                <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
+                  Category: {categoryFilter}
+                  <X
+                    className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
+                    onClick={() => setCategoryFilter("all")}
+                  />
+                </span>
+              )}
+            </div>
           </div>
-        </div>
 
-        <ScrollArea className="h-[70vh] w-full rounded-md border">
-          {filteredAndSortedModels && filteredAndSortedModels.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full justify-center items-center p-4">
-              {filteredAndSortedModels.map((item) => (
-                <div
+          <span className="mt-2 sm:mt-0">
+            {totalCount} result{totalCount === 1 ? "" : "s"} found
+          </span>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1 min-h-0 w-full rounded-md border">
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full w-full">
+            <DotLottieReact
+              className="w-90 h-90"
+              src={animationSrc}
+              loop
+              autoplay
+            />
+          </div>
+        ) : models.length > 0 ? (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,24rem))] justify-center gap-4 w-full items-center p-4">
+            {models.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => {
+                  setModel(item);
+                  setShowViewer(true);
+                }}
+              >
+                <ModelListItem
                   key={item.id}
+                  item={item}
+                  refreshList={refreshCurrentPage}
                   onClick={() => {
                     setModel(item);
                     setShowViewer(true);
                   }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : showNoResults ? (
+          <div className="flex justify-center items-center h-full w-full text-gray-400">
+            No models found
+          </div>
+        ) : null}
+        <ScrollBar orientation="vertical" />
+      </ScrollArea>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center w-full h-12">
+          <ButtonGroup>
+            <ButtonGroup>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+            </ButtonGroup>
+            <ButtonGroup>
+              {Array.from(Array(totalPages).keys()).map((page, index) => (
+                <Button
+                  key={index}
+                  variant={page + 1 === currentPage ? "default" : "outline"}
+                  onClick={() => setCurrentPage(page + 1)}
+                  disabled={pageCursors[page] === undefined}
                 >
-                  <ModelListItem
-                    key={item.id}
-                    item={item}
-                    refreshList={fetchModels}
-                    onClick={() => {
-                      setModel(item);
-                      setShowViewer(true);
-                    }}
-                  />
-                </div>
+                  {page + 1}
+                </Button>
               ))}
-            </div>
-          ) : showAnimation ? (
-            <div className="flex justify-center items-center h-full w-full">
-              <DotLottieReact
-                className="w-90 h-90"
-                src={animationSrc}
-                loop
-                autoplay
-              />
-            </div>
-          ) : (
-            <div className="flex justify-center items-center h-full w-full text-gray-400">
-              No models found
-            </div>
-          )}
-          <ScrollBar orientation="vertical" />
-        </ScrollArea>
-      </div>
+            </ButtonGroup>
+
+            <ButtonGroup>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={
+                  currentPage === totalPages ||
+                  pageCursors[currentPage] === undefined
+                }
+              >
+                Next
+              </Button>
+            </ButtonGroup>
+          </ButtonGroup>
+        </div>
+      )}
     </div>
   );
 }

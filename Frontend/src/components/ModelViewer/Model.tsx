@@ -1,37 +1,32 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { TransformControls, useGLTF } from "@react-three/drei";
+import { TransformControls } from "@react-three/drei";
 import { useModel } from "@/contexts/ModelContext";
 import * as THREE from "three";
-import type { MeshData } from "@/types/ModelItem";
+import { useLoader } from "@react-three/fiber";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
 }
 
-function ListMeshes(scene: THREE.Group): MeshData[] {
-  const meshes: MeshData[] = [];
-  scene.traverse((child) => {
-    if (isMesh(child)) {
-      meshes.push({
-        name: child.name,
-        id: child.id,
-        X: child.position.x.toFixed(3),
-        Y: child.position.y.toFixed(3),
-        Z: child.position.z.toFixed(3),
-      });
-    }
-  });
-  return meshes;
-}
-
-export function Model() {
-  const { url, setMeshes } = useModel();
+export function Model({
+  processedUrl,
+  setLoadingProgress,
+  selectedTool,
+}: {
+  processedUrl: string;
+  setLoadingProgress: (progress: number) => void;
+  selectedTool: string;
+}) {
+  const { setMeshes } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
-  const [selectedComponent, setSelectedComponent] = useState<THREE.Mesh | null>(
-    null
+  const [selectedComponents, setSelectedComponents] = useState<
+    THREE.Object3D[]
+  >([]);
+  const originalMaterials = useRef(
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
   );
-  const [originalMaterials, setOriginalMaterials] = useState(new Map());
 
   const highlightMaterial = useMemo(
     () =>
@@ -44,10 +39,33 @@ export function Model() {
         roughness: 0.5,
         metalness: 0.5,
       }),
-    []
+    [],
   );
 
-  const gltf = useGLTF(url || "", false);
+  const updateSidebarMeshes = useCallback(
+    (components: THREE.Object3D[]) => {
+      setMeshes(
+        components.map((component) => ({
+          id: component.id,
+          name: component.name || "Unnamed Component",
+          X: component.position.x.toFixed(3),
+          Y: component.position.y.toFixed(3),
+          Z: component.position.z.toFixed(3),
+        })),
+      );
+    },
+    [setMeshes],
+  );
+
+  const gltf = useLoader(GLTFLoader, processedUrl, (loader) => {
+    loader.manager.onProgress = (_url, loaded, total) => {
+      const progress = Math.round((loaded / total) * 100);
+      setLoadingProgress(progress);
+      if (progress === 100) {
+        setLoadingProgress(0);
+      }
+    };
+  });
 
   const scene = useMemo(() => {
     if (!gltf.scene) return new THREE.Group();
@@ -64,81 +82,134 @@ export function Model() {
     clonedScene.position.sub(center);
 
     return clonedScene;
-  }, [url, gltf.scene]);
-
-  useEffect(() => {
-    if (scene && setMeshes) {
-      const meshes = ListMeshes(scene);
-      console.log("Initial Meshes Loaded:", meshes);
-      setMeshes(meshes);
-    }
-    return () => {
-      if (setMeshes) setMeshes([]);
-    };
-  }, [scene, setMeshes]);
+  }, [gltf.scene]);
 
   const handleGizmoChange = useCallback(() => {
-    console.log("--- GIZMO MOVE DETECTED ---");
-
-    if (scene && setMeshes) {
-      const updatedMeshes = ListMeshes(scene);
-
-      const movedMesh = updatedMeshes.find(
-        (m) => m.id === selectedComponent?.id
-      );
-      console.log(
-        "Moved Mesh New Position:",
-        movedMesh?.name,
-        movedMesh?.X,
-        movedMesh?.Y,
-        movedMesh?.Z
-      );
-
-      setMeshes(updatedMeshes);
+    if (selectedComponents.length > 0) {
+      updateSidebarMeshes(selectedComponents);
     }
-  }, [scene, setMeshes, selectedComponent]);
+  }, [selectedComponents, updateSidebarMeshes]);
 
-  const restoreOriginalMaterials = () => {
-    if (originalMaterials.size > 0) {
-      originalMaterials.forEach((material, mesh) => {
-        mesh.material = material;
+  const restoreOriginalMaterials = useCallback(() => {
+    originalMaterials.current.forEach((material, mesh) => {
+      mesh.material = material;
+    });
+    originalMaterials.current.clear();
+  }, []);
+
+  const applyHighlight = useCallback(
+    (component: THREE.Object3D) => {
+      component.traverse((child) => {
+        if (isMesh(child)) {
+          if (!originalMaterials.current.has(child)) {
+            originalMaterials.current.set(child, child.material);
+            child.material = highlightMaterial;
+          }
+        }
       });
+    },
+    [highlightMaterial],
+  );
+
+  const removeHighlight = useCallback((component: THREE.Object3D) => {
+    component.traverse((child) => {
+      if (isMesh(child)) {
+        const originalMaterial = originalMaterials.current.get(child);
+        if (originalMaterial) {
+          child.material = originalMaterial;
+          originalMaterials.current.delete(child);
+        }
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      restoreOriginalMaterials();
+      setSelectedComponents([]);
+      setMeshes([]);
+    };
+  }, [restoreOriginalMaterials, setMeshes]);
+
+  const handleMeshClick = useCallback(
+    (event: { stopPropagation: () => void; object: THREE.Mesh }) => {
+      event.stopPropagation();
+      const clickedMesh = event.object;
+      if (!isMesh(clickedMesh)) return;
+
+      const componentParent = clickedMesh.parent;
+      if (!componentParent) return;
+
+      const isSelected = selectedComponents.some(
+        (comp) => comp.id === componentParent.id,
+      );
+
+      if (selectedTool === "Multi-Select") {
+        if (isSelected) {
+          const newSelection = selectedComponents.filter(
+            (comp) => comp.id !== componentParent.id,
+          );
+          setSelectedComponents(newSelection);
+          removeHighlight(componentParent);
+          updateSidebarMeshes(newSelection);
+        } else {
+          const newSelection = [...selectedComponents, componentParent];
+          setSelectedComponents(newSelection);
+          applyHighlight(componentParent);
+          updateSidebarMeshes(newSelection);
+        }
+      } else {
+        if (isSelected) {
+          restoreOriginalMaterials();
+          setSelectedComponents([]);
+          updateSidebarMeshes([]);
+        } else {
+          restoreOriginalMaterials();
+          setSelectedComponents([componentParent]);
+          applyHighlight(componentParent);
+          updateSidebarMeshes([componentParent]);
+        }
+      }
+    },
+    [
+      selectedComponents,
+      selectedTool,
+      updateSidebarMeshes,
+      applyHighlight,
+      removeHighlight,
+      restoreOriginalMaterials,
+    ],
+  );
+
+  const handleMiss = useCallback(() => {
+    if (selectedComponents.length > 0) {
+      restoreOriginalMaterials();
+      setSelectedComponents([]);
+      updateSidebarMeshes([]);
     }
-  };
+  }, [
+    selectedComponents.length,
+    restoreOriginalMaterials,
+    updateSidebarMeshes,
+  ]);
 
-  const handleMeshClick = (event: any) => {
-    event.stopPropagation();
-    const clickedMesh = event.object as THREE.Mesh;
-    if (!isMesh(clickedMesh)) return;
-    restoreOriginalMaterials();
-
-    if (selectedComponent === clickedMesh) {
-      setSelectedComponent(null);
-      setOriginalMaterials(new Map());
-    } else {
-      const newMaterialsMap = new Map();
-      newMaterialsMap.set(clickedMesh, clickedMesh.material);
-      clickedMesh.material = highlightMaterial;
-      setSelectedComponent(clickedMesh);
-      setOriginalMaterials(newMaterialsMap);
-    }
-  };
-
-  const handleMiss = () => {
-    restoreOriginalMaterials();
-    setSelectedComponent(null);
-    setOriginalMaterials(new Map());
-  };
+  const componentToControl = selectedComponents[0] as THREE.Mesh | undefined;
 
   return (
     <>
-      {selectedComponent && (
-        <TransformControls
-          object={selectedComponent}
-          size={1}
-          onObjectChange={handleGizmoChange}
-        />
-      )}
+      {componentToControl &&
+        (selectedTool === "Translate" ||
+          selectedTool === "Rotate" ||
+          selectedTool === "Scale") && (
+          <TransformControls
+            object={componentToControl}
+            mode={
+              selectedTool.toLowerCase() as "translate" | "rotate" | "scale"
+            }
+            size={1}
+            onObjectChange={handleGizmoChange}
+          />
+        )}
       <group ref={groupRef}>
         <primitive
           object={scene}

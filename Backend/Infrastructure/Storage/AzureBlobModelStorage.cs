@@ -1,9 +1,12 @@
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
+using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Options;
+using FuzzySharp;
 using Microsoft.Extensions.Options;
 
 namespace ECAD_Backend.Infrastructure.Storage;
@@ -28,85 +31,145 @@ public class AzureBlobModelStorage : IModelStorage
 
     // Represents a specific blob container within the Azure Storage account
     private readonly BlobContainerClient _container;
+    private readonly ICursorSerializer _cursor;
 
     // Cached container URL parts for SAS-preserving links
     private readonly string _baseUri; // https://.../container
     private readonly string _sasQuery; // ?sp=...&sig=...
 
-    public AzureBlobModelStorage(IOptions<BlobOptions> opts)
+    public AzureBlobModelStorage(IOptions<BlobOptions> opts, ICursorSerializer cursor)
     {
-        var o = opts.Value ?? throw new ArgumentNullException(nameof(opts));
+        _cursor = cursor;
+        var o = opts.Value;
+
         if (string.IsNullOrWhiteSpace(o.ConnectionString))
-            throw new InvalidOperationException("Storage:ConnectionString is missing.");
-        if (string.IsNullOrWhiteSpace(o.ContainerModels))
-            throw new InvalidOperationException("Storage:ContainerModels is missing.");
+            throw new InvalidOperationException("Storage:ConnectionString is required.");
 
-        _container = new BlobContainerClient(new Uri(o.ConnectionString));
-
-        // Precompute SAS-preserving base URL pieces
-        var containerUriStr = _container.Uri.ToString();
-        var parts = containerUriStr.Split('?', 2);
-        _baseUri = parts[0].TrimEnd('/'); // https://.../container
-        _sasQuery = parts.Length == 2 ? "?" + parts[1] : string.Empty; // ?sp=...&sig=...
+        // If SAS URL to a container: construct from Uri
+        if (o.ConnectionString.TrimStart().StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            _container = new BlobContainerClient(new Uri(o.ConnectionString));
+        }
+        else
+        {
+            // Account connection string: use container name
+            var container = string.IsNullOrWhiteSpace(o.ContainerModels) ? "data" : o.ContainerModels;
+            var service = new BlobServiceClient(o.ConnectionString);
+            _container = service.GetBlobContainerClient(container);
+        }
     }
 
     #endregion
 
     #region CRUD Methods
 
-    public async Task<IReadOnlyList<ModelFile>> ListAsync(CancellationToken ct = default)
+    public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
+        int limit, string? cursorRaw, ModelFilter filter, CancellationToken ct = default)
     {
-        var result = new List<ModelFile>();
+        var items = new List<ModelFile>(limit);
 
-        await foreach (var blob in _container.GetBlobsAsync(
-                           traits: BlobTraits.Metadata,
-                           states: BlobStates.None,
-                           cancellationToken: ct))
+        // Parse incoming cursor (opaque or legacy)
+        _ = _cursor.TryDeserialize(cursorRaw, out var cur);
+        var azureCt = cur.AzureCt; // may be null
+        var resumeAfter = cur.LastName; // may be null
+
+        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
+            ? _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, cancellationToken: ct)
+            : _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, prefix: filter.Prefix,
+                cancellationToken: ct);
+
+        var pageSizeHint = Math.Clamp(limit, 1, 500);
+
+        // cross-page skip until strictly after `resumeAfter`
+        bool skipping = !string.IsNullOrEmpty(resumeAfter);
+        string? lastEmittedName = resumeAfter;
+
+        await foreach (var page in pageable.AsPages(azureCt, pageSizeHint).WithCancellation(ct))
         {
-            var name = blob.Name;
-            var format = GetFormatOrNull(name);
-            if (format is null) continue; // only entry .glb/.gltf
+            var nextAzureCt = string.IsNullOrWhiteSpace(page.ContinuationToken) ? null : page.ContinuationToken;
 
-            // Build SAS-preserving URL for entry file
-            var fileUri = BuildBlobUri(name);
-
-            // Id
-            var id = TryGetGuidMetadata(blob.Metadata, MetaId) ?? Guid.NewGuid();
-
-            // Alias/Category/Description/Favourite
-            var alias = ReadStringMetadataOrDefault(blob.Metadata, MetaAlias, "Model");
-            var category = ReadStringMetadataOrNull(blob.Metadata, MetaCategory);
-            var description = ReadStringMetadataOrNull(blob.Metadata, MetaDescription);
-            var isFavourite = ParseBoolMetadata(blob.Metadata, MetaIsFavourite);
-
-            // Determine assetId
-            var assetId = ReadStringMetadataOrNull(blob.Metadata, MetaAssetId);
-            if (string.IsNullOrWhiteSpace(assetId))
+            foreach (var blob in page.Values)
             {
-                // fallback to first virtual folder segment
-                assetId = name.Split('/', 2)[0];
+                if (skipping)
+                {
+                    if (string.CompareOrdinal(blob.Name, resumeAfter) <= 0) continue;
+                    skipping = false; // first > resumeAfter reached
+                }
+
+                //  filters 
+                var format = GetFormatOrNull(blob.Name);
+                if (format is null) continue;
+
+                if (!string.IsNullOrWhiteSpace(filter.Format) &&
+                    !string.Equals(format, filter.Format, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var md = blob.Metadata ?? new Dictionary<string, string>();
+                var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
+                var category = ReadStringMetadataOrNull(md, MetaCategory);
+                var description = ReadStringMetadataOrNull(md, MetaDescription);
+                var fav = ParseBoolMetadata(md, MetaIsFavourite);
+                var created = blob.Properties.CreatedOn;
+
+                if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value) continue;
+                if (!string.IsNullOrWhiteSpace(filter.Category) &&
+                    !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase)) continue;
+
+                if (!string.IsNullOrWhiteSpace(filter.Q))
+                {
+                    var q = filter.Q.Trim();
+                    bool matches =
+                        Fuzz.PartialRatio(q, alias ?? "") > 80 ||
+                        Fuzz.PartialRatio(q, category ?? "") > 80 ||
+                        Fuzz.PartialRatio(q, description ?? "") > 80;
+
+                    if (!matches) continue;
+                }
+
+                // Build only after passing filters
+                var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
+                var fileUri = BuildBlobUri(blob.Name);
+                var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
+                var additional = await EnumerateAdditionalFilesAsync(assetId, blob.Name, ct);
+
+                items.Add(new ModelFile
+                {
+                    Id = id,
+                    Name = alias,
+                    Format = format,
+                    SizeBytes = blob.Properties.ContentLength,
+                    CreatedOn = created,
+                    Url = fileUri,
+                    Category = category,
+                    Description = description,
+                    AssetId = assetId,
+                    AdditionalFiles = additional,
+                    IsFavourite = fav
+                });
+
+                lastEmittedName = blob.Name;
+
+                if (items.Count >= limit)
+                {
+                    // Decide if there is ACTUALLY more (either later in this page or in the next Azure page)
+                    bool moreInCurrentPage = HasAnotherEligibleInCurrentPage(page.Values, blob.Name, resumeAfter, filter);
+                    if (!moreInCurrentPage && nextAzureCt is null)
+                    {
+                        // no more anywhere → no cursor
+                        return (items, null);
+                    }
+
+                    // there is more (either in this page or in a next server page) → return opaque cursor
+                    var outCursor = _cursor.Serialize(new PaginationCursor(nextAzureCt, lastEmittedName));
+                    return (items, outCursor);
+                }
             }
 
-            // Collect additional files under the same folder (skip entry)
-            var additional = await EnumerateAdditionalFilesAsync(assetId!, name, ct);
-
-            result.Add(new ModelFile
-            {
-                Id = id,
-                Name = alias,
-                Format = format,
-                SizeBytes = blob.Properties.ContentLength,
-                CreatedOn = blob.Properties.CreatedOn,
-                Url = fileUri,
-                Category = category,
-                Description = description,
-                AssetId = assetId,
-                AdditionalFiles = additional,
-                IsFavourite = isFavourite
-            });
+            azureCt = nextAzureCt;
+            if (azureCt is null) break; // no more server pages
         }
 
-        return result;
+        // Exhausted everything
+        return (items, null);
     }
 
     public async Task UploadAsync(
@@ -248,9 +311,68 @@ public class AzureBlobModelStorage : IModelStorage
         if (blobName.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase)) return "gltf";
         return null;
     }
+    
+    private bool HasAnotherEligibleInCurrentPage(IEnumerable<BlobItem> values, string currentName, string? resume,
+            ModelFilter f)
+        {
+            bool localSkipping = !string.IsNullOrEmpty(resume);
+
+            foreach (var b in values)
+            {
+                // only consider items strictly AFTER currentName
+                if (string.CompareOrdinal(b.Name, currentName) <= 0) continue;
+
+                if (localSkipping)
+                {
+                    if (string.CompareOrdinal(b.Name, resume) <= 0) continue;
+                    localSkipping = false;
+                }
+
+                // cheap eligibility test mirroring main filters (fast path first)
+                var fmt = GetFormatOrNull(b.Name);
+                if (fmt is null) continue;
+
+                if (!string.IsNullOrWhiteSpace(f.Format) &&
+                    !string.Equals(fmt, f.Format, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var md2 = b.Metadata ?? new Dictionary<string, string>();
+                var fav2 = ParseBoolMetadata(md2, MetaIsFavourite);
+                var created2 = b.Properties.CreatedOn;
+
+                if (f.IsFavourite is not null && fav2 != f.IsFavourite.Value) continue;
+                if (!string.IsNullOrWhiteSpace(f.Category))
+                {
+                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
+                    if (!string.Equals(cat2, f.Category, StringComparison.OrdinalIgnoreCase)) continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(f.Q))
+                {
+                    var q2 = f.Q.Trim();
+                    var alias2 = ReadStringMetadataOrDefault(md2, MetaAlias, "Model");
+                    var cat2 = ReadStringMetadataOrNull(md2, MetaCategory);
+                    var desc2 = ReadStringMetadataOrNull(md2, MetaDescription);
+                    if (!((alias2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          (cat2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          (desc2?.Contains(q2, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                          b.Name.Contains(q2, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+                }
+
+                return true; // found another eligible item
+            }
+
+            return false;
+        }
 
     private Uri BuildBlobUri(string blobName)
-        => new($"{_baseUri}/{Uri.EscapeDataString(blobName)}{_sasQuery}");
+    {
+        if (string.IsNullOrWhiteSpace(blobName))
+            throw new ArgumentNullException(nameof(blobName));
+
+        blobName = blobName.TrimStart('/');             // avoid leading slash = different blob name
+        return _container.GetBlobClient(blobName).Uri;  // includes SAS if the container client has it
+    }
 
     private static Guid? TryGetGuidMetadata(IDictionary<string, string> metadata, string key)
         => metadata.TryGetValue(key, out var idStr) && Guid.TryParse(idStr, out var g) ? g : null;
@@ -297,6 +419,63 @@ public class AzureBlobModelStorage : IModelStorage
         }
 
         return additional;
+    }
+    private static bool Matches(ModelFilter filter, BlobItem blob, IDictionary<string, string> md)
+    {
+        var format = GetFormatOrNull(blob.Name);
+        if (format is null) return false;
+
+        // FORMAT
+        if (!string.IsNullOrWhiteSpace(filter.Format) &&
+            !string.Equals(format, filter.Format, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // METADATA
+        var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
+        var category = ReadStringMetadataOrNull(md, MetaCategory);
+        var description = ReadStringMetadataOrNull(md, MetaDescription);
+        var fav = ParseBoolMetadata(md, MetaIsFavourite);
+
+        // IS FAVOURITE
+        if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value)
+            return false;
+
+        // CATEGORY
+        if (!string.IsNullOrWhiteSpace(filter.Category) &&
+            !string.Equals(category, filter.Category, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // QUERY (fuzzy or partial)
+        if (!string.IsNullOrWhiteSpace(filter.Q))
+        {
+            var q = filter.Q.Trim();
+            bool matches =
+                Fuzz.PartialRatio(q, alias ?? "") > 80 ||
+                Fuzz.PartialRatio(q, category ?? "") > 80 ||
+                Fuzz.PartialRatio(q, description ?? "") > 80;
+
+            if (!matches) return false;
+        }
+
+        return true;
+    }
+    
+    public async Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default)
+    {
+        int count = 0;
+
+        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
+            ? _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, cancellationToken: ct)
+            : _container.GetBlobsAsync(BlobTraits.Metadata, BlobStates.None, prefix: filter.Prefix, cancellationToken: ct);
+
+        await foreach (var blob in pageable.WithCancellation(ct))
+        {
+            var md = blob.Metadata ?? new Dictionary<string, string>();
+            if (Matches(filter, blob, md))
+                count++;
+        }
+
+        return count;
     }
 
     #endregion
