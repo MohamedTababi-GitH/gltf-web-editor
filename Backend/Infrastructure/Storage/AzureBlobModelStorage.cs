@@ -317,7 +317,6 @@ public class AzureBlobModelStorage : IModelStorage
         return false;
     }
 
-    
     private Uri BuildBlobUri(string blobName)
     {
         if (string.IsNullOrWhiteSpace(blobName))
