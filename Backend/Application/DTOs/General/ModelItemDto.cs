@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Application.DTOs;
+namespace ECAD_Backend.Application.DTOs.General;
 
 /// <summary>
 /// Data Transfer Object (DTO) representing a stored model file.
@@ -24,8 +24,7 @@ public sealed class ModelItemDto
     /// Timestamp (UTC) when the model was created in storage, if available.
     public DateTimeOffset? CreatedOn { get; init; }
 
-    public string? Category { get; init; }
-    public string? Description { get; init; }
+    public List<string>? Categories { get; set; }    public string? Description { get; init; }
     public bool IsFavourite { get; init; } 
     public List<AdditionalFileDto>? AdditionalFiles { get; init; }
 }

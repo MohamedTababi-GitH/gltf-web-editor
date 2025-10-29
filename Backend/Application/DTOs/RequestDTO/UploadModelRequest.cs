@@ -1,4 +1,4 @@
-namespace ECAD_Backend.Application.DTOs;
+namespace ECAD_Backend.Application.DTOs.RequestDTO;
 
 /// <summary>
 /// Data Transfer Object (DTO) representing an upload request for a 3D model.
@@ -24,6 +24,6 @@ public sealed class UploadModelRequest
     /// </summary>
     public required string Alias { get; init; }
 
-    public string? Category { get; init; }
+    public List<string>? Categories { get; set; }
     public string? Description { get; init; }
 }
