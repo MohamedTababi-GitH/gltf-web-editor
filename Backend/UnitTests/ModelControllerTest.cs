@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using ECAD_Backend.Web.Controllers;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.DTOs;
+using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
+using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 using Microsoft.AspNetCore.Http;
 
 namespace ECAD_Backend.UnitTests;

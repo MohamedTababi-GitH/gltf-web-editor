@@ -1,4 +1,7 @@
-using ECAD_Backend.Application.DTOs;
+using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
+using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 
 namespace ECAD_Backend.Application.Interfaces;
 
@@ -37,7 +40,7 @@ public interface IModelService
     Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
-        string? category,
+        List<string>? categories,
         string? description,
         bool? isFavourite,
         CancellationToken cancellationToken);
