@@ -19,8 +19,8 @@ interface ModelContextType {
   // 💡 NEW: The function AppSidebar will call to toggle visibility
   toggleComponentVisibility: (
     componentId: number,
-    newVisibility: boolean
-  ) => void;
+    newVisibility: boolean,
+  ) => void; //new
 
   // 💡 NEW: The setter Model.tsx will call to provide the implementation
   setToggleComponentVisibility: Dispatch<
