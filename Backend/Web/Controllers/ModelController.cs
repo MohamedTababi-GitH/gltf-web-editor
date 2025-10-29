@@ -98,6 +98,9 @@ public class ModelController : ControllerBase
         if (files.Count == 0)
             throw new BadRequestException("No files were uploaded. Please select a file to upload.");
 
+        if (string.IsNullOrWhiteSpace(fileAlias))
+            throw new BadRequestException("File alias is required.");
+
         // Prepare to upload file streams
         var uploadFiles = new List<(string FileName, Stream Content)>();
 
@@ -122,7 +125,7 @@ public class ModelController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ex.Message);
+            throw new BadRequestException(ex.Message);
         }
         finally
         {
