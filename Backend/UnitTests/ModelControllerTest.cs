@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ECAD_Backend.Web.Controllers;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.DTOs;
-using Microsoft.AspNetCore.Http;
+using ECAD_Backend.Exceptions;
 
 namespace ECAD_Backend.UnitTests;
 
@@ -40,12 +40,12 @@ public class ModelControllerTest
         // Act
         var result = await _controller.GetAll(limit: 5, cancellationToken: CancellationToken.None);
         var okObject = result.Result as OkObjectResult;
-        var receivedPage = okObject.Value as PageResult<ModelItemDto>;
+        var receivedPage = okObject!.Value as PageResult<ModelItemDto>;
 
         // Assert
         Assert.IsNotNull(okObject);
         Assert.IsNotNull(receivedPage);
-        Assert.AreEqual(1, receivedPage.Items.Count);
+        Assert.HasCount(1, receivedPage.Items);
         Assert.AreEqual(name, receivedPage.Items[0].Name);
     }
 
@@ -85,21 +85,20 @@ public class ModelControllerTest
     }
 
     [TestMethod]
-    public async Task Upload_ReturnsBadRequest_WhenNoFiles()
+    public async Task Upload_Throws_WhenNoFiles()
     {
         // Arrange
+        var expectedErrorMessage = "No files uploaded.";
         var files = new List<IFormFile>();
         var fileAlias = "alias";
         var originalFileName = "test.glb";
-        var expectedBadRequest = "No files uploaded.";
         
         // Act
-        var result = await _controller.Upload(files, fileAlias, originalFileName, null, null, CancellationToken.None);
-        var badRequest = result as BadRequestObjectResult;
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+            await _controller.Upload(files, fileAlias, originalFileName, null, null, CancellationToken.None));
 
         // Assert
-        Assert.IsNotNull(badRequest);
-        Assert.AreEqual(expectedBadRequest, badRequest.Value);
+        Assert.Contains(expectedErrorMessage, result.Message);
     }
 
     [TestMethod]
@@ -117,32 +116,31 @@ public class ModelControllerTest
     }
 
     [TestMethod]
-    public async Task Delete_ReturnsNotFound_WhenNotDeleted()
+    public async Task Delete_Throws_WhenNotDeleted()
     {
         // Arrange
+        var expectedErrorMessage = "not found.";
         var id = Guid.NewGuid();
         _mockService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         
         // Act
-        var result = await _controller.Delete(id, CancellationToken.None);
-        
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _controller.Delete(id, CancellationToken.None));
+
         // Assert
-        Assert.IsInstanceOfType(result, typeof(NotFoundResult));
+        Assert.Contains(expectedErrorMessage, result.Message);
     }
 
     [TestMethod]
-    public async Task Delete_ReturnsBadRequest_WhenNoFiles()
+    public async Task Delete_Throws_WhenNoFiles()
     {
         // Arrange
+        var expectedErrorMessage = "Invalid ID.";
         var emptyId = Guid.Empty;
-        var expectedBadRequest = "Invalid id.";
         
         // Act
-        var result = await _controller.Delete(emptyId, CancellationToken.None);
-        var badRequest = result as BadRequestObjectResult;
-        
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.Delete(emptyId, CancellationToken.None));
+
         // Assert
-        Assert.IsNotNull(badRequest);
-        Assert.AreEqual(expectedBadRequest, badRequest.Value);
+        Assert.Contains(expectedErrorMessage, result.Message);
     }
 }

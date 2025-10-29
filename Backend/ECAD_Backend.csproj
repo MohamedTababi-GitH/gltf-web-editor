@@ -21,4 +21,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+   <ItemGroup>
+       <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting"/>
+   </ItemGroup>
+
 </Project>
