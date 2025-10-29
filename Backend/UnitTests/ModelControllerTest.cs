@@ -1,9 +1,12 @@
 ﻿using Moq;
 using Microsoft.AspNetCore.Mvc;
-using ECAD_Backend.Web.Controllers;
+using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
+using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
-using ECAD_Backend.Application.DTOs;
-using ECAD_Backend.Exceptions;
+using ECAD_Backend.Infrastructure.Exceptions;
+using ECAD_Backend.Web.Controllers;
 
 namespace ECAD_Backend.UnitTests;
 
@@ -88,7 +91,7 @@ public class ModelControllerTest
     public async Task Upload_Throws_WhenNoFiles()
     {
         // Arrange
-        var expectedErrorMessage = "No files uploaded.";
+        var expectedErrorMessage = "No files were uploaded";
         var files = new List<IFormFile>();
         var fileAlias = "alias";
         var originalFileName = "test.glb";
@@ -119,7 +122,7 @@ public class ModelControllerTest
     public async Task Delete_Throws_WhenNotDeleted()
     {
         // Arrange
-        var expectedErrorMessage = "not found.";
+        var expectedErrorMessage = "We couldn't find a model with the ID";
         var id = Guid.NewGuid();
         _mockService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         
@@ -134,7 +137,7 @@ public class ModelControllerTest
     public async Task Delete_Throws_WhenNoFiles()
     {
         // Arrange
-        var expectedErrorMessage = "Invalid ID.";
+        var expectedErrorMessage = "provided ID is invalid";
         var emptyId = Guid.Empty;
         
         // Act

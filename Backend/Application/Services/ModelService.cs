@@ -104,7 +104,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         if (string.IsNullOrWhiteSpace(request.Alias))
             throw new ValidationException("A name for the model is required. Please provide one.");
         if (!AliasRegex.IsMatch(request.Alias))
-            throw new ValidationException("The Name can only contain letters, numbers, and underscores. Please choose a different Name.");
+            throw new ValidationException("The name can only contain letters, numbers, and underscores. Please choose a different Name.");
 
         // Validate the entry file name
         if (string.IsNullOrWhiteSpace(request.OriginalFileName))

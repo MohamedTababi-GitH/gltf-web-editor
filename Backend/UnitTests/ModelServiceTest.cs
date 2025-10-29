@@ -1,11 +1,10 @@
 ﻿using Moq;
-using ECAD_Backend.Application.Services;
-using ECAD_Backend.Application.Interfaces;
-using ECAD_Backend.Application.DTOs;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.Interfaces;
+using ECAD_Backend.Application.Services;
 using ECAD_Backend.Domain.Entities;
-using ECAD_Backend.Exceptions;
+using ECAD_Backend.Infrastructure.Exceptions;
 
 namespace ECAD_Backend.UnitTests;
 
@@ -63,7 +62,7 @@ public class ModelServiceTest
     public async Task ListAsync_Throws_WhenLimitIsTooBig()
     {
         // Arrange
-        const string expectedErrorMessage = "limit must be 1..100";
+        var expectedErrorMessage = "page limit must be between 1 and 100";
         var limit = 101;
         var filter = new ModelFilter();
 
@@ -109,7 +108,7 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenRequestIsNull()
     {
         // Arrange
-        const string expectedErrorMessage = "request cannot be null";
+        var expectedErrorMessage = "The upload request is empty";
         UploadModelRequest request = null!;
 
         // Act & Assert
@@ -124,7 +123,7 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenFileIsNull()
     {
         // Arrange
-        const string expectedErrorMessage = "No files provided";
+        var expectedErrorMessage = "No files were provided in the upload request";
         var request = new UploadModelRequest
         {
             Files = null!,
@@ -144,7 +143,7 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenFileListIsEmpty()
     {
         // Arrange
-        const string expectedErrorMessage = "No files provided";
+        var expectedErrorMessage = "No files were provided in the upload request";
         var emptyList = new List<(string, Stream)>();
         var request = new UploadModelRequest
         {
@@ -165,7 +164,7 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenAliasIsNull()
     {
         // Arrange
-        const string expectedErrorMessage = "Alias is required";
+        var expectedErrorMessage = "name for the model is required";
         var filename = "file.glb";
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
@@ -189,7 +188,7 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenAliasInvalid()
     {
         // Arrange
-        const string expectedErrorMessage = "Alias must contain";
+        var expectedErrorMessage = "name can only contain letters, numbers, and underscores";
         var filename = "file.glb";
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
@@ -213,7 +212,7 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenOriginalFileNameIsNull()
     {
         // Arrange
-        const string expectedErrorMessage = "Original file name";
+        var expectedErrorMessage = "original file name";
         string filename = null!;
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
@@ -237,7 +236,7 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenWrongFileExtension()
     {
         // Arrange
-        const string expectedErrorMessage = ".glb or .gltf file";
+        var expectedErrorMessage = ".glb or .gltf file";
         var filename = "file.jpg";
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
@@ -278,7 +277,7 @@ public class ModelServiceTest
             await _service.UploadAsync(request, CancellationToken.None));
         
         // Assert
-        var expectedErrorMessage = $"Entry file '{entryFileName}' was not included";
+        var expectedErrorMessage = $"The main model file '{entryFileName}' is missing";
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
@@ -286,8 +285,6 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenFirstFileEmpty()
     {
         // Arrange
-        const string expectedErrorMessage = "File stream";
-        const string expectedErrorMessageEnd = "null.";
         var filename = "model.glb";
         MemoryStream stream = null!;
         var files = new List<(string, Stream)> {(filename, stream)};
@@ -304,21 +301,19 @@ public class ModelServiceTest
             await _service.UploadAsync(request, CancellationToken.None));
 
         // Assert
+        var expectedErrorMessage = $"The content of the file '{filename}' is empty";
         Assert.Contains(expectedErrorMessage, result.Message);
-        Assert.EndsWith(expectedErrorMessageEnd, result.Message);
     }
     
     [TestMethod]
     public async Task UploadAsync_Throws_WhenAnyFileEmpty()
     {
         // Arrange
-        const string expectedErrorMessage = "File stream";
-        const string expectedErrorMessageEnd = "null.";
         var file1 = "model.gltf";
-        var file2 = "model.bin";
         var stream1 = new MemoryStream([1]);
+        var fileFail = "model.bin";
         MemoryStream stream2 = null!;
-        var files = new List<(string, Stream)> {(file1, stream1), (file2, stream2)};
+        var files = new List<(string, Stream)> {(file1, stream1), (fileFail, stream2)};
         var alias = "alias";
         var request = new UploadModelRequest
         {
@@ -332,20 +327,19 @@ public class ModelServiceTest
             await _service.UploadAsync(request, CancellationToken.None));
 
         // Assert
+        var expectedErrorMessage = $"The content of the file '{fileFail}' is empty";
         Assert.Contains(expectedErrorMessage, result.Message);
-        StringAssert.EndsWith(result.Message, expectedErrorMessageEnd);
     }
 
     [TestMethod]
     public async Task UploadAsync_Throws_WhenUnsupportedFileExtension()
     {
         // Arrange
-        const string expectedErrorMessage = "Unsupported file type";
         var file1 = "model.glb";
-        var file2 = "model.txt";
         var stream1 = new MemoryStream([1]);
+        var fileFail = "model.txt";
         var stream2 = new MemoryStream([2]);
-        var files = new List<(string, Stream)> {(file1, stream1), (file2, stream2)};
+        var files = new List<(string, Stream)> {(file1, stream1), (fileFail, stream2)};
         var alias = "alias";
         var request = new UploadModelRequest
         {
@@ -359,6 +353,7 @@ public class ModelServiceTest
             await _service.UploadAsync(request, CancellationToken.None));
 
         // Assert
+        var expectedErrorMessage = $"file type of '{fileFail}' is not supported";
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
@@ -380,7 +375,7 @@ public class ModelServiceTest
     public async Task DeleteAsync_Throws_WhenEmptyId()
     {
         // Arrange
-        const string expectedErrorMessage = "Invalid model ID";
+        var expectedErrorMessage = "provided model ID is not valid";
         var id = Guid.Empty;
         
         // Act
@@ -395,6 +390,7 @@ public class ModelServiceTest
     public async Task DeleteAsync_CallsStorageAndThrows_WhenInvalidId()
     {
         // Arrange
+        var expectedErrorMessage = "couldn't find a model with the ID";
         var id = Guid.NewGuid();
         _mockStorage.Setup(s => s.DeleteByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         
@@ -402,31 +398,30 @@ public class ModelServiceTest
         var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _service.DeleteAsync(id, CancellationToken.None));
 
         // Assert
-        var expectedErrorMessage = $"Model with ID '{id}' not found";
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
-    // [TestMethod]
-    // public async Task UpdateDetailsAsync_CallsStorageAndReturnsTrue()
-    // {
-    //     // Arrange
-    //     var id = Guid.NewGuid();
-    //     var newAlias = "newAlias";
-    //     _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(),
-    //         It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-    //     
-    //     // Act
-    //     var result = await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
-    //     
-    //     // Assert
-    //     Assert.IsTrue(result);
-    // }
+    [TestMethod]
+    public async Task UpdateDetailsAsync_CallsStorageAndReturnsTrue()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var newAlias = "newAlias";
+        _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
+            It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        
+        // Act
+        var result = await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
+        
+        // Assert
+        Assert.IsTrue(result);
+    }
 
     [TestMethod]
     public async Task UpdateDetailsAsync_Throws_WhenEmptyId()
     {
         // Arrange
-        const string expectedErrorMessage = "Invalid model ID";
+        var expectedErrorMessage = "provided model ID is not valid";
         var id = Guid.Empty;
         
         // Act
@@ -441,7 +436,7 @@ public class ModelServiceTest
     public async Task UpdateDetailsAsync_Throws_WhenAliasInvalid()
     {
         // Arrange
-        const string expectedErrorMessage = "Alias format is invalid";
+        var expectedErrorMessage = "alias format is invalid";
         var newAlias = "Invalid Alias!";
         var id  = Guid.NewGuid();
         
@@ -457,11 +452,10 @@ public class ModelServiceTest
     public async Task UpdateDetailsAsync_CallsStorageAndThrows_WhenIDInvalid()
     {
         // Arrange
-        const string expectedErrorMessage = "Model with ID";
-        const string expectedErrorMessageEnd = "not found.";
+        var expectedErrorMessage = "couldn't find a model with the ID";
         var newAlias = "newAlias";
         var id  = Guid.NewGuid();
-        _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(),
+        _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
             It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         
         // Act
@@ -470,6 +464,5 @@ public class ModelServiceTest
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
-        Assert.EndsWith(expectedErrorMessageEnd, result.Message);
     }
 }
