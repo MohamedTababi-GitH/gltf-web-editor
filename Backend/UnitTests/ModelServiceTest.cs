@@ -55,7 +55,7 @@ public class ModelServiceTest
             await _service.ListAsync(limit, null, filter, CancellationToken.None));
         
         // Assert
-        Assert.AreEqual("limit", result.ParamName);
+        Assert.AreEqual(nameof(limit), result.ParamName);
     }
 
     [TestMethod]
