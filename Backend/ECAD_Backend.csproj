@@ -25,10 +25,4 @@
        <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting"/>
    </ItemGroup>
 
-   <ItemGroup>
-     <_ContentIncludedByDefault Remove="UnitTests\obj\project.assets.json" />
-     <_ContentIncludedByDefault Remove="UnitTests\obj\project.packagespec.json" />
-     <_ContentIncludedByDefault Remove="UnitTests\obj\UnitTests.csproj.nuget.dgspec.json" />
-   </ItemGroup>
-
 </Project>
