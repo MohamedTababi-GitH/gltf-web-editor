@@ -408,10 +408,10 @@ public class ModelServiceTest
         var id = Guid.NewGuid();
         var newAlias = "newAlias";
         _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
-            It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         
         // Act
-        var result = await _service.UpdateDetailsAsync(id, newAlias, null, null, null, null, CancellationToken.None);
+        var result = await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
         
         // Assert
         Assert.IsTrue(result);
@@ -426,7 +426,7 @@ public class ModelServiceTest
         
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UpdateDetailsAsync(id, null, null,null, null, null, CancellationToken.None));
+            await _service.UpdateDetailsAsync(id, null, null,null, null, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -442,7 +442,7 @@ public class ModelServiceTest
         
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UpdateDetailsAsync(id, newAlias, null, null, null, null, CancellationToken.None));
+            await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -456,11 +456,11 @@ public class ModelServiceTest
         var newAlias = "newAlias";
         var id  = Guid.NewGuid();
         _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
-            It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+            It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         
         // Act
         var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _service.UpdateDetailsAsync(id, newAlias, null, null, null, null, CancellationToken.None));
+            await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
