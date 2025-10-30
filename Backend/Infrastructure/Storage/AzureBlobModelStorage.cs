@@ -23,6 +23,7 @@ public class AzureBlobModelStorage : IModelStorage
     private const string MetaCategories = "categories";
     private const string MetaDescription = "description";
     private const string MetaIsFavourite = "isFavourite";
+    private const string MetaIsNew = "isNew";
     private const string MetaAssetId = "assetId";
     // private const string MetaUploadedAtUtc = "UploadedAtUtc";
     // private const string MetaBasename = "basename";
@@ -236,12 +237,12 @@ public class AzureBlobModelStorage : IModelStorage
         return count;
     }
 
-    public async Task<bool> UpdateDetailsAsync(
-        Guid id,
+    public async Task<bool> UpdateDetailsAsync(Guid id,
         string? newAlias,
         List<string>? categories,
         string? description,
         bool? isFavourite,
+        bool? isNew,
         CancellationToken ct = default)
     {
         var updated = false;
@@ -277,6 +278,11 @@ public class AzureBlobModelStorage : IModelStorage
                 metadata[MetaIsFavourite] = isFavourite.Value ? "true" : "false";
             else
                 metadata.Remove(MetaIsFavourite);
+            
+            if(isNew.HasValue && isNew.Value)
+                    metadata[MetaIsNew] = "true";
+            else
+                metadata.Remove(MetaIsNew);
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;
