@@ -21,5 +21,5 @@ export type MeshData = {
   Y: string;
   Z: string;
   isVisible: boolean;
-  //opacity: number;
+  opacity: number;
 };

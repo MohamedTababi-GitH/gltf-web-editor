@@ -16,15 +16,21 @@ interface ModelContextType {
   meshes: MeshData[];
   setMeshes: Dispatch<SetStateAction<MeshData[]>>;
 
-  // 💡 NEW: The function AppSidebar will call to toggle visibility
+  // NEW: The function AppSidebar will call to toggle visibility
   toggleComponentVisibility: (
     componentId: number,
-    newVisibility: boolean
-  ) => void;
+    newVisibility: boolean,
+  ) => void; //new
 
-  // 💡 NEW: The setter Model.tsx will call to provide the implementation
+  // NEW: The setter Model.tsx will call to provide the implementation
   setToggleComponentVisibility: Dispatch<
     SetStateAction<(id: number, visibility: boolean) => void>
+  >;
+
+  // NEW: Opacity control
+  toggleComponentOpacity: (componentId: number, newOpacity: number) => void;
+  setToggleComponentOpacity: Dispatch<
+    SetStateAction<(id: number, opacity: number) => void>
   >;
 }
 
@@ -37,6 +43,9 @@ export function ModelProvider({ children }: { children: ReactNode }) {
   const [toggleComponentVisibility, setToggleComponentVisibility] = useState<
     (id: number, visibility: boolean) => void
   >(() => (/* Default placeholder function */) => {});
+  const [toggleComponentOpacity, setToggleComponentOpacity] = useState<
+    (id: number, opacity: number) => void
+  >(() => () => {});
 
   return (
     <ModelContext.Provider
@@ -49,6 +58,8 @@ export function ModelProvider({ children }: { children: ReactNode }) {
         setMeshes,
         toggleComponentVisibility,
         setToggleComponentVisibility,
+        toggleComponentOpacity,
+        setToggleComponentOpacity,
       }}
     >
       {children}
