@@ -67,7 +67,11 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
 
   const meta = [
     { label: "Name", value: model.name },
-    { label: "Categories", value: model.categories.join(", ") },
+    {
+      label: "Categories",
+      value:
+        model.categories?.length > 0 ? model.categories?.join(", ") : "N/A",
+    },
     { label: "Description", value: model.description || "N/A" },
     { label: "Size", value: formatBytes(model.sizeBytes) },
     { label: "Format", value: "." + model.format },
