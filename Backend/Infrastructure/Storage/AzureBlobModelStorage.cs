@@ -133,18 +133,26 @@ public class AzureBlobModelStorage : IModelStorage
 
                 if (items.Count >= limit)
                 {
-                    // Decide if there is ACTUALLY more (either later in this page or in the next Azure page)
+                    // Check if there are more eligible items on this current Azure page.
                     bool moreInCurrentPage =
                         HasAnotherEligibleInCurrentPage(page.Values, blob.Name, resumeAfter, filter);
-                    if (!moreInCurrentPage && nextAzureCt is null)
+
+                    // Case 1: More items exist on the CURRENT page.
+                    if (moreInCurrentPage)
                     {
-                        // no more anywhere → no cursor
-                        return (items, null);
+                        var outCursor = _cursor.Serialize(new PaginationCursor(azureCt, lastEmittedName));
+                        return (items, outCursor);
                     }
 
-                    // there is more (either in this page or in a next server page) → return opaque cursor
-                    var outCursor = _cursor.Serialize(new PaginationCursor(nextAzureCt, lastEmittedName));
-                    return (items, outCursor);
+                    // Case 2: No more items on this page, but there is a NEXT Azure page.
+                    if (nextAzureCt is not null)
+                    {
+                        var outCursor = _cursor.Serialize(new PaginationCursor(nextAzureCt, lastEmittedName));
+                        return (items, outCursor);
+                    }
+
+                    // Case 3: End of this page AND no next page. 
+                    return (items, null);
                 }
             }
 
