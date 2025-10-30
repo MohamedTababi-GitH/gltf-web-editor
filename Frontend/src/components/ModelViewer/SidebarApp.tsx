@@ -10,6 +10,7 @@ import {
   Sidebar,
   SidebarGroupLabel,
 } from "../ui/sidebar";
+import { Slider } from "@/components/ui/slider";
 
 import { formatDateTime } from "@/utils/DateTime";
 import { formatBytes } from "@/utils/BytesConverter.ts";
@@ -58,7 +59,8 @@ const ExpandableSidebarGroup = ({
 };
 
 const AppSidebar = ({ setShowViewer }: SidebarProps) => {
-  const { model, meshes, toggleComponentVisibility } = useModel();
+  const { model, meshes, toggleComponentVisibility, toggleComponentOpacity } =
+    useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
     "metadata",
   );
@@ -215,6 +217,27 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
                         />
                       </div>
                     </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <div className="flex justify-between w-full text-left cursor-default p-1">
+                      <span className="font-medium text-sidebar-foreground/70 px-1">
+                        Opacity
+                      </span>
+                      <Slider
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={[mesh.opacity ?? 1]}
+                        onValueChange={(value: number[]) => {
+                          const newOpacity = value[0];
+                          toggleComponentOpacity(mesh.id, newOpacity);
+                        }}
+                        className="w-40 cursor-pointer"
+                      />
+                      <span className="text-xs w-8 text-right">
+                        {Math.round(mesh.opacity ? mesh.opacity * 100 : 100)}%
+                      </span>
+                    </div>
                   </SidebarMenuItem>
                 </ExpandableSidebarGroup>
               ))}
