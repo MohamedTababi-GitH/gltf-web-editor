@@ -66,7 +66,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
     {
         if (limit <= 0 || limit > 100)
-            throw new ArgumentOutOfRangeException(nameof(limit), "limit must be 1..100");
+            throw new ArgumentOutOfRangeException(nameof(limit), "The page limit must be between 1 and 100.");
 
         var (files, next) = await storage.ListPageAsync(limit, cursor, filter, cancellationToken);
         var items = files.Select(Map).ToList();
@@ -75,7 +75,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
 
         // hasMore strictly follows whether we returned a usable nextCursor
         var hasMore = next is not null;
-        var total = await storage.CountAsync(filter,cancellationToken);
+        var total = await storage.CountAsync(filter, cancellationToken);
 
         return new PageResult<ModelItemDto>(items, next, hasMore, total);
     }
@@ -95,20 +95,20 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     public async Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken)
     {
         if (request is null)
-            throw new BadRequestException("Upload request cannot be null.");
+            throw new BadRequestException("The upload request is empty. Please provide a valid request.");
 
         if (request.Files is null || request.Files.Count == 0)
-            throw new BadRequestException("No files provided in the upload request.");
+            throw new BadRequestException("No files were provided in the upload request. Please select a file to upload.");
 
         // Validate alias once (applies only to an entry file)
         if (string.IsNullOrWhiteSpace(request.Alias))
-            throw new ValidationException("Alias is required.");
+            throw new ValidationException("A name for the model is required. Please provide one.");
         if (!AliasRegex.IsMatch(request.Alias))
-            throw new ValidationException("Alias must contain only letters, digits, or underscores.");
+            throw new ValidationException("The name can only contain letters, numbers, and underscores. Please choose a different Name.");
 
         // Validate the entry file name
         if (string.IsNullOrWhiteSpace(request.OriginalFileName))
-            throw new ValidationException("Original file name is required.");
+            throw new ValidationException("The original file name is missing. Please ensure the file has a name.");
 
         var entryFileName = Path.GetFileName(request.OriginalFileName);
         var entryExt = Path.GetExtension(entryFileName).ToLowerInvariant();
@@ -121,7 +121,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             string.Equals(Path.GetFileName(f.FileName), entryFileName, StringComparison.OrdinalIgnoreCase));
 
         if (entryTuple.FileName is null)
-            throw new BadRequestException($"Entry file '{entryFileName}' was not included in the request files.");
+            throw new BadRequestException($"The main model file '{entryFileName}' is missing from the uploaded files. Please include it and try again.");
 
         var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
@@ -130,7 +130,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         foreach (var (fileNameRaw, content) in request.Files)
         {
             if (content is null)
-                throw new BadRequestException($"File stream for '{fileNameRaw}' was null.");
+                throw new BadRequestException($"The content of the file '{fileNameRaw}' is empty. Please provide a valid file.");
 
             var fileName = Path.GetFileName(fileNameRaw);
             var ext = Path.GetExtension(fileName).ToLowerInvariant();
@@ -140,7 +140,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             bool isAllowed = isEntry || ext is ".bin" or ".png" or ".jpg" or ".jpeg" or ".webp" or ".ktx2";
 
             if (!isAllowed)
-                throw new ValidationException($"Unsupported file type: {fileName}");
+                throw new ValidationException($"The file type of '{fileName}' is not supported. Please upload a valid file type.");
 
             var blobName = $"{assetId}/{fileName}";
             var contentType = ext switch
@@ -198,11 +198,11 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
-            throw new ValidationException("Invalid model ID.");
+            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
 
         var deleted = await storage.DeleteByIdAsync(id, cancellationToken);
         if (!deleted)
-            throw new NotFoundException($"Model with ID '{id}' not found.");
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return true;
     }
@@ -228,7 +228,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
-            throw new ValidationException("Invalid model ID.");
+            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
 
         // Normalize whitespace-only strings to null (treat as deletion)
         string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
@@ -241,13 +241,13 @@ public sealed class ModelService(IModelStorage storage) : IModelService
 
         // Validate alias only if it's being set (not deleted)
         if (alias is not null && !AliasRegex.IsMatch(alias))
-            throw new ValidationException("Alias format is invalid.");
+            throw new ValidationException("The alias format is invalid. It can only contain letters, numbers, and underscores.");
 
         var updated = await storage.UpdateDetailsAsync(
             id, alias, normalizedCategories, Normalize(description), isFavourite, cancellationToken);
 
         if (!updated)
-            throw new NotFoundException($"Model with ID '{id}' not found.");
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return true;
     }

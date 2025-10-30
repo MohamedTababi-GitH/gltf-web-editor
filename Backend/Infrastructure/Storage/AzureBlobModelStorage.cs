@@ -43,7 +43,7 @@ public class AzureBlobModelStorage : IModelStorage
         var o = opts.Value;
 
         if (string.IsNullOrWhiteSpace(o.ConnectionString))
-            throw new InvalidOperationException("Storage:ConnectionString is required.");
+            throw new InvalidOperationException("The storage connection string is missing. Please configure it in the application settings.");
 
         // If SAS URL to a container: construct from Uri
         if (o.ConnectionString.TrimStart().StartsWith("http", StringComparison.OrdinalIgnoreCase))

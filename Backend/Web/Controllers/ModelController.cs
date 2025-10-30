@@ -44,7 +44,7 @@ public class ModelController : ControllerBase
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
         [FromQuery] int limit = 10,
         [FromQuery] string? cursor = null,
-        [FromQuery] List<string>? categories = null,        
+        [FromQuery] List<string>? categories = null,
         [FromQuery] bool? isFavourite = null,
         [FromQuery] string? q = null,
         [FromQuery] string? format = null,
@@ -96,7 +96,10 @@ public class ModelController : ControllerBase
     {
         // Validate uploaded files
         if (files.Count == 0)
-            throw new BadRequestException("No files uploaded.");
+            throw new BadRequestException("No files were uploaded. Please select a file to upload.");
+
+        if (string.IsNullOrWhiteSpace(fileAlias))
+            throw new BadRequestException("File alias is required.");
 
         // Prepare to upload file streams
         var uploadFiles = new List<(string FileName, Stream Content)>();
@@ -118,11 +121,11 @@ public class ModelController : ControllerBase
 
             // Perform upload via the service layer
             var result = await _service.UploadAsync(request, cancellationToken);
-            return Ok(new UploadResultDto{ Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
+            return Ok(new UploadResultDto { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ex.Message);
+            throw new BadRequestException(ex.Message);
         }
         finally
         {
@@ -141,11 +144,11 @@ public class ModelController : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
-            throw new BadRequestException("Invalid ID.");
+            throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         var deleted = await _service.DeleteAsync(id, cancellationToken);
         if (!deleted)
-            throw new NotFoundException($"Model with ID '{id}' was not found.");
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return NoContent();
     }
@@ -167,7 +170,7 @@ public class ModelController : ControllerBase
     {
         // Validate input
         if (id == Guid.Empty)
-            throw new BadRequestException("Invalid ID.");
+            throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         // Ask the service to update model details
         var ok = await _service.UpdateDetailsAsync(
@@ -180,7 +183,7 @@ public class ModelController : ControllerBase
 
         // Throw domain-specific exception if not found
         if (!ok)
-            throw new NotFoundException($"Model with ID '{id}' was not found.");
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return NoContent();
     }
