@@ -214,12 +214,11 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     /// </summary>
     /// <param name="id">The unique identifier of the model to update.</param>
     /// <param name="newAlias">The new alias to assign, or null to remove it.</param>
-    /// <param name="categories"></param>
+    /// <param name="categories">The new categories to assign, or null to remove it.</param>
     /// <param name="description">The new description to assign, or null to remove it.</param>
     /// <param name="isFavourite">Whether the model is marked as a favourite.</param>
     /// <param name="isNew"></param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <param name="category">The new category to assign, or null to remove it.</param>
     /// <returns>True if the update succeeded.</returns>
     /// <exception cref="ValidationException">Thrown when the provided ID or alias is invalid.</exception>
     /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>

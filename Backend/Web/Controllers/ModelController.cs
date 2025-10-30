@@ -38,7 +38,6 @@ public class ModelController : ControllerBase
     /// <param name="format"></param>
     /// <param name="prefix"></param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <param name="category"></param>
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
@@ -78,7 +77,7 @@ public class ModelController : ControllerBase
     /// <param name="files">The uploaded file(s).</param>
     /// <param name="fileAlias">An alias for the uploaded file.</param>
     /// <param name="originalFileName">The original filename of the uploaded model.</param>
-    /// <param name="category">Optional category for the file.</param>
+    /// <param name="categories">Optional categories for the file.</param>
     /// <param name="description">Optional description for the file.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>Returns a message with details about the uploaded file.</returns>
