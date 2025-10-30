@@ -110,6 +110,7 @@ public class AzureBlobModelStorage : IModelStorage
                 var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                 var description = ReadStringMetadataOrNull(md, MetaDescription);
                 var fav = ParseBoolMetadata(md, MetaIsFavourite);
+                var nevv = ParseBoolMetadata(md, MetaIsNew); 
                 var created = blob.Properties.CreatedOn;
 
                 items.Add(new ModelFile
@@ -124,7 +125,8 @@ public class AzureBlobModelStorage : IModelStorage
                     Description = description,
                     AssetId = assetId,
                     AdditionalFiles = additional,
-                    IsFavourite = fav
+                    IsFavourite = fav,
+                    IsNew = nevv
                 });
 
                 var lastEmittedName = blob.Name;
@@ -397,6 +399,11 @@ public class AzureBlobModelStorage : IModelStorage
         var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
         var description = ReadStringMetadataOrNull(md, MetaDescription);
         var fav = ParseBoolMetadata(md, MetaIsFavourite);
+        var nevv = ParseBoolMetadata(md, MetaIsNew);
+        
+        // IS NEW?
+        if (filter.IsNew.HasValue && nevv != filter.IsNew.Value)
+            return false;
 
         // IS FAVOURITE?
         if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value)

@@ -29,14 +29,16 @@ public class ModelController : ControllerBase
     /// <summary>
     /// Retrieves a list of all model items.
     /// </summary>
-    /// <param name="prefix"></param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <param name="limit"></param>
     /// <param name="cursor"></param>
-    /// <param name="category"></param>
+    /// <param name="isNew"></param>
+    /// <param name="categories"></param>
     /// <param name="isFavourite"></param>
     /// <param name="q"></param>
     /// <param name="format"></param>
+    /// <param name="prefix"></param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <param name="category"></param>
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
@@ -44,6 +46,7 @@ public class ModelController : ControllerBase
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
         [FromQuery] int limit = 10,
         [FromQuery] string? cursor = null,
+        [FromQuery] bool? isNew = null,
         [FromQuery] List<string>? categories = null,
         [FromQuery] bool? isFavourite = null,
         [FromQuery] string? q = null,
@@ -53,6 +56,7 @@ public class ModelController : ControllerBase
     {
         var filter = new ModelFilter
         {
+            IsNew = isNew,
             Categories = categories,
             IsFavourite = isFavourite,
             Q = q,

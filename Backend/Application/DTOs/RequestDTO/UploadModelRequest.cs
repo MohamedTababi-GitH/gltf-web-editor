@@ -26,5 +26,4 @@ public sealed class UploadModelRequest
 
     public List<string>? Categories { get; set; }
     public string? Description { get; init; }
-    public bool IsNew { get; init; }
 }
