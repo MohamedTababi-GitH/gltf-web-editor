@@ -104,6 +104,7 @@ function ModelListItem({
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
   const [isFavorite, setIsFavorite] = useState(item.isFavourite);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const handleFavoriteToggle = async (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
@@ -367,14 +368,30 @@ function ModelListItem({
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the model and cannot be undone.
+              This will permanently delete the model and cannot be undone.{" "}
+              <br />
+              Type <span className="font-bold">delete</span> to confirm.
             </AlertDialogDescription>
+            <Input
+              type="text"
+              name="delete-confirmation"
+              className="mt-2"
+              onChange={(e) => {
+                setDeleteConfirmation(e.target.value);
+              }}
+              value={deleteConfirmation}
+              autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+            />
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              disabled={isDeleting}
+              disabled={isDeleting || deleteConfirmation !== "delete"}
               className="bg-destructive hover:bg-destructive/90"
             >
               {isDeleting ? <Spinner /> : "Delete"}
