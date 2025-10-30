@@ -20,12 +20,12 @@ import {
 } from "@/components/ui/dropdown-menu.tsx";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useModel } from "@/contexts/ModelContext";
-import { ECADCategory } from "@/types/Category.ts";
+import { type Category, ECADCategory } from "@/types/Category.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { ButtonGroup } from "../ui/button-group";
 
 type ModelSearchParams = {
-  category?: string;
+  categories?: Category[];
   isFavorite?: boolean;
   q?: string;
   format?: string;
@@ -44,7 +44,7 @@ function ListView() {
 
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<Category[]>([]);
 
   const [pagesData, setPagesData] = useState<ModelItem[][]>([]);
   const [pageCursors, setPageCursors] = useState<(string | null)[]>([null]);
@@ -82,7 +82,7 @@ function ListView() {
 
   useEffect(() => {
     const newSearchParams: ModelSearchParams = {
-      category: categoryFilter !== "all" ? categoryFilter : undefined,
+      categories: categoryFilter.length > 0 ? categoryFilter : undefined,
       isFavorite: favoritesOnly ? favoritesOnly : undefined,
       format: fileTypeFilter !== "all" ? fileTypeFilter : undefined,
       q: searchTerm.trim() ? searchTerm.trim() : undefined,
@@ -119,8 +119,11 @@ function ListView() {
       }
 
       const params = new URLSearchParams();
-      if (searchParams.category)
-        params.append("category", searchParams.category);
+      if (searchParams.categories && searchParams.categories.length > 0) {
+        searchParams.categories.forEach((category) =>
+          params.append("categories", category),
+        );
+      }
       if (searchParams.isFavorite)
         params.append("isFavourite", searchParams.isFavorite.toString());
       if (searchParams.q) params.append("q", searchParams.q);
@@ -256,27 +259,27 @@ function ListView() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {/*<DropdownMenuSub>*/}
-                {/*  <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>*/}
-                {/*  <DropdownMenuSubContent>*/}
-                {/*    <DropdownMenuCheckboxItem*/}
-                {/*      checked={sortBy === "Name"}*/}
-                {/*      onCheckedChange={() => setSortBy("Name")}*/}
-                {/*    >*/}
-                {/*      Name*/}
-                {/*    </DropdownMenuCheckboxItem>*/}
-                {/*    <DropdownMenuCheckboxItem*/}
-                {/*      checked={sortBy === "Size"}*/}
-                {/*      onCheckedChange={() => setSortBy("Size")}*/}
-                {/*    >*/}
-                {/*      Size*/}
-                {/*    </DropdownMenuCheckboxItem>*/}
-                {/*    <DropdownMenuCheckboxItem*/}
-                {/*      checked={sortBy === "Date"}*/}
-                {/*      onCheckedChange={() => setSortBy("Date")}*/}
-                {/*    >*/}
-                {/*      Date*/}
-                {/*    </DropdownMenuCheckboxItem>*/}
-                {/*  </DropdownMenuSubContent>*/}
+                {/* <DropdownMenuSubTrigger>Sort by</DropdownMenuSubTrigger>*/}
+                {/* <DropdownMenuSubContent>*/}
+                {/* <DropdownMenuCheckboxItem*/}
+                {/* checked={sortBy === "Name"}*/}
+                {/* onCheckedChange={() => setSortBy("Name")}*/}
+                {/* >*/}
+                {/* Name*/}
+                {/* </DropdownMenuCheckboxItem>*/}
+                {/* <DropdownMenuCheckboxItem*/}
+                {/* checked={sortBy === "Size"}*/}
+                {/* onCheckedChange={() => setSortBy("Size")}*/}
+                {/* >*/}
+                {/* Size*/}
+                {/* </DropdownMenuCheckboxItem>*/}
+                {/* <DropdownMenuCheckboxItem*/}
+                {/* checked={sortBy === "Date"}*/}
+                {/* onCheckedChange={() => setSortBy("Date")}*/}
+                {/* >*/}
+                {/* Date*/}
+                {/* </DropdownMenuCheckboxItem>*/}
+                {/* </DropdownMenuSubContent>*/}
                 {/*</DropdownMenuSub>*/}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Favorite</DropdownMenuSubTrigger>
@@ -322,19 +325,28 @@ function ListView() {
                   <DropdownMenuSubTrigger>Categories</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     {Object.values(ECADCategory).map((category) => {
+                      const isChecked = categoryFilter.includes(category);
                       return (
                         <DropdownMenuCheckboxItem
                           key={category}
-                          checked={categoryFilter === category}
-                          onCheckedChange={() => setCategoryFilter(category)}
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setCategoryFilter((prev) => [...prev, category]);
+                            } else {
+                              setCategoryFilter((prev) =>
+                                prev.filter((c) => c !== category),
+                              );
+                            }
+                          }}
                         >
                           {category}
                         </DropdownMenuCheckboxItem>
                       );
                     })}
                     <DropdownMenuCheckboxItem
-                      checked={categoryFilter === "all"}
-                      onCheckedChange={() => setCategoryFilter("all")}
+                      checked={categoryFilter.length === 0}
+                      onCheckedChange={() => setCategoryFilter([])}
                     >
                       All
                     </DropdownMenuCheckboxItem>
@@ -345,15 +357,15 @@ function ListView() {
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-foreground">
               {/*{sortBy && (*/}
-              {/*  <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">*/}
-              {/*    Sort By: {sortBy}*/}
-              {/*    {sortBy !== "Date" && (*/}
-              {/*      <X*/}
-              {/*        className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"*/}
-              {/*        onClick={() => setSortBy("Date")}*/}
-              {/*      />*/}
-              {/*    )}*/}
-              {/*  </span>*/}
+              {/* <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">*/}
+              {/* Sort By: {sortBy}*/}
+              {/* {sortBy !== "Date" && (*/}
+              {/* <X*/}
+              {/* className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"*/}
+              {/* onClick={() => setSortBy("Date")}*/}
+              {/* />*/}
+              {/* )}*/}
+              {/* </span>*/}
               {/*)}*/}
               {favoritesOnly && (
                 <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
@@ -373,15 +385,22 @@ function ListView() {
                   />
                 </span>
               )}
-              {categoryFilter !== "all" && (
-                <span className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2">
-                  Category: {categoryFilter}
+              {categoryFilter.map((category) => (
+                <span
+                  key={category}
+                  className="bg-muted px-3 py-1.5 rounded-md border inline-flex items-center gap-2"
+                >
+                  Category: {category}
                   <X
                     className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
-                    onClick={() => setCategoryFilter("all")}
+                    onClick={() =>
+                      setCategoryFilter((prev) =>
+                        prev.filter((c) => c !== category),
+                      )
+                    }
                   />
                 </span>
-              )}
+              ))}
             </div>
           </div>
 

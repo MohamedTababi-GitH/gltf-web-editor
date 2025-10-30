@@ -8,7 +8,7 @@ export interface ModelItem {
   createdOn: string;
   format: string;
   url: string;
-  category: Category;
+  categories: Category[];
   description: string;
   additionalFiles: AdditionalFile[];
   isFavourite: boolean;

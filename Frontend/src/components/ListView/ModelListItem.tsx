@@ -27,6 +27,8 @@ import {
   Tags,
   Star,
   Calendar,
+  Plus,
+  X,
 } from "lucide-react";
 import type { ModelItem } from "@/types/ModelItem.ts";
 import {
@@ -57,6 +59,13 @@ import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { type Category, ECADCategory } from "@/types/Category.ts";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Checkbox } from "@/components/ui/checkbox.tsx";
 
 function ModelListItem({
   item,
@@ -72,15 +81,16 @@ function ModelListItem({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
   const [editData, setEditData] = useState<{
     alias: string;
     description: string;
-    category: Category | null;
+    categories: Category[] | [];
   }>({
     alias: item.name || "",
     description: item.description || "",
-    category: item.category || "",
+    categories: item.categories || [],
   });
 
   const apiClient = useAxiosConfig();
@@ -105,7 +115,8 @@ function ModelListItem({
       await apiClient.put(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
         description: editData.description?.trim() || null,
-        category: editData.category?.trim() || null,
+        categories:
+          editData?.categories?.length > 0 ? editData.categories : null,
         IsFavourite: newFavoriteStatus,
       });
 
@@ -137,7 +148,8 @@ function ModelListItem({
       await apiClient.put(`/api/model/${item.id}/details`, {
         newAlias: editData.alias.trim(),
         description: editData.description?.trim() || null,
-        category: editData.category?.trim() || null,
+        categories:
+          editData?.categories?.length > 0 ? editData.categories : null,
         IsFavourite: isFavorite,
       });
       setIsEditOpen(false);
@@ -164,25 +176,68 @@ function ModelListItem({
     <>
       <div className={`relative p-0 select-none`}>
         {/*{item.isLatest/isNew && (*/}
-        {/*  <span className="absolute cursor-pointer top-0 left-0 inline-flex items-center w-15 rounded-br-xl rounded-tl-xl justify-center bg-linear-to-r from-indigo-500 to-indigo-700 px-2 py-1 text-xs font-semibold text-white">*/}
-        {/*    New*/}
-        {/*  </span>*/}
+        {/* <span className="absolute cursor-pointer top-0 left-0 inline-flex items-center w-15 rounded-br-xl rounded-tl-xl justify-center bg-linear-to-r from-indigo-500 to-indigo-700 px-2 py-1 text-xs font-semibold text-white">*/}
+        {/* New*/}
+        {/* </span>*/}
         {/*)}*/}
 
         <Card
           className="flex flex-col max-w-md hover:bg-muted/65 transition-colors cursor-pointer overflow-hidden pb-0 gap-2"
-          onClick={onClick}
+          onClick={() => {
+            if (isEditOpen || isDeleteDialogOpen || isActionMenuOpen) return;
+            onClick();
+          }}
         >
           <CardHeader className="pb-0 mt-2">
             <div className="flex justify-between items-start gap-4">
               <div className="flex-1 min-w-0 w-0">
                 <CardTitle className="text-lg truncate">{item.name}</CardTitle>
-                <CardDescription className={`min-h-8`}>
-                  {item.category && (
-                    <span className="inline-flex mt-1 items-center rounded-md gap-1 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-                      <Tags className={`size-4`} />
-                      {item.category}
-                    </span>
+                <CardDescription className={`min-h-8 max-h-8 pt-1`}>
+                  {item.categories && item.categories.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span
+                        key={item.categories[0]}
+                        className="inline-flex items-center rounded-md gap-1 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
+                      >
+                        <Tags className={`size-3.5`} />
+                        {item.categories[0]}
+                      </span>
+
+                      {item.categories.length > 1 && (
+                        <Popover>
+                          <PopoverTrigger
+                            asChild
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                          >
+                            <span className="inline-flex items-center rounded-md bg-muted-foreground/10 px-2 py-0.5 text-xs font-semibold text-muted-foreground cursor-pointer hover:bg-muted-foreground/20">
+                              +{item.categories.length - 1}
+                            </span>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="max-w-xs p-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                          >
+                            <p className="font-semibold mb-1 text-sm">
+                              More Categories:
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {item.categories.slice(1).map((category) => (
+                                <span
+                                  key={category}
+                                  className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground"
+                                >
+                                  {category}
+                                </span>
+                              ))}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
                   )}
                 </CardDescription>
               </div>
@@ -206,7 +261,7 @@ function ModelListItem({
                 />
               </Button>
 
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={setIsActionMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -329,7 +384,11 @@ function ModelListItem({
       </AlertDialog>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent onClick={stopPropagation} className="sm:max-w-[425px]">
+        <DialogContent
+          onClick={stopPropagation}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="sm:max-w-[425px]"
+        >
           <DialogHeader>
             <DialogTitle>Edit Model Info</DialogTitle>
             <DialogDescription>
@@ -362,52 +421,81 @@ function ModelListItem({
                 placeholder="A brief description of the model"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="fileAlias" className={`text-right`}>
-                Category
-              </Label>
-              <div className="col-span-3">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 hover:text-foreground transition">
-                      <Tags className="w-5 h-5" />
-                      <span>{editData.category || "Choose a category"}</span>
+
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label className="text-right pt-2">Categories</Label>
+              <div className="col-span-3 flex flex-wrap gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="flex flex-col gap-1 p-2">
+                      <Label className="px-2 py-1.5 text-sm font-semibold">
+                        Assign categories
+                      </Label>
+                      {Object.values(ECADCategory).map((value) => {
+                        const isChecked = editData.categories.some(
+                          (v) => v === value,
+                        );
+                        return (
+                          <Label
+                            key={value}
+                            className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted font-normal cursor-pointer"
+                          >
+                            <Checkbox
+                              id={`category-${value}`}
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                setEditData((prev) => ({
+                                  ...prev,
+                                  categories: checked
+                                    ? [...prev.categories, value]
+                                    : prev.categories.filter(
+                                        (v) => v !== value,
+                                      ),
+                                }));
+                              }}
+                            />
+                            {value}
+                          </Label>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {editData.categories.map((category) => (
+                  <Badge
+                    key={category}
+                    variant="secondary"
+                    className="flex items-center gap-1 pr-1"
+                  >
+                    {category}
+                    <button
+                      type="button"
+                      className="rounded-full hover:bg-muted-foreground/20 p-0.5"
+                      onClick={() => {
+                        setEditData((prev) => ({
+                          ...prev,
+                          categories: prev.categories.filter(
+                            (c) => c !== category,
+                          ),
+                        }));
+                      }}
+                    >
+                      <X className="h-3 w-3 cursor-pointer" />
                     </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {Object.values(ECADCategory).map((value) => {
-                      return (
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            stopPropagation(e);
-                            setEditData({
-                              ...editData,
-                              category: value,
-                            });
-                          }}
-                        >
-                          {value}
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </Badge>
+                ))}
               </div>
             </div>
-            {editData.category && (
-              <div className="grid grid-cols-4 items-center gap-4">
-                <div className="col-span-1" />
-                <div className="col-span-3">
-                  <Button
-                    onClick={() => setEditData({ ...editData, category: null })}
-                    className={`w-fit`}
-                    variant={"link"}
-                  >
-                    Remove category
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -416,7 +504,7 @@ function ModelListItem({
                   setEditData({
                     alias: item.name || "",
                     description: item.description || "",
-                    category: item.category || "",
+                    categories: item.categories || [],
                   });
                 }}
                 variant="outline"
