@@ -33,7 +33,7 @@ function Cursors({
     { name: CursorEnum.Rotate, icon: RotateCw },
   ];
   return (
-    <div className="absolute left-4 top-1/2 z-10 -translate-y-1/2">
+    <div className="absolute left-4 top-1/2 z-10 -translate-y-1/2  sm:mt-4">
       <div className="flex flex-col items-center gap-2 rounded-xl border bg-popover/60 p-2 text-popover-foreground shadow-lg backdrop-blur-xl">
         {tools.map((tool) => (
           <Tooltip key={tool.name}>
@@ -42,7 +42,7 @@ function Cursors({
                 onClick={() => setSelectedTool(tool.name)}
                 variant="default"
                 size="icon"
-                className={`rounded-md lg:rounded-lg w-7 h-7 lg:w-12 lg:h-12 ${tool.name === selectedTool ? "bg-primary text-background" : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"}`}
+                className={`rounded-md lg:rounded-lg w-6 h-6 lg:w-12 lg:h-12 ${tool.name === selectedTool ? "bg-primary text-background" : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"}`}
               >
                 <tool.icon />
               </Button>
