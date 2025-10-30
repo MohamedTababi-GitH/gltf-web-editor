@@ -16,7 +16,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ setShowViewer }) => {
       <div
         className={`transition-all duration-300 w-full ${open ? "md:w-[calc(100%-var(--sidebar-width))]" : "w-full"}`}
       >
-        <ThreeApp />
+        <ThreeApp setShowViewer={setShowViewer} />
       </div>
 
       <SidebarTrigger
@@ -25,7 +25,7 @@ const ModelViewer: React.FC<ModelViewerProps> = ({ setShowViewer }) => {
             top-18 right-2 md:h-10 md:w-10 h-8 w-8 bg-sidebar rounded-l-md 
             z-50 transition-all duration-300 ${open ? "md:right-[calc(var(--sidebar-width))] rounded-r-none" : "right-0 rounded-r-md"}`}
       />
-      <AppSidebar setShowViewer={setShowViewer} />
+      <AppSidebar />
     </div>
   );
 };

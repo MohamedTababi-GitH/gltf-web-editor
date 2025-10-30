@@ -8,6 +8,11 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import Cursors from "@/components/ModelViewer/Cursors.tsx";
 import type { Cursor } from "@/types/Cursor.ts";
 import * as THREE from "three";
+import { ArrowLeft } from "lucide-react";
+
+type ThreeAppProps = {
+  setShowViewer: (show: boolean) => void;
+};
 
 function Loading({ progress }: { progress: number }) {
   return (
@@ -18,13 +23,17 @@ function Loading({ progress }: { progress: number }) {
   );
 }
 
-export default function ThreeApp() {
+export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
   const { url, model } = useModel();
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
+  const closeModel = () => {
+    setShowViewer(false);
+  };
+
   useEffect(() => {
     let isMounted = true;
     const objectUrlsToRevoke: string[] = [];
@@ -87,7 +96,22 @@ export default function ThreeApp() {
           <Loading progress={loadingProgress} />
         </div>
       )}
-      <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
+      <div className={`justify-between`}>
+        {/* Back button */}
+        <div className="absolute top-3 left-5 z-20 ">
+          <button
+            onClick={closeModel}
+            className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+          >
+            <ArrowLeft className="size-4 lg:size-5 text-foreground" />
+            {/*<span className="font-medium text-foreground">Close Model</span>*/}
+          </button>
+        </div>
+        <Cursors
+          setSelectedTool={setSelectedTool}
+          selectedTool={selectedTool}
+        />
+      </div>
       <Canvas>
         <color attach="background" args={["#888888"]} />
         <Suspense fallback={null}>

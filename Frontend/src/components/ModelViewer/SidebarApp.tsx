@@ -14,12 +14,8 @@ import { Slider } from "@/components/ui/slider";
 
 import { formatDateTime } from "@/utils/DateTime";
 import { formatBytes } from "@/utils/BytesConverter.ts";
-import { Minimize2, ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useModel } from "@/contexts/ModelContext";
-
-type SidebarProps = {
-  setShowViewer: (show: boolean) => void;
-};
 
 const ExpandableSidebarGroup = ({
   label,
@@ -58,7 +54,7 @@ const ExpandableSidebarGroup = ({
   );
 };
 
-const AppSidebar = ({ setShowViewer }: SidebarProps) => {
+const AppSidebar = () => {
   const { model, meshes, toggleComponentVisibility, toggleComponentOpacity } =
     useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
@@ -80,23 +76,9 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
     { label: "Created On", value: formatDateTime(model.createdOn).fullStr },
   ];
 
-  const closeModel = () => {
-    setShowViewer(false);
-  };
-
   return (
     <Sidebar>
-      <SidebarHeader className="mt-2">
-        <div
-          onClick={() => closeModel()}
-          className="w-full cursor-pointer flex items-center justify-center text-center p-2 rounded-md bg-sidebar-background hover:bg-sidebar-foreground/10 gap-2"
-        >
-          <Minimize2 className="size-5" />
-          <span className="font-medium text-sidebar-foreground/70">
-            Close Model
-          </span>
-        </div>
-
+      <SidebarHeader className="">
         {/* Tabs */}
         <div className="flex mt-4 border-b border-sidebar-foreground/20">
           <button
