@@ -15,14 +15,16 @@ import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import { type Category, ECADCategory } from "@/types/Category.ts";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.tsx";
-import { Tags } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import ModelThumbnail from "@/components/HomeView/ModelThumbnail.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover.tsx";
+import { Checkbox } from "@/components/ui/checkbox.tsx";
+import { useNotification } from "@/contexts/NotificationContext.tsx";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
@@ -37,11 +39,12 @@ export default function ModelUploadDialog({
   const [requiredFiles, setRequiredFiles] = useState<File[]>([]);
   const [fileAlias, setFileAlias] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [category, setCategory] = useState<Category | null>(null);
+  const [categories, setCategories] = useState<Category[] | []>([]);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isUploadDisabled, setIsUploadDisabled] = useState<boolean>(false);
   const [thumbnail, setThumbnail] = useState<string | null>();
   const [needsRequiredFiles, setNeedsRequiredFiles] = useState(false);
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     if (!file) {
@@ -89,12 +92,30 @@ export default function ModelUploadDialog({
 
   const apiClient = useAxiosConfig();
 
-  const handleUpload = async () => {
-    if (!file || !fileAlias || isUploading || description.trim().length > 512)
+  const resetFields = useCallback(() => {
+    setFile(null);
+    setFileAlias("");
+    setDescription("");
+    setCategories([]);
+    setIsUploading(false);
+    setThumbnail(null);
+    setRequiredFiles([]);
+    setNeedsRequiredFiles(false);
+  }, []);
+
+  const handleUpload = useCallback(async () => {
+    if (!file || !fileAlias || isUploading) return;
+
+    if (description.trim().length > 512) {
+      showNotification("Description cannot exceed 512 characters.", "error");
       return;
+    }
 
     if (needsRequiredFiles && requiredFiles.length === 0) {
-      alert("This model requires additional files. Please upload them.");
+      showNotification(
+        "This model requires additional files. Please upload them.",
+        "error",
+      );
       return;
     }
 
@@ -117,8 +138,11 @@ export default function ModelUploadDialog({
 
     formData.append("fileAlias", fileAlias.trim());
     formData.append("originalFileName", file.name);
-    if (category?.trim()) {
-      formData.append("category", category);
+
+    if (categories && categories.length > 0) {
+      categories.forEach((category) => {
+        formData.append("categories", category);
+      });
     }
     if (description?.trim()) {
       formData.append("description", description);
@@ -130,28 +154,34 @@ export default function ModelUploadDialog({
       resetFields();
     } catch (error) {
       console.log(error);
+      showNotification("An unknown error occurred during upload.", "error");
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [
+    file,
+    fileAlias,
+    isUploading,
+    description,
+    needsRequiredFiles,
+    requiredFiles,
+    thumbnail,
+    categories,
+    showNotification,
+    apiClient,
+    onOpenChange,
+    resetFields,
+  ]);
 
-  const resetFields = () => {
-    setFile(null);
-    setFileAlias("");
-    setDescription("");
-    setCategory(null);
-    setIsUploading(false);
-    setThumbnail(null);
-    setRequiredFiles([]);
-    setNeedsRequiredFiles(false);
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      resetFields();
-    }
-    onOpenChange(open);
-  };
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        resetFields();
+      }
+      onOpenChange(open);
+    },
+    [onOpenChange, resetFields],
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -186,35 +216,72 @@ export default function ModelUploadDialog({
                 placeholder="Enter a description"
               />
             </div>
-            <div className="grid w-full max-w-sm items-center gap-3">
-              <Label htmlFor="fileAlias">Category (Optional)</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 hover:text-foreground transition">
-                    <Tags className="w-5 h-5" />
-                    <span>{category || "Choose a category"}</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {Object.values(ECADCategory).map((value) => (
-                    <DropdownMenuItem
-                      key={value}
-                      onClick={() => setCategory(value)}
+
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label className="text-right pt-2">Categories</Label>
+              <div className="col-span-3 flex flex-wrap gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
                     >
-                      {value}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {category && (
-                <Button
-                  onClick={() => setCategory(null)}
-                  className={`w-fit`}
-                  variant={"link"}
-                >
-                  Remove category
-                </Button>
-              )}
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="flex flex-col gap-1 p-2">
+                      <Label className="px-2 py-1.5 text-sm font-semibold">
+                        Assign categories
+                      </Label>
+                      {Object.values(ECADCategory).map((value) => {
+                        const isChecked = categories.some((v) => v === value);
+                        return (
+                          <Label
+                            key={value}
+                            className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted font-normal cursor-pointer"
+                          >
+                            <Checkbox
+                              id={`category-${value}`}
+                              checked={isChecked}
+                              onCheckedChange={(checked) => {
+                                setCategories((prev) =>
+                                  checked
+                                    ? [...prev, value]
+                                    : prev.filter((v) => v !== value),
+                                );
+                              }}
+                            />
+                            {value}
+                          </Label>
+                        );
+                      })}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                {categories.map((category) => (
+                  <Badge
+                    key={category}
+                    variant="secondary"
+                    className="flex items-center gap-1 pr-1"
+                  >
+                    {category}
+                    <button
+                      type="button"
+                      className="rounded-full hover:bg-muted-foreground/20 p-0.5"
+                      onClick={() => {
+                        setCategories((prev) =>
+                          prev.filter((c) => c !== category),
+                        );
+                      }}
+                    >
+                      <X className="h-3 w-3 cursor-pointer" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
             </div>
 
             {canRenderThumbnail && file && (
@@ -234,6 +301,7 @@ export default function ModelUploadDialog({
             setRequiredFiles={setRequiredFiles}
           />
         </div>
+
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline" onClick={resetFields}>

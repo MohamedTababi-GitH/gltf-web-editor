@@ -69,8 +69,12 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
 
   const meta = [
     { label: "Name", value: model.name },
-    { label: "Category", value: model.category },
-    { label: "Description", value: model.description },
+    {
+      label: "Categories",
+      value:
+        model.categories?.length > 0 ? model.categories?.join(", ") : "N/A",
+    },
+    { label: "Description", value: model.description || "N/A" },
     { label: "Size", value: formatBytes(model.sizeBytes) },
     { label: "Format", value: "." + model.format },
     { label: "Created On", value: formatDateTime(model.createdOn).fullStr },
@@ -96,7 +100,7 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
         {/* Tabs */}
         <div className="flex mt-4 border-b border-sidebar-foreground/20">
           <button
-            className={`flex-1 py-2 text-center ${
+            className={`flex-1 py-2 text-center cursor-pointer ${
               activeTab === "metadata"
                 ? "border-b-2 border-primary font-medium"
                 : "text-sidebar-foreground/70"
@@ -106,7 +110,7 @@ const AppSidebar = ({ setShowViewer }: SidebarProps) => {
             File
           </button>
           <button
-            className={`flex-1 py-2 text-center ${
+            className={`flex-1 py-2 text-center cursor-pointer ${
               activeTab === "components"
                 ? "border-b-2 border-primary font-medium"
                 : "text-sidebar-foreground/70"
