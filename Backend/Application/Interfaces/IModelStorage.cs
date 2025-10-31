@@ -13,8 +13,13 @@ public interface IModelStorage
     /// </summary>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of <see cref="ModelFile"/> instances.</returns>
-    Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(int limit, string? cursor,
-        ModelFilter filter, CancellationToken ct = default);
+    Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync
+    (
+        int limit,
+        string? cursor,
+        ModelFilter filter,
+        CancellationToken ct = default
+    );
 
     /// <summary>
     /// Uploads a model file to storage asynchronously.
@@ -25,11 +30,14 @@ public interface IModelStorage
     /// <param name="metadata">Optional metadata to associate with the uploaded file.</param>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
     /// <returns>A task that represents the asynchronous upload operation.</returns>
-    Task UploadAsync(string blobName,
+    Task UploadAsync
+    (
+        string blobName,
         Stream content,
         string contentType,
         IDictionary<string, string>? metadata = null,
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
 
     /// <summary>Deletes blobs whose metadata "Id" equals the provided id.</summary>
     Task<bool> DeleteByIdAsync(Guid id, CancellationToken ct = default);
@@ -43,13 +51,17 @@ public interface IModelStorage
     /// <summary>
     /// Updates the alias metadata for the blob(s) matching the given Id.
     /// </summary>
-    Task<bool> UpdateDetailsAsync(Guid id,
+    Task<bool> UpdateDetailsAsync
+    (
+        Guid id,
         string? newAlias,
         List<string>? categories,
         string? description,
         bool? isFavourite,
-        bool? isNew,
-        CancellationToken ct = default);
+        CancellationToken ct = default
+    );
+    
+    Task<bool> UpdateDetailsAsync(Guid id, CancellationToken ct = default);
 
     Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default);
 }

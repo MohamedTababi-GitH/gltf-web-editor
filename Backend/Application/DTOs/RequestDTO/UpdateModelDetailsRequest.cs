@@ -5,6 +5,5 @@ public class UpdateModelDetailsRequest
     public required string? NewAlias { get; init; }
     public List<string>? Categories { get; set; }
     public required string? Description { get; init; }
-    public required bool? IsFavourite { get; init; }  // null if no change , true/false to set
-    public required bool? IsNew { get; init; } // null if no change, false to set
+    public bool? IsFavourite { get; init; }  // null if no change , true/false to set
 }

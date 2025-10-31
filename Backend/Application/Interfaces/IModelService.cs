@@ -18,7 +18,13 @@ public interface IModelService
     /// <param name="filter"></param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing a list of <see cref="ModelItemDto"/>.</returns>
-    Task<PageResult<ModelItemDto>> ListAsync(int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken);
+    Task<PageResult<ModelItemDto>> ListAsync
+    (
+        int limit,
+        string? cursor,
+        ModelFilter filter,
+        CancellationToken cancellationToken
+    );
 
     /// <summary>
     /// Uploads a model asynchronously based on the specified request data.
@@ -26,13 +32,17 @@ public interface IModelService
     /// <param name="request">The request containing model upload details.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing the upload result as <see cref="UploadResultDto"/>.</returns>
-    Task<UploadResultDto> UploadAsync(
+    Task<UploadResultDto> UploadAsync
+    (
         UploadModelRequest request,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken
+    );
 
-    Task<bool> DeleteAsync(
+    Task<bool> DeleteAsync
+    (
         Guid id,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken
+    );
 
     /// <summary>
     /// Updates the alias metadata of a model by its Id.
@@ -43,6 +53,5 @@ public interface IModelService
         List<string>? categories,
         string? description,
         bool? isFavourite,
-        bool? isNew,
         CancellationToken cancellationToken);
 }
