@@ -222,8 +222,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     /// <returns>True if the update succeeded.</returns>
     /// <exception cref="ValidationException">Thrown when the provided ID or alias is invalid.</exception>
     /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
-    public async Task<bool> UpdateDetailsAsync(
-        Guid id,
+    public async Task<bool> UpdateDetailsAsync(Guid id,
         string? newAlias,
         List<string>? categories,
         string? description,
