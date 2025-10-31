@@ -253,6 +253,7 @@ public class AzureBlobModelStorage : IModelStorage
         List<string>? categories,
         string? description,
         bool? isFavourite,
+        bool? isNew,
         CancellationToken ct = default)
     {
         var updated = false;
@@ -289,7 +290,10 @@ public class AzureBlobModelStorage : IModelStorage
             else
                 metadata.Remove(MetaIsFavourite);
             
-            metadata.Remove(MetaIsNew);
+            if(isNew.HasValue)
+                metadata[MetaIsNew] = isNew.Value ? "true" : "false";
+            else
+                metadata.Remove(MetaIsNew);
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;
@@ -407,7 +411,7 @@ public class AzureBlobModelStorage : IModelStorage
         var nevv = ParseBoolMetadata(md, MetaIsNew);
         
         // IS NEW?
-        if (filter.IsNew.HasValue && nevv != filter.IsNew.Value)
+        if (filter.IsNew is not null && nevv != filter.IsNew.Value)
             return false;
 
         // IS FAVOURITE?
