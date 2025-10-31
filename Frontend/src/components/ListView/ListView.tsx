@@ -200,8 +200,13 @@ function ListView() {
     setIsLoading(true);
   }, []);
 
+  useEffect(() => {
+    if (showViewer && model) {
+      setUrl(model.url);
+    }
+  }, [showViewer, model, setUrl]);
+
   if (showViewer && model) {
-    setUrl(model.url);
     return (
       <SidebarProvider>
         <div className="h-[calc(100vh-4rem)] w-screen">
