@@ -8,7 +8,14 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import Cursors from "@/components/ModelViewer/Cursors.tsx";
 import type { Cursor } from "@/types/Cursor.ts";
 import * as THREE from "three";
-import { ArrowLeft } from "lucide-react";
+import { Redo2, Undo2, X } from "lucide-react";
+import { useHistory } from "@/contexts/HistoryContext.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip.tsx";
 
 type ThreeAppProps = {
   setShowViewer: (show: boolean) => void;
@@ -33,6 +40,10 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
   const closeModel = () => {
     setShowViewer(false);
   };
+  const { undo, redo, undoStack, redoStack } = useHistory();
+
+  const canUndo = undoStack.length > 0;
+  const canRedo = redoStack.length > 0;
 
   useEffect(() => {
     let isMounted = true;
@@ -97,16 +108,52 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
         </div>
       )}
       <div className={`justify-between`}>
-        {/* Back button */}
-        <div className="absolute top-3 left-5 z-20 ">
-          <button
-            onClick={closeModel}
-            className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
-          >
-            <ArrowLeft className="size-4 lg:size-5 text-foreground" />
-            {/*<span className="font-medium text-foreground">Close Model</span>*/}
-          </button>
+        <div className="absolute top-3 left-5 z-20 flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                onClick={closeModel}
+                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+              >
+                <X className="size-4 lg:size-5 text-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Close</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                onClick={undo}
+                disabled={!canUndo}
+                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Undo2 className="size-4 lg:size-5 text-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Undo</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                onClick={redo}
+                disabled={!canRedo}
+                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Redo2 className="size-4 lg:size-5 text-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Redo</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
+
         <Cursors
           setSelectedTool={setSelectedTool}
           selectedTool={selectedTool}
