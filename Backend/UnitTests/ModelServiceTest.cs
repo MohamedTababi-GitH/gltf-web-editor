@@ -414,7 +414,17 @@ public class ModelServiceTest
         var result = await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
         
         // Assert
-        Assert.IsTrue(result);
+        _mockStorage.Verify(s => s.UpdateDetailsAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        
+        Assert.AreEqual("Updated successfully.", result.Message);
+        
     }
 
     [TestMethod]

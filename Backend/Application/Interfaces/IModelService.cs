@@ -47,7 +47,7 @@ public interface IModelService
     /// <summary>
     /// Updates the alias metadata of a model by its Id.
     /// </summary>
-    Task<bool> UpdateDetailsAsync(
+    Task<UpdateResultDto> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
         List<string>? categories,

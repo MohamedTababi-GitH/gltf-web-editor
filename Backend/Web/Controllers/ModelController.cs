@@ -176,7 +176,7 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         // Ask the service to update model details
-        var ok = await _service.UpdateDetailsAsync(
+        var update = await _service.UpdateDetailsAsync(
             id,
             request.NewAlias,
             request.Categories,
@@ -185,9 +185,9 @@ public class ModelController : ControllerBase
             cancellationToken);
 
         // Throw domain-specific exception if not found
-        if (!ok)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+        // if (!update)
+        //     throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-        return NoContent();
+        return Ok( new UpdateResultDto{Message = update.Message} );
     }
 }
