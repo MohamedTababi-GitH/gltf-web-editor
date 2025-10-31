@@ -104,6 +104,7 @@ function ModelListItem({
     : "https://lottie.host/686ee0e1-ae73-4c41-b425-538a3791abb0/SB6QB9GRdW.lottie";
 
   const [isFavorite, setIsFavorite] = useState(item.isFavourite);
+  const [isNew, setIsNew] = useState(item.isNew);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const handleFavoriteToggle = async (e: { stopPropagation: () => void }) => {
@@ -118,13 +119,42 @@ function ModelListItem({
         description: editData.description?.trim() || null,
         categories:
           editData?.categories?.length > 0 ? editData.categories : null,
-        IsFavourite: newFavoriteStatus,
+        isFavorite: newFavoriteStatus,
       });
 
       if (refreshList) refreshList();
     } catch (error) {
       console.error("Failed to update favorite:", error);
       setIsFavorite(!newFavoriteStatus);
+    }
+  };
+
+  const handleIsNewToggle = async (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+
+    const newIsNewStatus = !isNew;
+    setIsNew(newIsNewStatus);
+
+    try {
+      const payload = {
+        newAlias: editData.alias?.trim() || item.name,
+        description: editData.description?.trim() || "",
+        categories:
+          Array.isArray(editData.categories) && editData.categories.length > 0
+            ? editData.categories.map(String)
+            : [],
+        isFavourite: isFavorite,
+        isNew: newIsNewStatus,
+      };
+
+      console.log("Updating model with payload:", payload);
+
+      await apiClient.put(`/api/model/${item.id}/details`, payload);
+
+      if (refreshList) refreshList();
+    } catch (error) {
+      console.error("Failed to update isNew:", error);
+      setIsNew(!newIsNewStatus);
     }
   };
 
@@ -176,17 +206,30 @@ function ModelListItem({
   return (
     <>
       <div className={`relative p-0 select-none`}>
-        {/*{item.isLatest/isNew && (*/}
-        {/* <span className="absolute cursor-pointer top-0 left-0 inline-flex items-center w-15 rounded-br-xl rounded-tl-xl justify-center bg-linear-to-r from-indigo-500 to-indigo-700 px-2 py-1 text-xs font-semibold text-white">*/}
-        {/* New*/}
-        {/* </span>*/}
-        {/*)}*/}
+        {isNew && (
+          <span
+            className="
+                absolute top-0 left-0
+                inline-flex items-center justify-center
+                bg-gradient-to-r from-indigo-500 to-indigo-700
+                text-white text-xs font-semibold
+                rounded-br-xl rounded-tl-xl
+                px-2 py-1
+                select-none
+                shadow-md
+              "
+          >
+            New
+          </span>
+        )}
 
         <Card
           className="flex flex-col max-w-md hover:bg-muted/65 transition-colors cursor-pointer overflow-hidden pb-0 gap-2"
           onClick={() => {
             if (isEditOpen || isDeleteDialogOpen || isActionMenuOpen) return;
             onClick();
+            // Mark model as opened (no longer new)
+            if (isNew) handleIsNewToggle({ stopPropagation: () => {} });
           }}
         >
           <CardHeader className="pb-0 mt-2">
