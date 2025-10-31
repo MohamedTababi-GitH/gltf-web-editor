@@ -48,6 +48,7 @@ public interface IModelStorage
         List<string>? categories,
         string? description,
         bool? isFavourite,
+        bool? isNew,
         CancellationToken ct = default);
 
     Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default);

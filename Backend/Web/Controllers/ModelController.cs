@@ -181,7 +181,8 @@ public class ModelController : ControllerBase
             request.NewAlias,
             request.Categories,
             request.Description,
-            request.IsFavourite,
+            request.IsFavourite, 
+            request.IsNew,
             cancellationToken);
 
         // Throw domain-specific exception if not found
