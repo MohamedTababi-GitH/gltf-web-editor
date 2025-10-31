@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import Cursors from "@/components/ModelViewer/Cursors.tsx";
 import type { Cursor } from "@/types/Cursor.ts";
 import * as THREE from "three";
-import { Redo2, Undo2, X } from "lucide-react";
+import { Redo2, Undo2, X, Keyboard } from "lucide-react";
 import { useHistory } from "@/contexts/HistoryContext.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -16,6 +16,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip.tsx";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover.tsx";
+import { Cursor as CursorEnum } from "@/types/Cursor.ts";
 
 type ThreeAppProps = {
   setShowViewer: (show: boolean) => void;
@@ -44,6 +50,25 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
 
   const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
+
+  const [undoShortcut, setUndoShortcut] = useState("Ctrl+Z");
+  const [redoShortcut, setRedoShortcut] = useState("Ctrl+Y");
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cursorTools = [
+    { name: CursorEnum.Select, shortcut: "S" },
+    { name: CursorEnum.MultiSelect, shortcut: "X" },
+    { name: CursorEnum.Move, shortcut: "M" },
+    { name: CursorEnum.Translate, shortcut: "T" },
+    { name: CursorEnum.Scale, shortcut: "C" },
+    { name: CursorEnum.Rotate, shortcut: "R" },
+  ];
+
+  useEffect(() => {
+    const isMac = /Mac/i.test(navigator.userAgent);
+    setUndoShortcut(isMac ? "⌘+Z" : "Ctrl+Z");
+    setRedoShortcut(isMac ? "⌘+Y" : "Ctrl+Y");
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,6 +125,29 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     };
   }, [url, model]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+
+      const tool = cursorTools.find(
+        (t) => t.shortcut.toLowerCase() === event.key.toLowerCase(),
+      );
+
+      if (tool) {
+        event.preventDefault();
+        setSelectedTool(tool.name);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [cursorTools, setSelectedTool]);
+
   return (
     <div className={`w-full h-full relative`}>
       {loadingProgress > 0 && (
@@ -134,7 +182,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Undo</p>
+              <p>Undo ({undoShortcut})</p>
             </TooltipContent>
           </Tooltip>
 
@@ -149,9 +197,65 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Redo</p>
+              <p>Redo ({redoShortcut})</p>
             </TooltipContent>
           </Tooltip>
+          <Popover>
+            <Tooltip>
+              <TooltipTrigger asChild={true}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+                  >
+                    <Keyboard className="size-4 lg:size-5 text-foreground" />
+                  </Button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Keyboard Shortcuts</p>
+              </TooltipContent>
+            </Tooltip>
+            <PopoverContent className="w-64">
+              <div className="grid gap-4">
+                <h4 className="font-medium leading-none">Shortcuts</h4>
+                <div className="grid gap-2">
+                  <h5 className="text-sm font-medium text-muted-foreground">
+                    Actions
+                  </h5>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm">Undo</p>
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                      {undoShortcut}
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm">Redo</p>
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                      {redoShortcut}
+                    </kbd>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <h5 className="text-sm font-medium text-muted-foreground">
+                    Tools
+                  </h5>
+                  {cursorTools.map((tool) => (
+                    <div
+                      key={tool.name}
+                      className="flex items-center justify-between"
+                    >
+                      <p className="text-sm">{tool.name}</p>
+                      <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                        {tool.shortcut}
+                      </kbd>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <Cursors
