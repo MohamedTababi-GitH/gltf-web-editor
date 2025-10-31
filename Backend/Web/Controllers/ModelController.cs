@@ -165,7 +165,7 @@ public class ModelController : ControllerBase
     /// <response code="204">Update succeeded.</response>
     /// <response code="400">Invalid ID or request data.</response>
     /// <response code="404">Model not found.</response>
-    [HttpPut("{id:guid}/details")]
+    [HttpPatch("{id:guid}/details")]
     public async Task<IActionResult> PutDetails(
         Guid id,
         [FromBody] UpdateModelDetailsRequest request,
@@ -176,17 +176,7 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         // Ask the service to update model details
-        var update = await _service.UpdateDetailsAsync(
-            id,
-            request.NewAlias,
-            request.Categories,
-            request.Description,
-            request.IsFavourite,
-            cancellationToken);
-
-        // Throw domain-specific exception if not found
-        // if (!update)
-        //     throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+        var update = await _service.UpdateDetailsAsync(id, request, cancellationToken);
 
         return Ok( new UpdateResultDto{Message = update.Message} );
     }

@@ -257,6 +257,51 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         };
     }
 
+    public async Task<UpdateResultDto> UpdateDetailsAsync(
+        Guid id, UpdateModelDetailsRequest request, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+
+        var metadata = new Dictionary<string, string>();
+        
+        var categories = NormalizeList(request.Categories);
+        var description = Normalize(request.Description);
+        var alias = Normalize(request.NewAlias);
+        
+        if (alias is not null && !AliasRegex.IsMatch(alias))
+            throw new ValidationException("The alias format is invalid. It can only contain letters, numbers, and underscores.");
+
+        if (alias is not null)
+            metadata.Add("alias", alias);
+        if(description is not null)
+            metadata.Add("description", description);
+        if (categories is not null)
+            metadata.Add("categories", string.Join(",", categories.Select(c => c.Trim())));
+        if (request.IsFavourite.HasValue)
+            metadata.Add("isFavourite", request.IsFavourite.Value ? "true" : "false");
+        if (request.IsNew.HasValue)
+            metadata.Add("isNew", request.IsNew.Value ? "true" : "false");
+
+        if (metadata.Count == 0)
+            throw new ValidationException("You have to change something to update a model.");
+        
+        var updated = await storage.UpdateDetailsAsync(id, metadata, cancellationToken);
+        
+        if (!updated)
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+        
+        return new UpdateResultDto
+        {
+            Message = "Updated successfully."
+        };
+
+        string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        List<string>? NormalizeList(List<string>? list) =>
+            list?.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+    }
+
     public async Task<UpdateResultDto> UpdateNewAsync(
         Guid id,
         CancellationToken cancellationToken
@@ -265,7 +310,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
         
-        var updated = await storage.UpdateDetailsAsync(id, cancellationToken);
+        var updated = await storage.UpdateNewAsync(id, cancellationToken);
         
         if (!updated)
             throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");

@@ -303,7 +303,30 @@ public class AzureBlobModelStorage : IModelStorage
         return updated;
     }
 
-    public async Task<bool> UpdateDetailsAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> UpdateDetailsAsync(Guid id, Dictionary<string, string> newMetadata,
+        CancellationToken ct = default)
+    {
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
+        {
+            if (blob.Metadata == null) continue;
+            if (!TryMatchesId(blob.Metadata, id)) continue;
+
+            var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
+            if (ext != ".glb" && ext != ".gltf") continue;
+
+            var client = _container.GetBlobClient(blob.Name);
+            var properties = await client.GetPropertiesAsync(cancellationToken: ct);
+            var metadata = properties.Value.Metadata;
+
+            foreach (var key in newMetadata.Keys)
+                metadata[key] = newMetadata[key];
+            
+            await client.SetMetadataAsync(metadata, cancellationToken: ct);
+        }
+        return true;
+    }
+
+    public async Task<bool> UpdateNewAsync(Guid id, CancellationToken ct = default)
     {
         await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
         {
