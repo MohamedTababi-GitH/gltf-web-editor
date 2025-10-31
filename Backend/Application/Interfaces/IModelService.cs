@@ -54,4 +54,10 @@ public interface IModelService
         string? description,
         bool? isFavourite,
         CancellationToken cancellationToken);
+
+    Task<UpdateResultDto> UpdateNewAsync
+    (
+        Guid id,
+        CancellationToken cancellationToken
+    );
 }

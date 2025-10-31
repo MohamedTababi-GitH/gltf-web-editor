@@ -256,4 +256,23 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             Message = "Updated successfully."
         };
     }
+
+    public async Task<UpdateResultDto> UpdateNewAsync(
+        Guid id,
+        CancellationToken cancellationToken
+    )
+    {
+        if (id == Guid.Empty)
+            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+        
+        var updated = await storage.UpdateDetailsAsync(id, cancellationToken);
+        
+        if (!updated)
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+
+        return new UpdateResultDto
+        {
+            Message = ""
+        };
+    }
 }
