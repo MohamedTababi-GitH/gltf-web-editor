@@ -137,7 +137,7 @@ const AppSidebar = () => {
           ) : (
             <ExpandableSidebarGroup
               label="Selected components"
-              defaultOpen={false}
+              defaultOpen={true}
             >
               {meshes.map((mesh) => (
                 <ExpandableSidebarGroup

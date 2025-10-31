@@ -4,6 +4,11 @@ import { useModel } from "@/contexts/ModelContext";
 import * as THREE from "three";
 import { useLoader } from "@react-three/fiber";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import {
+  MultiTransformCommand,
+  type TransformState,
+} from "@/services/MultiTransformCommand.ts";
+import { useHistory } from "@/contexts/HistoryContext.tsx";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -25,6 +30,8 @@ export function Model({
   const initialOffsets = useRef(new Map<THREE.Object3D, THREE.Vector3>());
   const initialRotations = useRef(new Map<THREE.Object3D, THREE.Quaternion>());
   const initialScales = useRef(new Map<THREE.Object3D, THREE.Vector3>());
+  const dragStartStates = useRef<TransformState[]>([]);
+  const { addCommand } = useHistory();
 
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
@@ -47,6 +54,102 @@ export function Model({
     [],
   );
 
+  const updateSidebarMeshes = useCallback(
+    (components: THREE.Object3D[]) => {
+      setMeshes(
+        components.map((component) => {
+          let opacity: number;
+
+          let foundOpacity: number | undefined;
+          component.traverse((child) => {
+            if (foundOpacity !== undefined) return;
+            if (isMesh(child)) {
+              const saved = originalMaterials.current.get(child) as
+                | THREE.Material
+                | THREE.Material[]
+                | undefined;
+              if (saved) {
+                if (Array.isArray(saved)) {
+                  const first = saved[0];
+                  foundOpacity =
+                    "opacity" in first
+                      ? ((first as THREE.Material & { opacity: number })
+                          .opacity ?? 1)
+                      : 1;
+                } else {
+                  foundOpacity =
+                    "opacity" in saved
+                      ? ((saved as THREE.Material & { opacity: number })
+                          .opacity ?? 1)
+                      : 1;
+                }
+              } else {
+                const mat = child.material;
+                if (Array.isArray(mat)) {
+                  const first = mat[0];
+                  foundOpacity =
+                    "opacity" in first
+                      ? ((first as THREE.Material & { opacity: number })
+                          .opacity ?? 1)
+                      : 1;
+                } else {
+                  foundOpacity =
+                    "opacity" in mat
+                      ? ((mat as THREE.Material & { opacity: number })
+                          .opacity ?? 1)
+                      : 1;
+                }
+              }
+            }
+          });
+          // eslint-disable-next-line prefer-const
+          opacity = foundOpacity ?? 1;
+
+          return {
+            id: component.id,
+            name: component.name || "Unnamed Component",
+            X: component.position.x.toFixed(3),
+            Y: component.position.y.toFixed(3),
+            Z: component.position.z.toFixed(3),
+            isVisible: component.visible,
+            opacity: opacity,
+          };
+        }),
+      );
+    },
+    [setMeshes],
+  );
+
+  const handleDragStart = useCallback(() => {
+    dragStartStates.current = selectedComponents.map((comp) => ({
+      position: comp.position.clone(),
+      rotation: comp.quaternion.clone(),
+      scale: comp.scale.clone(),
+    }));
+  }, [selectedComponents]);
+
+  const handleDragEnd = useCallback(() => {
+    const newStates = selectedComponents.map((comp) => ({
+      position: comp.position.clone(),
+      rotation: comp.quaternion.clone(),
+      scale: comp.scale.clone(),
+    }));
+
+    const oldStates = dragStartStates.current;
+
+    if (oldStates.length > 0 && oldStates.length === newStates.length) {
+      const command = new MultiTransformCommand(
+        selectedComponents,
+        oldStates,
+        newStates,
+        updateSidebarMeshes,
+      );
+      addCommand(command);
+    }
+
+    dragStartStates.current = [];
+  }, [selectedComponents, updateSidebarMeshes, addCommand]);
+
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
       const componentToToggle = selectedComponents.find(
@@ -57,7 +160,6 @@ export function Model({
         componentToToggle.visible = newVisibility;
       }
 
-      // 2. Update the context state (meshes array)
       setMeshes((prevMeshes) =>
         prevMeshes.map((mesh) =>
           mesh.id === componentId
@@ -124,72 +226,6 @@ export function Model({
     toggleComponentVisibility,
     toggleComponentOpacity,
   ]);
-
-  const updateSidebarMeshes = useCallback(
-    (components: THREE.Object3D[]) => {
-      setMeshes(
-        components.map((component) => {
-          let opacity = 1;
-
-          // read opacity from original material if highlighted
-          let foundOpacity: number | undefined;
-          component.traverse((child) => {
-            if (foundOpacity !== undefined) return;
-            if (isMesh(child)) {
-              const saved = originalMaterials.current.get(child) as
-                | THREE.Material
-                | THREE.Material[]
-                | undefined;
-              if (saved) {
-                if (Array.isArray(saved)) {
-                  const first = saved[0];
-                  foundOpacity =
-                    "opacity" in first
-                      ? ((first as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
-                } else {
-                  foundOpacity =
-                    "opacity" in saved
-                      ? ((saved as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
-                }
-              } else {
-                const mat = child.material;
-                if (Array.isArray(mat)) {
-                  const first = mat[0];
-                  foundOpacity =
-                    "opacity" in first
-                      ? ((first as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
-                } else {
-                  foundOpacity =
-                    "opacity" in mat
-                      ? ((mat as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
-                }
-              }
-            }
-          });
-          opacity = foundOpacity ?? 1;
-
-          return {
-            id: component.id,
-            name: component.name || "Unnamed Component",
-            X: component.position.x.toFixed(3),
-            Y: component.position.y.toFixed(3),
-            Z: component.position.z.toFixed(3),
-            isVisible: component.visible,
-            opacity: opacity,
-          };
-        }),
-      );
-    },
-    [setMeshes],
-  );
 
   const gltf = useLoader(GLTFLoader, processedUrl, (loader) => {
     loader.manager.onProgress = (_url, loaded, total) => {
@@ -443,6 +479,8 @@ export function Model({
             }
             size={1}
             onObjectChange={handleGizmoChange}
+            onMouseDown={handleDragStart}
+            onMouseUp={handleDragEnd}
           />
         )}
       <group ref={groupRef}>
