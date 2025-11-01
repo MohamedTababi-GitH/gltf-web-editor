@@ -191,34 +191,25 @@ public class ModelController : ControllerBase
     }
     
     [HttpPost("{assetId}/state")]
-    [Consumes("multipart/form-data", "application/json")]
-    [RequestSizeLimit(1048576)] // 1 MB 
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(1048576)] // ~1 MB
     public async Task<IActionResult> SaveState(
         [FromRoute] string assetId,
-
-        // Option 1: frontend sends it inline as plain text field
-        [FromForm] string? stateJson,
-
-        // Option 2: frontend sends it as a file "stateFile"
-        [FromForm] IFormFile? stateFile,
-
-        // Optional: future version label, e.g. "v3"
-        [FromForm] string? targetVersion,
-
+        [FromForm] SaveStateFormRequest form,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(assetId))
             throw new BadRequestException("AssetId is required.");
 
-        // normalize to one string
-        string finalStateJson = stateJson ?? string.Empty;
+        // normalize content
+        string finalStateJson = form.StateJson ?? string.Empty;
 
         if (string.IsNullOrEmpty(finalStateJson))
         {
-            if (stateFile is null)
-                throw new BadRequestException("Either 'stateJson' or 'stateFile' must be provided.");
+            if (form.StateFile is null)
+                throw new BadRequestException("Either 'StateJson' or 'StateFile' must be provided.");
 
-            using var reader = new StreamReader(stateFile.OpenReadStream());
+            using var reader = new StreamReader(form.StateFile.OpenReadStream());
             finalStateJson = await reader.ReadToEndAsync(cancellationToken);
         }
 
@@ -228,7 +219,7 @@ public class ModelController : ControllerBase
         var request = new UpdateStateRequest
         {
             AssetId = assetId,
-            TargetVersion = targetVersion,
+            TargetVersion = form.TargetVersion,
             StateJson = finalStateJson
         };
 
