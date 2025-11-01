@@ -30,4 +30,6 @@ public sealed class ModelItemDto
     public bool IsFavourite { get; init; } 
     public bool IsNew { get; init; }
     public List<AdditionalFileDto>? AdditionalFiles { get; init; }
+    public List<StateFileDto>? StateFiles { get; init; }
+
 }

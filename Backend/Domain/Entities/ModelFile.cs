@@ -43,4 +43,5 @@ public class ModelFile
     public bool IsFavourite { get; init; }
     public bool IsNew { get; init; }
     public List<AdditionalFile>? AdditionalFiles { get; init; }
+    public List<StateFile>? StateFiles { get; init; }
 }
