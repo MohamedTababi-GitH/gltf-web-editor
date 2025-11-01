@@ -4,6 +4,7 @@ using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Middleware;
 using ECAD_Backend.Infrastructure.Options;
+using ECAD_Backend.Infrastructure.Services;
 using ECAD_Backend.Infrastructure.Storage;
 using Microsoft.Extensions.Options;
 
@@ -22,10 +23,12 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<ConflictExceptionHandler>();
 
 // adding Global exception handeler
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>(); // Keep this last
 // Blob container factory: supports either a SAS container URL or a real connection string
+
 services.AddSingleton<BlobContainerClient>(sp =>
 {
     var opts = sp.GetRequiredService<IOptions<BlobOptions>>().Value;
@@ -48,6 +51,7 @@ services.AddSingleton<BlobContainerClient>(sp =>
 // App services
 services.AddScoped<IModelStorage, AzureBlobModelStorage>();
 services.AddScoped<IModelService, ModelService>();
+services.AddSingleton<ILockService, BlobLeaseLockService>();
 
 // MVC / Swagger / CORS
 services.AddControllers();
@@ -81,5 +85,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapFallbackToFile("index.html");
+
+// Initialize the lock service's container.
+using (var scope = app.Services.CreateScope())
+{
+    var lockService = (BlobLeaseLockService)scope.ServiceProvider.GetRequiredService<ILockService>();
+    await lockService.InitializeAsync(CancellationToken.None);
+}
 
 app.Run();
