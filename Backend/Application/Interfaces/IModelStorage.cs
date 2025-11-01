@@ -52,10 +52,6 @@ public interface IModelStorage
 
     Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default);
 
-    Task UploadOrOverwriteAsync(
-        string blobName,
-        Stream content,
-        string contentType,
-        IDictionary<string, string>? metadata = null,
-        CancellationToken ct = default);
+    Task UploadOrOverwriteAsync(string blobName, Stream content, string contentType,
+        IDictionary<string, string>? metadata = null, CancellationToken ct = default);
 }

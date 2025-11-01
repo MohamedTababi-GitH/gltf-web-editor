@@ -189,59 +189,58 @@ public class ModelController : ControllerBase
 
         return NoContent();
     }
-
-    [HttpPost("{assetId}/update")]
-    [Consumes("multipart/form-data")]
-    [RequestSizeLimit(26214400)] // 25 MB
-    public async Task<IActionResult> UpdateExisting(
+    
+    [HttpPost("{assetId}/state")]
+    [Consumes("multipart/form-data", "application/json")]
+    [RequestSizeLimit(1048576)] // 1 MB 
+    public async Task<IActionResult> SaveState(
         [FromRoute] string assetId,
-        [FromForm] List<IFormFile> files,
-        [FromForm] string? newEntryFileName,
-        [FromForm] List<string>? categories,
-        [FromForm] string? description,
-        [FromForm] string? alias,
-        [FromForm] string? targetVersion, // e.g. "v2" in future, optional now
+
+        // Option 1: frontend sends it inline as plain text field
+        [FromForm] string? stateJson,
+
+        // Option 2: frontend sends it as a file "stateFile"
+        [FromForm] IFormFile? stateFile,
+
+        // Optional: future version label, e.g. "v3"
+        [FromForm] string? targetVersion,
+
         CancellationToken cancellationToken)
     {
-        // Basic validation
         if (string.IsNullOrWhiteSpace(assetId))
             throw new BadRequestException("AssetId is required.");
 
-        if (files.Count == 0)
-            throw new BadRequestException("No files were uploaded. Please select a file to upload.");
+        // normalize to one string
+        string finalStateJson = stateJson ?? string.Empty;
 
-        // Convert IFormFile -> (FileName, Stream)
-        var uploadFiles = new List<(string FileName, Stream Content)>();
-        try
+        if (string.IsNullOrEmpty(finalStateJson))
         {
-            foreach (var f in files)
-                uploadFiles.Add((f.FileName, f.OpenReadStream()));
+            if (stateFile is null)
+                throw new BadRequestException("Either 'stateJson' or 'stateFile' must be provided.");
 
-            var request = new UpdateModelRequest
-            {
-                AssetId = assetId,
-                TargetVersion = targetVersion,
-                Files = uploadFiles,
-                NewEntryFileName = newEntryFileName,
-                Categories = categories,
-                Description = description,
-                Alias = alias
-            };
-
-            var result = await _service.UpdateAsync(request, cancellationToken);
-
-            return Ok(new UpdateResultDto
-            {
-                Message = result.Message,
-                AssetId = result.AssetId,
-                Version = result.Version,
-                BlobName = result.BlobName
-            });
+            using var reader = new StreamReader(stateFile.OpenReadStream());
+            finalStateJson = await reader.ReadToEndAsync(cancellationToken);
         }
-        finally
+
+        if (string.IsNullOrWhiteSpace(finalStateJson))
+            throw new BadRequestException("State content is empty.");
+
+        var request = new UpdateStateRequest
         {
-            foreach (var (_, stream) in uploadFiles)
-                await stream.DisposeAsync();
-        }
+            AssetId = assetId,
+            TargetVersion = targetVersion,
+            StateJson = finalStateJson
+        };
+
+        var result = await _service.SaveStateAsync(request, cancellationToken);
+
+        return Ok(new UpdateResultDto
+        {
+            Message = result.Message,
+            AssetId = result.AssetId,
+            Version = result.Version,
+            BlobName = result.BlobName
+        });
     }
+    
 }

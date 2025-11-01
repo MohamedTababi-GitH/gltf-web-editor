@@ -319,8 +319,8 @@ public class AzureBlobModelStorage : IModelStorage
                     ? DefaultContentType
                     : contentType
             },
-            Metadata = metadata,
-            // NOTE: no IfNoneMatch => this will overwrite
+            Metadata = metadata
+            // NOTE: no BlobRequestConditions -> this WILL overwrite
         };
 
         await blobClient.UploadAsync(content, options, ct);

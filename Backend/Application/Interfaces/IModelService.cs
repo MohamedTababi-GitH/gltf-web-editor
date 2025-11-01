@@ -45,5 +45,5 @@ public interface IModelService
         bool? isFavourite,
         CancellationToken cancellationToken);
 
-    Task<UpdateResultDto> UpdateAsync(UpdateModelRequest request, CancellationToken cancellationToken);
+    Task<UpdateResultDto> SaveStateAsync( UpdateStateRequest request, CancellationToken cancellationToken);
 }

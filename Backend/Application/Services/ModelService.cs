@@ -286,111 +286,58 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         return true;
     }
     
-    public async Task<UpdateResultDto> UpdateAsync(UpdateModelRequest request, CancellationToken cancellationToken)
-{
-    // 1. Validate request
-    if (request is null)
-        throw new BadRequestException("The update request is empty.");
-
-    if (string.IsNullOrWhiteSpace(request.AssetId))
-        throw new ValidationException("AssetId is required.");
-
-    if (request.Files is null || request.Files.Count == 0)
-        throw new BadRequestException("No files provided to update.");
-
-    // 2. Decide target folder
-    // Future-proof for versioning:
-    // if TargetVersion is provided, we write to {assetId}/{version}/file
-    // else we write to {assetId}/file
-    var basePrefix = string.IsNullOrWhiteSpace(request.TargetVersion)
-        ? request.AssetId.Trim()
-        : $"{request.AssetId.Trim()}/{request.TargetVersion!.Trim()}";
-
-    // 3. (Optional) You *could* check blob existence here to ensure the assetId is real.
-    // e.g. list blobs with prefix $"{request.AssetId}/" and throw if none.
-
-    // 4. Upload each file
-    //    Important difference from UploadAsync:
-    //    - We PROBABLY want to ALLOW overwrite now.
-    //    That means we either:
-    //      a) expose a new method in storage without IfNoneMatch,
-    //      b) or catch the conflict and retry as "overwrite".
-    //
-    //    I'll assume you add a new overload like:
-    //    storage.UploadOrOverwriteAsync(...)
-    //
-    string? updatedEntryBlobPath = null;
-
-    foreach (var (fileNameRaw, content) in request.Files)
+    public async Task<UpdateResultDto> SaveStateAsync(
+        UpdateStateRequest request,
+        CancellationToken cancellationToken)
     {
-        if (content == null)
-            throw new BadRequestException($"The content of the file '{fileNameRaw}' is empty.");
+        if (request is null)
+            throw new BadRequestException("The state update request is empty.");
 
-        var fileName = Path.GetFileName(fileNameRaw);
-        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(request.AssetId))
+            throw new ValidationException("AssetId is required.");
 
-        // Check allowed extensions (reuse same rule set as create)
-        bool isAllowed = ext is ".glb" or ".gltf" or ".bin" or ".png" or ".jpg" or ".jpeg" or ".webp" or ".ktx2";
-        if (!isAllowed)
-            throw new ValidationException($"The file type of '{fileName}' is not supported.");
+        if (string.IsNullOrWhiteSpace(request.StateJson))
+            throw new ValidationException("StateJson is required.");
+        
+        // No version? -> {assetId}/state/state.json
+        // With version? -> {assetId}/state/{version}/state.json
+        var basePrefix = string.IsNullOrWhiteSpace(request.TargetVersion)
+            ? $"{request.AssetId.Trim()}/state"
+            : $"{request.AssetId.Trim()}/state/{request.TargetVersion!.Trim()}";
 
-        // Blob path
-        var blobName = $"{basePrefix}/{fileName}";
+        var blobName = $"{basePrefix}/state.json";
 
-        // Detect if this is supposed to be new entry file
-        bool isNewEntry = !string.IsNullOrWhiteSpace(request.NewEntryFileName) &&
-                          string.Equals(fileName, request.NewEntryFileName, StringComparison.OrdinalIgnoreCase);
+        // Turn the JSON string into a Stream
+        var jsonBytes = System.Text.Encoding.UTF8.GetBytes(request.StateJson);
+        using var ms = new MemoryStream(jsonBytes);
 
-        // Compute contentType same as UploadAsync
-        var contentType = ext switch
-        {
-            ".glb" => "model/gltf-binary",
-            ".gltf" => "model/gltf+json",
-            ".bin" => "application/octet-stream",
-            ".png" => "image/png",
-            ".jpg" or ".jpeg" => "image/jpeg",
-            ".webp" => "image/webp",
-            ".ktx2" => "image/ktx2",
-            _ => "application/octet-stream"
-        };
-
-        // Build metadata.
-        // We always keep the assetId for traceability.
+        // Metadata for debugging / auditing
         var metadata = new Dictionary<string, string>
         {
-            ["basename"] = fileName,
             ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
-            ["assetId"] = request.AssetId
+            ["assetId"] = request.AssetId,
+            ["isStateFile"] = "true"
         };
 
-        // If this is the designated entry file, refresh alias/categories/description.
-        if (isNewEntry)
+        if (!string.IsNullOrWhiteSpace(request.TargetVersion))
+            metadata["stateVersion"] = request.TargetVersion!.Trim();
+
+        // Overwrite is OK for state snapshots; they’re mutable.
+        await storage.UploadOrOverwriteAsync(
+            blobName: blobName,
+            content: ms,
+            contentType: "application/json",
+            metadata: metadata,
+            ct: cancellationToken);
+
+        return new UpdateResultDto
         {
-            if (!string.IsNullOrWhiteSpace(request.Alias))
-                metadata["alias"] = request.Alias;
-
-            if (request.Categories is { Count: > 0 })
-                metadata["categories"] = string.Join(",", request.Categories.Select(c => c.Trim()));
-
-            if (!string.IsNullOrWhiteSpace(request.Description))
-                metadata["description"] = request.Description.Trim();
-
-            metadata["isFavourite"] = "false";
-
-            updatedEntryBlobPath = blobName;
-        }
-
-        await storage.UploadOrOverwriteAsync(blobName, content, contentType, metadata, cancellationToken);
+            Message = "State saved successfully.",
+            AssetId = request.AssetId,
+            Version = request.TargetVersion,
+            BlobName = blobName
+        };
     }
-
-    return new UpdateResultDto
-    {
-        Message = "Updated successfully.",
-        AssetId = request.AssetId,
-        Version = request.TargetVersion,
-        BlobName = updatedEntryBlobPath
-    };
-}
     
     private static List<string> ExtractReferencedUrisFromGltfJson(string gltfJson)
     {
