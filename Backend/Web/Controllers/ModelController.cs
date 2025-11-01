@@ -9,9 +9,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ECAD_Backend.Web.Controllers;
 
-
-
-
 /// <summary>
 /// Handles API requests related to model files.
 /// </summary>
@@ -44,7 +41,7 @@ public class ModelController : ControllerBase
     [ProducesResponseType(typeof(PageResult<ModelItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
-        [FromQuery, Range(1,100)] int limit = 10,
+        [FromQuery, Range(1, 100)] int limit = 10,
         [FromQuery] string? cursor = null,
         [FromQuery] List<string>? categories = null,
         [FromQuery] bool? isFavourite = null,
@@ -123,7 +120,8 @@ public class ModelController : ControllerBase
 
             // Perform upload via the service layer
             var result = await _service.UploadAsync(request, cancellationToken);
-            return Ok(new UploadResultDto { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
+            return Ok(new UploadResultDto
+                { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         catch (ArgumentException ex)
         {
@@ -150,7 +148,8 @@ public class ModelController : ControllerBase
 
         var deleted = await _service.DeleteAsync(id, cancellationToken);
         if (!deleted)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+            throw new NotFoundException(
+                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return NoContent();
     }
@@ -185,8 +184,64 @@ public class ModelController : ControllerBase
 
         // Throw domain-specific exception if not found
         if (!ok)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+            throw new NotFoundException(
+                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return NoContent();
+    }
+
+    [HttpPost("{assetId}/update")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(26214400)] // 25 MB
+    public async Task<IActionResult> UpdateExisting(
+        [FromRoute] string assetId,
+        [FromForm] List<IFormFile> files,
+        [FromForm] string? newEntryFileName,
+        [FromForm] List<string>? categories,
+        [FromForm] string? description,
+        [FromForm] string? alias,
+        [FromForm] string? targetVersion, // e.g. "v2" in future, optional now
+        CancellationToken cancellationToken)
+    {
+        // Basic validation
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new BadRequestException("AssetId is required.");
+
+        if (files.Count == 0)
+            throw new BadRequestException("No files were uploaded. Please select a file to upload.");
+
+        // Convert IFormFile -> (FileName, Stream)
+        var uploadFiles = new List<(string FileName, Stream Content)>();
+        try
+        {
+            foreach (var f in files)
+                uploadFiles.Add((f.FileName, f.OpenReadStream()));
+
+            var request = new UpdateModelRequest
+            {
+                AssetId = assetId,
+                TargetVersion = targetVersion,
+                Files = uploadFiles,
+                NewEntryFileName = newEntryFileName,
+                Categories = categories,
+                Description = description,
+                Alias = alias
+            };
+
+            var result = await _service.UpdateAsync(request, cancellationToken);
+
+            return Ok(new UpdateResultDto
+            {
+                Message = result.Message,
+                AssetId = result.AssetId,
+                Version = result.Version,
+                BlobName = result.BlobName
+            });
+        }
+        finally
+        {
+            foreach (var (_, stream) in uploadFiles)
+                await stream.DisposeAsync();
+        }
     }
 }

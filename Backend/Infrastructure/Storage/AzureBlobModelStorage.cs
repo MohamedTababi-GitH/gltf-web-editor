@@ -292,6 +292,39 @@ public class AzureBlobModelStorage : IModelStorage
 
         return updated;
     }
+    
+    public async Task UploadOrOverwriteAsync(
+        string blobName,
+        Stream content,
+        string contentType,
+        IDictionary<string, string>? metadata = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(blobName))
+            throw new ArgumentException("Blob name cannot be empty.", nameof(blobName));
+        if (content == null)
+            throw new ArgumentNullException(nameof(content));
+
+        var blobClient = _container.GetBlobClient(blobName);
+
+        metadata ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!metadata.ContainsKey(MetaId))
+            metadata[MetaId] = Guid.NewGuid().ToString("N");
+
+        var options = new BlobUploadOptions
+        {
+            HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = string.IsNullOrEmpty(contentType)
+                    ? DefaultContentType
+                    : contentType
+            },
+            Metadata = metadata,
+            // NOTE: no IfNoneMatch => this will overwrite
+        };
+
+        await blobClient.UploadAsync(content, options, ct);
+    }
 
     #endregion
 
