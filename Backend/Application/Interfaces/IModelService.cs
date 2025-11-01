@@ -55,7 +55,7 @@ public interface IModelService
         bool? isFavourite,
         CancellationToken cancellationToken);
 
-    Task<UpdateResultDto> UpdateNewAsync
+    Task<UpdateResultDto> UpdateIsNewAsync
     (
         Guid id,
         CancellationToken cancellationToken

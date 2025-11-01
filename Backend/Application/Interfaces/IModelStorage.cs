@@ -61,7 +61,7 @@ public interface IModelStorage
         CancellationToken ct = default
     );
     
-    Task<bool> UpdateDetailsAsync(Guid id, CancellationToken ct = default);
+    Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default);
 
     Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default);
 }

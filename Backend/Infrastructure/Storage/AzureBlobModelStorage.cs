@@ -289,12 +289,12 @@ public class AzureBlobModelStorage : IModelStorage
             else
                 metadata.Remove(MetaIsFavourite);
 
-            // metadata[MetaIsNew] = "false";
-            // If you want to be able to set true for New:
+            metadata[MetaIsNew] = "false";
+            // If you want to set the value for isNew:
             // if(isNew.HasValue)
             //     metadata[MetaIsNew] = isNew.Value ? "true" : "false";
             // else
-            //     metadata.Remove(MetaIsNew);<
+            //     metadata.Remove(MetaIsNew);
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;
@@ -303,7 +303,7 @@ public class AzureBlobModelStorage : IModelStorage
         return updated;
     }
 
-    public async Task<bool> UpdateDetailsAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default)
     {
         await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
         {
@@ -316,9 +316,6 @@ public class AzureBlobModelStorage : IModelStorage
             var client = _container.GetBlobClient(blob.Name);
             var properties = await client.GetPropertiesAsync(cancellationToken: ct);
             var metadata = properties.Value.Metadata;
-            
-            // var isfav = ParseBoolMetadata(metadata, MetaIsFavourite);
-            // metadata[MetaIsFavourite] = isfav ? "false" : "true";
             
             metadata[MetaIsNew] = "false";
             

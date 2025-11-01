@@ -184,10 +184,6 @@ public class ModelController : ControllerBase
             request.IsFavourite,
             cancellationToken);
 
-        // Throw domain-specific exception if not found
-        // if (!update)
-        //     throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
-
         return Ok( new UpdateResultDto{Message = update.Message} );
     }
 
@@ -199,7 +195,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var update = await _service.UpdateNewAsync(id, cancellationToken);
+        var update = await _service.UpdateIsNewAsync(id, cancellationToken);
         
         return Ok( new UpdateResultDto{Message = update.Message} );
     }
