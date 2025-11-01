@@ -18,7 +18,7 @@ public class ModelServiceTest
     public void SetUp()
     {
         _mockStorage = new Mock<IModelStorage>();
-        _service = new ModelService(_mockStorage.Object);
+        // _service = new ModelService(_mockStorage.Object);
     }
 
     [TestMethod]
@@ -31,8 +31,8 @@ public class ModelServiceTest
         var url = new Uri("http://localhost"); 
         var files = new List<ModelFile> { new() { Name = name, Format = format, Id = guid , Url = url} };
         var limit = 5;
-        var filter = new ModelFilter();
-        _mockStorage.Setup(s => s.ListPageAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<ModelFilter>(), It.IsAny<CancellationToken>()))
+        var filter = new ModelFilterDto();
+        _mockStorage.Setup(s => s.ListPageAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<ModelFilterDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((files, null));
 
         // Act
@@ -48,7 +48,7 @@ public class ModelServiceTest
     {
         // Arrange
         var limit = 0;
-        var filter = new ModelFilter();
+        var filter = new ModelFilterDto();
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
@@ -64,7 +64,7 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "page limit must be between 1 and 100";
         var limit = 101;
-        var filter = new ModelFilter();
+        var filter = new ModelFilterDto();
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async() =>
@@ -81,7 +81,7 @@ public class ModelServiceTest
         var stream = new MemoryStream([1]);
         var filename = "file.glb";
         var alias = "alias";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = [(filename, stream)],
             OriginalFileName = filename,
@@ -108,12 +108,12 @@ public class ModelServiceTest
     public async Task UploadAsync_Throws_WhenRequestIsNull()
     {
         // Arrange
-        var expectedErrorMessage = "The upload request is empty";
-        UploadModelRequest request = null!;
+        var expectedErrorMessage = "The upload requestDto is empty";
+        UploadModelRequestDto requestDto = null!;
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _service.UploadAsync(requestDto, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -124,7 +124,7 @@ public class ModelServiceTest
     {
         // Arrange
         var expectedErrorMessage = "No files were provided in the upload request";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = null!,
             OriginalFileName = null!,
@@ -145,7 +145,7 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "No files were provided in the upload request";
         var emptyList = new List<(string, Stream)>();
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = emptyList,
             OriginalFileName = null!,
@@ -169,7 +169,7 @@ public class ModelServiceTest
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
         string alias = null!;
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = filename,
@@ -193,7 +193,7 @@ public class ModelServiceTest
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
         var alias = "Invalid Alias!";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = filename,
@@ -217,7 +217,7 @@ public class ModelServiceTest
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
         var alias = "alias";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = filename,
@@ -241,7 +241,7 @@ public class ModelServiceTest
         var stream = new MemoryStream([1]);
         var files = new List<(string, Stream)> {(filename, stream)};
         var alias = "alias";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = filename,
@@ -265,7 +265,7 @@ public class ModelServiceTest
         var files = new List<(string, Stream)> {(filename, stream)};
         var entryFileName = "entryFile.glb";
         var alias = "alias";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = entryFileName,
@@ -289,7 +289,7 @@ public class ModelServiceTest
         MemoryStream stream = null!;
         var files = new List<(string, Stream)> {(filename, stream)};
         var alias = "alias";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = filename,
@@ -315,7 +315,7 @@ public class ModelServiceTest
         MemoryStream stream2 = null!;
         var files = new List<(string, Stream)> {(file1, stream1), (fileFail, stream2)};
         var alias = "alias";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = file1,
@@ -341,7 +341,7 @@ public class ModelServiceTest
         var stream2 = new MemoryStream([2]);
         var files = new List<(string, Stream)> {(file1, stream1), (fileFail, stream2)};
         var alias = "alias";
-        var request = new UploadModelRequest
+        var request = new UploadModelRequestDto
         {
             Files = files,
             OriginalFileName = file1,

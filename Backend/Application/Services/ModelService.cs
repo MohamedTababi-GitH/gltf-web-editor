@@ -4,6 +4,7 @@ using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
+using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Exceptions;
 
@@ -13,129 +14,126 @@ namespace ECAD_Backend.Application.Services;
 /// Provides application logic for managing 3D model files, including validation and interaction with storage.
 /// Orchestrates the validation of model uploads and retrieval of stored models.
 /// </summary>
-public sealed class ModelService(IModelStorage storage) : IModelService
+public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : IModelService
 {
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
-    /// <summary>
-    /// Maps a <see cref="ModelFile"/> entity to a <see cref="ModelItemDto"/> data transfer object.
-    /// </summary>
-    /// <param name="f">The model file entity to map.</param>
-    /// <returns>A <see cref="ModelItemDto"/> representing the model file.</returns>
-    private static ModelItemDto Map(ModelFile f) => new()
-    {
-        Id = f.Id,
-        Name = f.Name,
-        Format = f.Format,
-        SizeBytes = f.SizeBytes,
-        Url = f.Url,
-        CreatedOn = f.CreatedOn,
-        Categories = f.Categories,
-        Description = f.Description,
-        AssetId = f.AssetId,
-        IsFavourite = f.IsFavourite,
-        IsNew = f.IsNew,
-
-        AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
-        {
-            Name = x.Name,
-            Url = x.Url,
-            SizeBytes = x.SizeBytes,
-            CreatedOn = x.CreatedOn,
-            ContentType = x.ContentType
-        }).ToList(),
-
-        StateFiles = f.StateFiles?.Select(s => new StateFileDto
-        {
-            Version = s.Version,
-            Name = s.Name,
-            Url = s.Url,
-            SizeBytes = s.SizeBytes,
-            CreatedOn = s.CreatedOn,
-            ContentType = s.ContentType
-        }).ToList()
-    };
+    #region CRUD Operations
 
     /// <summary>
-    /// Sanitizes a file name by removing directory parts and limiting its length.
+    /// Returns a paginated list of stored model entries based on filter criteria.
     /// </summary>
-    /// <param name="s">The input string to sanitize.</param>
-    /// <returns>A cleaned and safe file name string.</returns>
-    static string Sanitize(string s)
-    {
-        s = s.Replace("/", "").Replace("\\", "").Trim();
-        s = s.Replace("..", "");
-        return s.Length > 120 ? s[..120] : s;
-    }
-
-    /// <summary>
-    /// Retrieves a list of all stored model items.
-    /// </summary>
-    /// <param name="cursor"></param>
-    /// <param name="filter"></param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <param name="limit"></param>
-    /// <returns>A read-only list of <see cref="ModelItemDto"/> representing the stored models.</returns>
-    public async Task<PageResult<ModelItemDto>> ListAsync(
-        int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken)
+    /// <param name="limit">
+    /// The maximum number of items to return in this page. Must be between 1 and 100.
+    /// </param>
+    /// <param name="cursor">
+    /// An opaque continuation token returned by a previous call to <see cref="ListAsync"/>.
+    /// Pass <c>null</c> to start from the beginning.
+    /// </param>
+    /// <param name="filterDto">
+    /// Optional filter criteria (categories, format, search text, etc.).
+    /// </param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
+    /// <returns>
+    /// A <see cref="PageResultDto{T}"/> containing:
+    /// <list type="bullet">
+    /// <item><description><c>Items</c> – the mapped model entries for this page</description></item>
+    /// <item><description><c>NextCursor</c> – a token to request the next page, or <c>null</c> if there are no more results</description></item>
+    /// <item><description><c>HasMore</c> – whether another page is available</description></item>
+    /// <item><description><c>TotalCount</c> – total number of items that match the filter</description></item>
+    /// </list>
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown if <paramref name="limit"/> is outside the allowed range.
+    /// </exception>
+    public async Task<PageResultDto<ModelItemDto>> ListAsync(
+        int limit, string? cursor, ModelFilterDto filterDto, CancellationToken cancellationToken)
     {
         if (limit <= 0 || limit > 100)
             throw new ArgumentOutOfRangeException(nameof(limit), "The page limit must be between 1 and 100.");
 
-        var (files, next) = await storage.ListPageAsync(limit, cursor, filter, cancellationToken);
-        var items = files.Select(Map).ToList();
+        var (files, next) = await storage.ListPageAsync(limit, cursor, filterDto, cancellationToken);
+        var items = files.Select(mapper.ToDto).ToList();
 
         next = string.IsNullOrWhiteSpace(next) ? null : next;
 
         // hasMore strictly follows whether we returned a usable nextCursor
         var hasMore = next is not null;
-        var total = await storage.CountAsync(filter, cancellationToken);
+        var total = await storage.CountAsync(filterDto, cancellationToken);
 
-        return new PageResult<ModelItemDto>(items, next, hasMore, total);
+        return new PageResultDto<ModelItemDto>(items, next, hasMore, total);
     }
 
     /// <summary>
-    /// Validates and uploads a 3D model file and its related files according to the specified request.
+    /// Validates and uploads a new 3D model (and its companion assets) into blob storage.
     /// </summary>
-    /// <param name="request">The upload request containing file content, original file name, and alias.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>An <see cref="UploadResultDto"/> containing the result of the upload operation.</returns>
+    /// <param name="requestDto">
+    /// The upload request containing:
+    /// <list type="bullet">
+    /// <item><description><c>Alias</c> – user-facing name of the model (validated)</description></item>
+    /// <item><description><c>OriginalFileName</c> – the main .glb/.gltf filename used as the "entry" file</description></item>
+    /// <item><description><c>Files</c> – the entry model plus any referenced resources (bin, textures, etc.)</description></item>
+    /// <item><description><c>Categories</c>, <c>Description</c> – optional metadata for discoverability</description></item>
+    /// </list>
+    /// </param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
+    /// <returns>
+    /// An <see cref="UploadResultDto"/> including:
+    /// <list type="bullet">
+    /// <item><description><c>Message</c> – human-readable status</description></item>
+    /// <item><description><c>Alias</c> – the alias that was applied</description></item>
+    /// <item><description><c>BlobName</c> – the fully qualified blob path of the main entry file</description></item>
+    /// </list>
+    /// </returns>
+    /// <remarks>
+    /// Behavior:
+    /// <list type="number">
+    /// <item><description>Generates a new <c>assetId</c> (a folder prefix) for this upload.</description></item>
+    /// <item><description>Ensures the entry file is .glb or .gltf, and if it's .gltf, validates that all referenced external files are present.</description></item>
+    /// <item><description>Uploads all provided files to <c>{assetId}/</c> with appropriate content types and blob metadata.</description></item>
+    /// <item><description>Marks the "entry" file with alias, categories, description, and flags it as <c>isNew=true</c> and <c>isFavourite=false</c>.</description></item>
+    /// </list>
+    /// </remarks>
     /// <exception cref="BadRequestException">
-    /// Thrown when the request or its file contents are missing or inconsistent.
+    /// Thrown when the request is missing required files or the main entry file can't be found in the upload batch.
     /// </exception>
     /// <exception cref="ValidationException">
-    /// Thrown when input validation fails (e.g., alias, file type, or file naming rules).
+    /// Thrown when business rules fail (invalid alias, unsupported extension, missing dependencies for .gltf, etc.).
     /// </exception>
-    public async Task<UploadResultDto> UploadAsync(UploadModelRequest request, CancellationToken cancellationToken)
+    public async Task<UploadResultDto> UploadAsync(UploadModelRequestDto requestDto,
+        CancellationToken cancellationToken)
     {
-        if (request is null)
-            throw new BadRequestException("The upload request is empty. Please provide a valid request.");
+        if (requestDto is null)
+            throw new BadRequestException("The upload requestDto is empty. Please provide a valid requestDto.");
 
-        if (request.Files is null || request.Files.Count == 0)
-            throw new BadRequestException("No files were provided in the upload request. Please select a file to upload.");
+        if (requestDto.Files is null || requestDto.Files.Count == 0)
+            throw new BadRequestException(
+                "No files were provided in the upload requestDto. Please select a file to upload.");
 
         // Validate alias once (applies only to an entry file)
-        if (string.IsNullOrWhiteSpace(request.Alias))
+        if (string.IsNullOrWhiteSpace(requestDto.Alias))
             throw new ValidationException("A name for the model is required. Please provide one.");
-        if (!AliasRegex.IsMatch(request.Alias))
-            throw new ValidationException("The name can only contain letters, numbers, and underscores. Please choose a different Name.");
+        if (!AliasRegex.IsMatch(requestDto.Alias))
+            throw new ValidationException(
+                "The name can only contain letters, numbers, and underscores. Please choose a different Name.");
 
         // Validate the entry file name
-        if (string.IsNullOrWhiteSpace(request.OriginalFileName))
+        if (string.IsNullOrWhiteSpace(requestDto.OriginalFileName))
             throw new ValidationException("The original file name is missing. Please ensure the file has a name.");
 
-        var entryFileName = Path.GetFileName(request.OriginalFileName);
+        var entryFileName = Path.GetFileName(requestDto.OriginalFileName);
         var entryExt = Path.GetExtension(entryFileName).ToLowerInvariant();
 
         if (entryExt != ".glb" && entryExt != ".gltf")
             throw new ValidationException("Original file must be a .glb or .gltf file.");
 
         // Ensure the entry file is present in Files
-        var entryTuple = request.Files.FirstOrDefault(f =>
+        var entryTuple = requestDto.Files.FirstOrDefault(f =>
             string.Equals(Path.GetFileName(f.FileName), entryFileName, StringComparison.OrdinalIgnoreCase));
 
         if (entryTuple.FileName is null)
-            throw new BadRequestException($"The main model file '{entryFileName}' is missing from the uploaded files. Please include it and try again.");
+            throw new BadRequestException(
+                $"The main model file '{entryFileName}' is missing from the uploaded files. Please include it and try again.");
 
         // Extra validation ONLY for .gltf models: ensure required external files exist
         if (entryExt == ".gltf")
@@ -146,6 +144,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             {
                 gltfText = await reader.ReadToEndAsync(cancellationToken);
             }
+
             entryTuple.Content.Position = 0; // rewind after reading so we can still upload it later
 
             // 2. Very light/rough dependency scan:
@@ -154,8 +153,8 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             // We’ll grab anything that looks like an external file.
             var referencedFiles = ExtractReferencedUrisFromGltfJson(gltfText);
 
-            // 3. Check that each referenced file name is present in request.Files
-            var uploadedFileNames = request.Files
+            // 3. Check that each referenced file name is present in requestDto.Files
+            var uploadedFileNames = requestDto.Files
                 .Select(f => Path.GetFileName(f.FileName))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -170,15 +169,16 @@ public sealed class ModelService(IModelStorage storage) : IModelService
                     "Please include all required .bin/texture files and try again.");
             }
         }
-        
+
         var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
 
         // Upload all files under the same {assetId}/ folder
-        foreach (var (fileNameRaw, content) in request.Files)
+        foreach (var (fileNameRaw, content) in requestDto.Files)
         {
             if (content is null)
-                throw new BadRequestException($"The content of the file '{fileNameRaw}' is empty. Please provide a valid file.");
+                throw new BadRequestException(
+                    $"The content of the file '{fileNameRaw}' is empty. Please provide a valid file.");
 
             var fileName = Path.GetFileName(fileNameRaw);
             var ext = Path.GetExtension(fileName).ToLowerInvariant();
@@ -188,7 +188,8 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             bool isAllowed = isEntry || ext is ".bin" or ".png" or ".jpg" or ".jpeg" or ".webp" or ".ktx2";
 
             if (!isAllowed)
-                throw new ValidationException($"The file type of '{fileName}' is not supported. Please upload a valid file type.");
+                throw new ValidationException(
+                    $"The file type of '{fileName}' is not supported. Please upload a valid file type.");
 
             var blobName = $"{assetId}/{fileName}";
             var contentType = ext switch
@@ -213,13 +214,13 @@ public sealed class ModelService(IModelStorage storage) : IModelService
 
             if (isEntry)
             {
-                metadata["alias"] = request.Alias;
+                metadata["alias"] = requestDto.Alias;
 
-                if (request.Categories is { Count: > 0 })
-                    metadata["categories"] = string.Join(",", request.Categories.Select(c => c.Trim()));
+                if (requestDto.Categories is { Count: > 0 })
+                    metadata["categories"] = string.Join(",", requestDto.Categories.Select(c => c.Trim()));
 
-                if (!string.IsNullOrWhiteSpace(request.Description))
-                    metadata["description"] = request.Description.Trim();
+                if (!string.IsNullOrWhiteSpace(requestDto.Description))
+                    metadata["description"] = requestDto.Description.Trim();
 
                 metadata["isFavourite"] = "false";
                 metadata["isNew"] = "true";
@@ -231,19 +232,31 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         return new UploadResultDto
         {
             Message = "Uploaded successfully.",
-            Alias = request.Alias,
+            Alias = requestDto.Alias,
             BlobName = $"{assetId}/{safeBase}{entryExt}"
         };
     }
 
     /// <summary>
-    /// Deletes a model entry and its related files by ID.
+    /// Deletes an existing model (and all of its associated blobs) by logical model ID.
     /// </summary>
-    /// <param name="id">The unique identifier of the model to delete.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>True if deletion succeeded, otherwise false.</returns>
-    /// <exception cref="ValidationException">Thrown when the provided ID is invalid.</exception>
-    /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
+    /// <param name="id">
+    /// The model's <c>Id</c> (not the <c>assetId</c> / blob folder name).
+    /// </param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
+    /// <returns>
+    /// <c>true</c> if the model was found and deleted; otherwise throws.
+    /// </returns>
+    /// <remarks>
+    /// This is a logical delete that delegates to the storage layer.
+    /// The storage layer is responsible for locating all blobs belonging to the model and removing them.
+    /// </remarks>
+    /// <exception cref="ValidationException">
+    /// Thrown if the supplied <paramref name="id"/> is empty.
+    /// </exception>
+    /// <exception cref="NotFoundException">
+    /// Thrown if no model with that ID exists.
+    /// </exception>
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
@@ -251,23 +264,44 @@ public sealed class ModelService(IModelStorage storage) : IModelService
 
         var deleted = await storage.DeleteByIdAsync(id, cancellationToken);
         if (!deleted)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+            throw new NotFoundException(
+                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return true;
     }
 
     /// <summary>
-    /// Updates metadata details for a stored model (alias, category, description, or favourite status).
+    /// Updates mutable metadata on a stored model entry (alias, categories, description, favourite flag).
     /// </summary>
-    /// <param name="id">The unique identifier of the model to update.</param>
-    /// <param name="newAlias">The new alias to assign, or null to remove it.</param>
-    /// <param name="categories">The new categories to assign, or null to remove it.</param>
-    /// <param name="description">The new description to assign, or null to remove it.</param>
-    /// <param name="isFavourite">Whether the model is marked as a favourite.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>True if the update succeeded.</returns>
-    /// <exception cref="ValidationException">Thrown when the provided ID or alias is invalid.</exception>
-    /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
+    /// <param name="id">
+    /// The logical model ID whose metadata should be updated.
+    /// </param>
+    /// <param name="newAlias">
+    /// New alias to assign to the model, or <c>null</c> to clear the alias. If provided, it must match the allowed pattern.
+    /// </param>
+    /// <param name="categories">
+    /// New category list for the model. Whitespace-only values are dropped. Pass <c>null</c> to clear categories.
+    /// </param>
+    /// <param name="description">
+    /// New description for the model. Whitespace-only becomes <c>null</c>, which clears the description.
+    /// </param>
+    /// <param name="isFavourite">
+    /// Whether to mark or unmark this model as a favourite. Pass <c>null</c> to leave unchanged.
+    /// </param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
+    /// <returns>
+    /// An <see cref="UpdateDetailsResultDto"/> with a human-readable status message.
+    /// </returns>
+    /// <remarks>
+    /// This does <b>not</b> modify the underlying 3D binary.  
+    /// It updates blob metadata (e.g. "alias", "description", "categories", "isFavourite") on the relevant entry blob.
+    /// </remarks>
+    /// <exception cref="ValidationException">
+    /// Thrown if <paramref name="id"/> is invalid or if <paramref name="newAlias"/> is provided but does not match the required pattern.
+    /// </exception>
+    /// <exception cref="NotFoundException">
+    /// Thrown if no model with the given ID exists.
+    /// </exception>
     public async Task<UpdateDetailsResultDto> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
@@ -284,19 +318,22 @@ public sealed class ModelService(IModelStorage storage) : IModelService
 
         List<string>? NormalizeList(List<string>? list) =>
             list is null ? null : list.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+
         var normalizedCategories = NormalizeList(categories);
         Normalize(description);
         var alias = Normalize(newAlias);
 
         // Validate alias only if it's being set (not deleted)
         if (alias is not null && !AliasRegex.IsMatch(alias))
-            throw new ValidationException("The alias format is invalid. It can only contain letters, numbers, and underscores.");
+            throw new ValidationException(
+                "The alias format is invalid. It can only contain letters, numbers, and underscores.");
 
         var updated = await storage.UpdateDetailsAsync(
             id, alias, normalizedCategories, Normalize(description), isFavourite, cancellationToken);
 
         if (!updated)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+            throw new NotFoundException(
+                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return new UpdateDetailsResultDto
         {
@@ -304,6 +341,24 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         };
     }
 
+    /// <summary>
+    /// Clears or updates the <c>isNew</c> flag for a model so that it no longer appears as "new" in the UI.
+    /// </summary>
+    /// <param name="id">The logical model ID to update.</param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
+    /// <returns>
+    /// An <see cref="UpdateDetailsResultDto"/> indicating success.
+    /// </returns>
+    /// <remarks>
+    /// This is typically called after the model has been surfaced to the user,
+    /// to stop highlighting it as a newly uploaded asset.
+    /// </remarks>
+    /// <exception cref="ValidationException">
+    /// Thrown if <paramref name="id"/> is invalid.
+    /// </exception>
+    /// <exception cref="NotFoundException">
+    /// Thrown if no model with that ID exists.
+    /// </exception>
     public async Task<UpdateDetailsResultDto> UpdateIsNewAsync(
         Guid id,
         CancellationToken cancellationToken
@@ -311,35 +366,89 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     {
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
-        
+
         var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
-        
+
         if (!updated)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+            throw new NotFoundException(
+                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return new UpdateDetailsResultDto
         {
             Message = ""
         };
     }
-    
-    public async Task<UpdateResultDto> SaveStateAsync(
-        UpdateStateRequest request,
+
+    /// <summary>
+    /// Saves editor state (scene configuration, transforms, annotations, etc.) as JSON under the model's asset folder.
+    /// </summary>
+    /// <param name="requestDto">
+    /// The request containing:
+    /// <list type="bullet">
+    /// <item><description><c>AssetId</c> – the blob folder for this model (the storage identity)</description></item>
+    /// <item><description><c>StateJson</c> – the state payload as JSON text</description></item>
+    /// <item><description><c>TargetVersion</c> (optional) – if provided, the state is saved as a named snapshot/version</description></item>
+    /// </list>
+    /// </param>
+    /// <param name="cancellationToken">Token to cancel the request.</param>
+    /// <returns>
+    /// An <see cref="UpdateStateResultDto"/> containing:
+    /// <list type="bullet">
+    /// <item><description><c>Message</c> – human-readable status</description></item>
+    /// <item><description><c>AssetId</c> – the asset folder the state was written to</description></item>
+    /// <item><description><c>Version</c> – the version label used (if any)</description></item>
+    /// <item><description><c>BlobName</c> – the blob path where the state was stored</description></item>
+    /// </list>
+    /// </returns>
+    /// <remarks>
+    /// Storage layout:
+    /// <list type="bullet">
+    /// <item><description>
+    /// If <c>TargetVersion</c> is <c>null</c> or empty, the state is written (and overwritten) at:
+    /// <c>{assetId}/state/state.json</c>.  
+    /// This represents the "latest working copy".
+    /// </description></item>
+    /// <item><description>
+    /// If <c>TargetVersion</c> is provided (e.g. "v3"), the state is written to:
+    /// <c>{assetId}/state/{TargetVersion}/state.json</c>.  
+    /// This acts as an immutable-ish snapshot / checkpoint / named version.
+    /// </description></item>
+    /// </list>
+    ///
+    /// Each state blob is tagged with metadata such as:
+    /// <c>UploadedAtUtc</c>, <c>assetId</c>, <c>isStateFile=true</c>, and (for snapshots) <c>stateVersion</c>.
+    ///
+    /// The service validates:
+    /// <list type="number">
+    /// <item><description>That <c>AssetId</c> is present</description></item>
+    /// <item><description>That <c>StateJson</c> is syntactically valid JSON</description></item>
+    /// <item><description>That the payload size is within reasonable limits (~1MB)</description></item>
+    /// </list>
+    /// </remarks>
+    /// <exception cref="BadRequestException">
+    /// Thrown if the request is missing or malformed.
+    /// </exception>
+    /// <exception cref="ValidationException">
+    /// Thrown if <c>AssetId</c> is missing, <c>StateJson</c> is missing, <c>StateJson</c> is not valid JSON,
+    /// or the state exceeds size limits.
+    /// </exception>
+    public async Task<UpdateStateResultDto> SaveStateAsync(
+        UpdateStateRequestDto requestDto,
         CancellationToken cancellationToken)
     {
-        if (request is null)
-            throw new BadRequestException("The state update request is empty.");
+        if (requestDto is null)
+            throw new BadRequestException("The state update requestDto is empty.");
 
-        if (string.IsNullOrWhiteSpace(request.AssetId))
+        if (string.IsNullOrWhiteSpace(requestDto.AssetId))
             throw new ValidationException("AssetId is required.");
 
-        if (string.IsNullOrWhiteSpace(request.StateJson))
+        if (string.IsNullOrWhiteSpace(requestDto.StateJson))
             throw new ValidationException("StateJson is required.");
 
         // Enforce valid JSON
         try
         {
-            System.Text.Json.JsonDocument.Parse(request.StateJson);
+            System.Text.Json.JsonDocument.Parse(requestDto.StateJson);
         }
         catch (System.Text.Json.JsonException)
         {
@@ -347,13 +456,13 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         }
 
         // 2. Enforce size ceiling (defense-in-depth in case controller attr changes)
-        var jsonBytes = System.Text.Encoding.UTF8.GetBytes(request.StateJson);
+        var jsonBytes = System.Text.Encoding.UTF8.GetBytes(requestDto.StateJson);
         if (jsonBytes.Length > 1_000_000) // 1 MB
             throw new ValidationException("StateJson is too large.");
 
-        var basePrefix = string.IsNullOrWhiteSpace(request.TargetVersion)
-            ? $"{request.AssetId.Trim()}/state"
-            : $"{request.AssetId.Trim()}/state/{request.TargetVersion!.Trim()}";
+        var basePrefix = string.IsNullOrWhiteSpace(requestDto.TargetVersion)
+            ? $"{requestDto.AssetId.Trim()}/state"
+            : $"{requestDto.AssetId.Trim()}/state/{requestDto.TargetVersion!.Trim()}";
 
         var blobName = $"{basePrefix}/state.json";
 
@@ -362,12 +471,12 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         var metadata = new Dictionary<string, string>
         {
             ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
-            ["assetId"] = request.AssetId,
+            ["assetId"] = requestDto.AssetId,
             ["isStateFile"] = "true"
         };
 
-        if (!string.IsNullOrWhiteSpace(request.TargetVersion))
-            metadata["stateVersion"] = request.TargetVersion!.Trim();
+        if (!string.IsNullOrWhiteSpace(requestDto.TargetVersion))
+            metadata["stateVersion"] = requestDto.TargetVersion!.Trim();
 
         await storage.UploadOrOverwriteAsync(
             blobName: blobName,
@@ -376,49 +485,55 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             metadata: metadata,
             ct: cancellationToken);
 
-        return new UpdateResultDto
+        return new UpdateStateResultDto
         {
             Message = "State saved successfully.",
-            AssetId = request.AssetId,
-            Version = request.TargetVersion,
+            AssetId = requestDto.AssetId,
+            Version = requestDto.TargetVersion,
             BlobName = blobName
         };
     }
-    
+
+    #endregion
+
+    #region Helpers
+
     private static List<string> ExtractReferencedUrisFromGltfJson(string gltfJson)
     {
-        // We're being pragmatic, not doing full schema validation.
-        // We look for `"uri": "something"` patterns and collect file-like values.
-        // We skip data URIs (base64 inlined) like `data:image/png;base64,...`.
         var uris = new List<string>();
 
-        // very lightweight scan – you can upgrade this to real JSON parsing if you want
-        // but let's do a safe parse with System.Text.Json to avoid regexing JSON.
+        // very lightweight scan
         using var doc = System.Text.Json.JsonDocument.Parse(gltfJson);
 
         // 1. buffers[*].uri
-        if (doc.RootElement.TryGetProperty("buffers", out var buffersElem) && buffersElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+        if (doc.RootElement.TryGetProperty("buffers", out var buffersElem) &&
+            buffersElem.ValueKind == System.Text.Json.JsonValueKind.Array)
         {
             foreach (var b in buffersElem.EnumerateArray())
             {
-                if (b.TryGetProperty("uri", out var uriProp) && uriProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                if (b.TryGetProperty("uri", out var uriProp) &&
+                    uriProp.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     var uriVal = uriProp.GetString();
-                    if (!string.IsNullOrWhiteSpace(uriVal) && !uriVal.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrWhiteSpace(uriVal) &&
+                        !uriVal.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
                         uris.Add(uriVal);
                 }
             }
         }
 
         // 2. images[*].uri
-        if (doc.RootElement.TryGetProperty("images", out var imagesElem) && imagesElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+        if (doc.RootElement.TryGetProperty("images", out var imagesElem) &&
+            imagesElem.ValueKind == System.Text.Json.JsonValueKind.Array)
         {
             foreach (var img in imagesElem.EnumerateArray())
             {
-                if (img.TryGetProperty("uri", out var uriProp) && uriProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                if (img.TryGetProperty("uri", out var uriProp) &&
+                    uriProp.ValueKind == System.Text.Json.JsonValueKind.String)
                 {
                     var uriVal = uriProp.GetString();
-                    if (!string.IsNullOrWhiteSpace(uriVal) && !uriVal.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrWhiteSpace(uriVal) &&
+                        !uriVal.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
                         uris.Add(uriVal);
                 }
             }
@@ -426,4 +541,19 @@ public sealed class ModelService(IModelStorage storage) : IModelService
 
         return uris;
     }
+
+    /// <summary>
+    /// Sanitizes a file name by removing directory parts and limiting its length.
+    /// </summary>
+    /// <param name="s">The input string to sanitize.</param>
+    /// <returns>A cleaned and safe file name string.</returns>
+    static string Sanitize(string s)
+    {
+        s = s.Replace("/", "").Replace("\\", "").Trim();
+        s = s.Replace("..", "");
+        return s.Length > 120 ? s[..120] : s;
+    }
+
+    #endregion
+    
 }

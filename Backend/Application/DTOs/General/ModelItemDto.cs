@@ -6,30 +6,68 @@ namespace ECAD_Backend.Application.DTOs.General;
 /// </summary>
 public sealed class ModelItemDto
 {
-    /// Unique identifier of the model file (GUID).
+    /// <summary>
+    /// Gets the unique identifier of the model file (GUID).
+    /// </summary>
     public required Guid Id { get; init; }
 
-    /// Display name or alias of the model.
+    /// <summary>
+    /// Gets the display name or alias of the model.
+    /// </summary>
     public required string Name { get; init; }
 
-    /// File format of the model (e.g., "glb" or "gltf").
+    /// <summary>
+    /// Gets the file format of the model (e.g., "glb" or "gltf").
+    /// </summary>
     public required string Format { get; init; }
 
-    /// Size of the file in bytes, if known.
+    /// <summary>
+    /// Gets the size of the file in bytes.
+    /// </summary>
     public long? SizeBytes { get; init; }
 
-    /// Public URL where the model file can be accessed.
+    /// <summary>
+    /// Gets the public URL where the model file can be accessed.
+    /// </summary>
     public required Uri Url { get; init; }
 
-    /// Timestamp (UTC) when the model was created in storage, if available.
+    /// <summary>
+    /// Gets the timestamp (UTC) when the model was created in storage, if available.
+    /// </summary>
     public DateTimeOffset? CreatedOn { get; init; }
-    
-    public string? AssetId { get; init; }
-    public List<string>? Categories { get; set; }    
-    public string? Description { get; init; }
-    public bool IsFavourite { get; init; } 
-    public bool IsNew { get; init; }
-    public List<AdditionalFileDto>? AdditionalFiles { get; init; }
-    public List<StateFileDto>? StateFiles { get; init; }
 
+    /// <summary>
+    /// Gets the asset identifier associated with the model.
+    /// </summary>
+    public string? AssetId { get; init; }
+
+    /// <summary>
+    /// Gets or sets the list of categories associated with the model.
+    /// </summary>
+    public List<string>? Categories { get; set; }
+
+    /// <summary>
+    /// Gets the description of the model.
+    /// </summary>
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the model is marked as favorite.
+    /// </summary>
+    public bool IsFavourite { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the model is marked as new.
+    /// </summary>
+    public bool IsNew { get; init; }
+
+    /// <summary>
+    /// Gets the list of additional files associated with the model.
+    /// </summary>
+    public List<AdditionalFileDto>? AdditionalFiles { get; init; }
+
+    /// <summary>
+    /// Gets the list of state files associated with the model.
+    /// </summary>
+    public List<StateFileDto>? StateFiles { get; init; }
 }

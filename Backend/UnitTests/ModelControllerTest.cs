@@ -28,7 +28,7 @@ public class ModelControllerTest
     {
         // Arrange
         var name = "Model1";
-        var expectedPage = new PageResult<ModelItemDto>(
+        var expectedPage = new PageResultDto<ModelItemDto>(
             new List<ModelItemDto>{ new()
                 {
                     Name = name,
@@ -37,13 +37,13 @@ public class ModelControllerTest
                     Url = new Uri("http://localhost")
                 }
             }, null, false);
-        _mockService.Setup(s => s.ListAsync(It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<ModelFilter>(), It.IsAny<CancellationToken>()))
+        _mockService.Setup(s => s.ListAsync(It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<ModelFilterDto>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(expectedPage);
 
         // Act
         var result = await _controller.GetAll(limit: 5, cancellationToken: CancellationToken.None);
         var okObject = result.Result as OkObjectResult;
-        var receivedPage = okObject!.Value as PageResult<ModelItemDto>;
+        var receivedPage = okObject!.Value as PageResultDto<ModelItemDto>;
 
         // Assert
         Assert.IsNotNull(okObject);
@@ -72,7 +72,7 @@ public class ModelControllerTest
         
         fileMocked.Setup(f => f.FileName).Returns(fileName);
         fileMocked.Setup(f => f.OpenReadStream()).Returns(memoryStream);
-        _mockService.Setup(s => s.UploadAsync(It.IsAny<UploadModelRequest>(), It.IsAny<CancellationToken>()))
+        _mockService.Setup(s => s.UploadAsync(It.IsAny<UploadModelRequestDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedUploadResult);
 
         // Act

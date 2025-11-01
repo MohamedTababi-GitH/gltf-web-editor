@@ -13,30 +13,44 @@ public interface IModelService
     /// <summary>
     /// Retrieves a read-only list of model items asynchronously.
     /// </summary>
-    /// <param name="limit"></param>
-    /// <param name="cursor"></param>
-    /// <param name="filter"></param>
+    /// <param name="limit">The maximum number of items to return.</param>
+    /// <param name="cursor">The pagination cursor for fetching the next set of results.</param>
+    /// <param name="filterDto">The filter criteria to apply to the model list.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation, containing a list of <see cref="ModelItemDto"/>.</returns>
-    Task<PageResult<ModelItemDto>> ListAsync(int limit, string? cursor, ModelFilter filter, CancellationToken cancellationToken);
+    /// <returns>A task representing the asynchronous operation, containing a paginated list of <see cref="ModelItemDto"/>.</returns>
+    Task<PageResultDto<ModelItemDto>> ListAsync(int limit, string? cursor, ModelFilterDto filterDto,
+        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Uploads a model asynchronously based on the specified request data.
+    /// Uploads a model asynchronously based on the specified requestDto data.
     /// </summary>
-    /// <param name="request">The request containing model upload details.</param>
+    /// <param name="requestDto">The requestDto containing model upload details.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing the upload result as <see cref="UploadResultDto"/>.</returns>
     Task<UploadResultDto> UploadAsync(
-        UploadModelRequest request,
+        UploadModelRequestDto requestDto,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Deletes a model by its unique identifier.
+    /// </summary>
+    /// <param name="id">The unique identifier of the model to delete.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, containing a boolean indicating whether the deletion was successful.</returns>
     Task<bool> DeleteAsync(
         Guid id,
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Updates the alias metadata of a model by its Id.
+    /// Updates the metadata of a model by its unique identifier.
     /// </summary>
+    /// <param name="id">The unique identifier of the model to update.</param>
+    /// <param name="newAlias">The new alias for the model. If null, the existing alias is retained.</param>
+    /// <param name="categories">The updated list of categories. If null, existing categories are retained.</param>
+    /// <param name="description">The new description for the model. If null, the existing description is retained.</param>
+    /// <param name="isFavourite">The new favourite status for the model. If null, the existing status is retained.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, containing the update result.</returns>
     Task<UpdateDetailsResultDto> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
@@ -45,11 +59,22 @@ public interface IModelService
         bool? isFavourite,
         CancellationToken cancellationToken);
 
-    Task<UpdateDetailsResultDto> UpdateIsNewAsync
-    (
+    /// <summary>
+    /// Updates the 'IsNew' status of a model by its unique identifier.
+    /// </summary>
+    /// <param name="id">The unique identifier of the model to update.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, containing the update result.</returns>
+    Task<UpdateDetailsResultDto> UpdateIsNewAsync(
         Guid id,
         CancellationToken cancellationToken
     );
 
-    Task<UpdateResultDto> SaveStateAsync( UpdateStateRequest request, CancellationToken cancellationToken);
+    /// <summary>
+    /// Saves the state of a model asynchronously.
+    /// </summary>
+    /// <param name="requestDto">The request containing the state data to save.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation, containing the state update result.</returns>
+    Task<UpdateStateResultDto> SaveStateAsync(UpdateStateRequestDto requestDto, CancellationToken cancellationToken);
 }
