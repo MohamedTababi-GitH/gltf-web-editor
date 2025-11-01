@@ -54,7 +54,7 @@ public interface IModelService
         CancellationToken cancellationToken
     );
 
-    Task<UpdateResultDto> UpdateNewAsync
+    Task<UpdateResultDto> UpdateIsNewAsync
     (
         Guid id,
         CancellationToken cancellationToken
