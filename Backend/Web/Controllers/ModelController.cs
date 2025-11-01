@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.DTOs.RequestDTO;
@@ -41,8 +42,9 @@ public class ModelController : ControllerBase
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
     [ProducesResponseType(typeof(PageResult<ModelItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
-        [FromQuery] int limit = 10,
+        [FromQuery, Range(1,100)] int limit = 10,
         [FromQuery] string? cursor = null,
         [FromQuery] List<string>? categories = null,
         [FromQuery] bool? isFavourite = null,
