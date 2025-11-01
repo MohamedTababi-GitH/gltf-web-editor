@@ -41,5 +41,6 @@ public class ModelFile
     public string? AssetId { get; init; }
     
     public bool IsFavourite { get; init; }
+    public bool IsNew { get; init; }
     public List<AdditionalFile>? AdditionalFiles { get; init; }
 }

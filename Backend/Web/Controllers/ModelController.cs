@@ -27,14 +27,15 @@ public class ModelController : ControllerBase
     /// <summary>
     /// Retrieves a list of all model items.
     /// </summary>
-    /// <param name="prefix"></param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <param name="limit"></param>
     /// <param name="cursor"></param>
-    /// <param name="category"></param>
+    /// <param name="isNew"></param>
+    /// <param name="categories"></param>
     /// <param name="isFavourite"></param>
     /// <param name="q"></param>
     /// <param name="format"></param>
+    /// <param name="prefix"></param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
@@ -43,6 +44,7 @@ public class ModelController : ControllerBase
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
         [FromQuery, Range(1, 100)] int limit = 10,
         [FromQuery] string? cursor = null,
+        [FromQuery] bool? isNew = null,
         [FromQuery] List<string>? categories = null,
         [FromQuery] bool? isFavourite = null,
         [FromQuery] string? q = null,
@@ -52,6 +54,7 @@ public class ModelController : ControllerBase
     {
         var filter = new ModelFilter
         {
+            IsNew = isNew,
             Categories = categories,
             IsFavourite = isFavourite,
             Q = q,
@@ -73,7 +76,7 @@ public class ModelController : ControllerBase
     /// <param name="files">The uploaded file(s).</param>
     /// <param name="fileAlias">An alias for the uploaded file.</param>
     /// <param name="originalFileName">The original filename of the uploaded model.</param>
-    /// <param name="category">Optional category for the file.</param>
+    /// <param name="categories">Optional categories for the file.</param>
     /// <param name="description">Optional description for the file.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>Returns a message with details about the uploaded file.</returns>
@@ -174,7 +177,7 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         // Ask the service to update model details
-        var ok = await _service.UpdateDetailsAsync(
+        var update = await _service.UpdateDetailsAsync(
             id,
             request.NewAlias,
             request.Categories,
@@ -182,12 +185,20 @@ public class ModelController : ControllerBase
             request.IsFavourite,
             cancellationToken);
 
-        // Throw domain-specific exception if not found
-        if (!ok)
-            throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+    }
 
-        return NoContent();
+    [HttpPatch("{id:guid}/isNew")]
+    public async Task<IActionResult> PutIsNew(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
+
+        var update = await _service.UpdateIsNewAsync(id, cancellationToken);
+        
+        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
     }
     
     [HttpPost("{assetId}/state")]
