@@ -28,5 +28,6 @@ public sealed class ModelItemDto
     public List<string>? Categories { get; set; }    
     public string? Description { get; init; }
     public bool IsFavourite { get; init; } 
+    public bool IsNew { get; init; }
     public List<AdditionalFileDto>? AdditionalFiles { get; init; }
 }

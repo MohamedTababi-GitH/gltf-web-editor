@@ -34,6 +34,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         Description = f.Description,
         AssetId = f.AssetId,                   
         IsFavourite = f.IsFavourite,
+        IsNew = f.IsNew,
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
         {
             Name = x.Name,
@@ -209,6 +210,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
                     metadata["description"] = request.Description.Trim();
 
                 metadata["isFavourite"] = "false";
+                metadata["isNew"] = "true";
             }
 
             await storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
@@ -247,14 +249,14 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     /// </summary>
     /// <param name="id">The unique identifier of the model to update.</param>
     /// <param name="newAlias">The new alias to assign, or null to remove it.</param>
-    /// <param name="category">The new category to assign, or null to remove it.</param>
+    /// <param name="categories">The new categories to assign, or null to remove it.</param>
     /// <param name="description">The new description to assign, or null to remove it.</param>
     /// <param name="isFavourite">Whether the model is marked as a favourite.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>True if the update succeeded.</returns>
     /// <exception cref="ValidationException">Thrown when the provided ID or alias is invalid.</exception>
     /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
-    public async Task<bool> UpdateDetailsAsync(
+    public async Task<UpdateDetailsResultDto> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
         List<string>? categories,
@@ -284,7 +286,29 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         if (!updated)
             throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-        return true;
+        return new UpdateDetailsResultDto
+        {
+            Message = "Updated successfully."
+        };
+    }
+
+    public async Task<UpdateDetailsResultDto> UpdateIsNewAsync(
+        Guid id,
+        CancellationToken cancellationToken
+    )
+    {
+        if (id == Guid.Empty)
+            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+        
+        var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
+        
+        if (!updated)
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+
+        return new UpdateDetailsResultDto
+        {
+            Message = ""
+        };
     }
     
     public async Task<UpdateResultDto> SaveStateAsync(

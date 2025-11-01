@@ -23,6 +23,7 @@ public class AzureBlobModelStorage : IModelStorage
     private const string MetaCategories = "categories";
     private const string MetaDescription = "description";
     private const string MetaIsFavourite = "isFavourite";
+    private const string MetaIsNew = "isNew";
     private const string MetaAssetId = "assetId";
     // private const string MetaUploadedAtUtc = "UploadedAtUtc";
     // private const string MetaBasename = "basename";
@@ -109,6 +110,7 @@ public class AzureBlobModelStorage : IModelStorage
                 var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                 var description = ReadStringMetadataOrNull(md, MetaDescription);
                 var fav = ParseBoolMetadata(md, MetaIsFavourite);
+                var nevv = ParseBoolMetadata(md, MetaIsNew); 
                 var created = blob.Properties.CreatedOn;
                 
 
@@ -124,7 +126,8 @@ public class AzureBlobModelStorage : IModelStorage
                     Description = description,
                     AssetId = assetId,
                     AdditionalFiles = additional,
-                    IsFavourite = fav
+                    IsFavourite = fav,
+                    IsNew = nevv
                 });
 
                 var lastEmittedName = blob.Name;
@@ -287,6 +290,13 @@ public class AzureBlobModelStorage : IModelStorage
             else
                 metadata.Remove(MetaIsFavourite);
 
+            metadata[MetaIsNew] = "false";
+            // If you want to set the value for isNew:
+            // if(isNew.HasValue)
+            //     metadata[MetaIsNew] = isNew.Value ? "true" : "false";
+            // else
+            //     metadata.Remove(MetaIsNew);
+
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;
         }
@@ -325,6 +335,28 @@ public class AzureBlobModelStorage : IModelStorage
         };
 
         await blobClient.UploadAsync(content, options, ct);
+    }
+
+    public async Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default)
+    {
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
+        {
+            if (blob.Metadata == null) continue;
+            if (!TryMatchesId(blob.Metadata, id)) continue;
+
+            var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
+            if (ext != ".glb" && ext != ".gltf") continue;
+
+            var client = _container.GetBlobClient(blob.Name);
+            var properties = await client.GetPropertiesAsync(cancellationToken: ct);
+            var metadata = properties.Value.Metadata;
+            
+            metadata[MetaIsNew] = "false";
+            
+            await client.SetMetadataAsync(metadata, cancellationToken: ct);
+        }
+
+        return true;
     }
 
     #endregion
@@ -433,6 +465,11 @@ public class AzureBlobModelStorage : IModelStorage
         var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
         var description = ReadStringMetadataOrNull(md, MetaDescription);
         var fav = ParseBoolMetadata(md, MetaIsFavourite);
+        var isNew = ParseBoolMetadata(md, MetaIsNew);
+        
+        // IS NEW?
+        if (filter.IsNew is not null && isNew != filter.IsNew.Value)
+            return false;
 
         // IS FAVOURITE?
         if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value)
