@@ -255,7 +255,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     /// <returns>True if the update succeeded.</returns>
     /// <exception cref="ValidationException">Thrown when the provided ID or alias is invalid.</exception>
     /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
-    public async Task<UpdateResultDto> UpdateDetailsAsync(
+    public async Task<UpdateDetailsResultDto> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
         List<string>? categories,
@@ -285,13 +285,13 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         if (!updated)
             throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-        return new UpdateResultDto
+        return new UpdateDetailsResultDto
         {
             Message = "Updated successfully."
         };
     }
 
-    public async Task<UpdateResultDto> UpdateIsNewAsync(
+    public async Task<UpdateDetailsResultDto> UpdateIsNewAsync(
         Guid id,
         CancellationToken cancellationToken
     )
@@ -304,7 +304,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         if (!updated)
             throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-        return new UpdateResultDto
+        return new UpdateDetailsResultDto
         {
             Message = ""
         };

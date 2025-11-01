@@ -186,7 +186,7 @@ public class ModelController : ControllerBase
             request.IsFavourite,
             cancellationToken);
 
-        return Ok( new UpdateResultDto{Message = update.Message} );
+        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
     }
 
     [HttpPatch("{id:guid}/isNew")]
@@ -199,6 +199,6 @@ public class ModelController : ControllerBase
 
         var update = await _service.UpdateIsNewAsync(id, cancellationToken);
         
-        return Ok( new UpdateResultDto{Message = update.Message} );
+        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
     }
 }
