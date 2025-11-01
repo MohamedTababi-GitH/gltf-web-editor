@@ -110,6 +110,7 @@ public class AzureBlobModelStorage : IModelStorage
                 var description = ReadStringMetadataOrNull(md, MetaDescription);
                 var fav = ParseBoolMetadata(md, MetaIsFavourite);
                 var created = blob.Properties.CreatedOn;
+                
 
                 items.Add(new ModelFile
                 {

@@ -32,6 +32,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         CreatedOn = f.CreatedOn,
         Categories = f.Categories,
         Description = f.Description,
+        AssetId = f.AssetId,                   
         IsFavourite = f.IsFavourite,
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
         {
