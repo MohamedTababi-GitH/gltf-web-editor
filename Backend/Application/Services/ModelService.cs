@@ -32,9 +32,10 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         CreatedOn = f.CreatedOn,
         Categories = f.Categories,
         Description = f.Description,
-        AssetId = f.AssetId,                   
+        AssetId = f.AssetId,
         IsFavourite = f.IsFavourite,
         IsNew = f.IsNew,
+
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
         {
             Name = x.Name,
@@ -42,6 +43,16 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             SizeBytes = x.SizeBytes,
             CreatedOn = x.CreatedOn,
             ContentType = x.ContentType
+        }).ToList(),
+
+        StateFiles = f.StateFiles?.Select(s => new StateFileDto
+        {
+            Version = s.Version,
+            Name = s.Name,
+            Url = s.Url,
+            SizeBytes = s.SizeBytes,
+            CreatedOn = s.CreatedOn,
+            ContentType = s.ContentType
         }).ToList()
     };
 

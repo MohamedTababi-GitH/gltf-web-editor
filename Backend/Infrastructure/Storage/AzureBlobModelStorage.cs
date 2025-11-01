@@ -2,6 +2,7 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Cursor;
@@ -24,6 +25,7 @@ public class AzureBlobModelStorage : IModelStorage
     private const string MetaDescription = "description";
     private const string MetaIsFavourite = "isFavourite";
     private const string MetaIsNew = "isNew";
+
     private const string MetaAssetId = "assetId";
     // private const string MetaUploadedAtUtc = "UploadedAtUtc";
     // private const string MetaBasename = "basename";
@@ -44,7 +46,8 @@ public class AzureBlobModelStorage : IModelStorage
         var o = opts.Value;
 
         if (string.IsNullOrWhiteSpace(o.ConnectionString))
-            throw new InvalidOperationException("The storage connection string is missing. Please configure it in the application settings.");
+            throw new InvalidOperationException(
+                "The storage connection string is missing. Please configure it in the application settings.");
 
         // If SAS URL to a container: construct from Uri
         if (o.ConnectionString.TrimStart().StartsWith("http", StringComparison.OrdinalIgnoreCase))
@@ -103,16 +106,17 @@ public class AzureBlobModelStorage : IModelStorage
                 var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
                 var fileUri = BuildBlobUri(blob.Name);
                 var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
-                var additional = await EnumerateAdditionalFilesAsync(assetId, blob.Name, ct);
+                var (additional, stateFiles) = await EnumerateFilesAsync(assetId, blob.Name, ct);
                 var format = GetFormatOrNull(blob.Name)!; // safe due to Matches() check
                 var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
                 var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
-                var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+                var categories = categoriesStr
+                    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
                 var description = ReadStringMetadataOrNull(md, MetaDescription);
                 var fav = ParseBoolMetadata(md, MetaIsFavourite);
-                var nevv = ParseBoolMetadata(md, MetaIsNew); 
+                var nevv = ParseBoolMetadata(md, MetaIsNew);
                 var created = blob.Properties.CreatedOn;
-                
+
 
                 items.Add(new ModelFile
                 {
@@ -126,6 +130,7 @@ public class AzureBlobModelStorage : IModelStorage
                     Description = description,
                     AssetId = assetId,
                     AdditionalFiles = additional,
+                    StateFiles = stateFiles,
                     IsFavourite = fav,
                     IsNew = nevv
                 });
@@ -303,7 +308,7 @@ public class AzureBlobModelStorage : IModelStorage
 
         return updated;
     }
-    
+
     public async Task UploadOrOverwriteAsync(
         string blobName,
         Stream content,
@@ -350,9 +355,9 @@ public class AzureBlobModelStorage : IModelStorage
             var client = _container.GetBlobClient(blob.Name);
             var properties = await client.GetPropertiesAsync(cancellationToken: ct);
             var metadata = properties.Value.Metadata;
-            
+
             metadata[MetaIsNew] = "false";
-            
+
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
         }
 
@@ -420,34 +425,109 @@ public class AzureBlobModelStorage : IModelStorage
            && Guid.TryParse(idStr, out var metaId)
            && metaId == id;
 
-    private async Task<List<AdditionalFile>> EnumerateAdditionalFilesAsync(
-        string assetId, string entryBlobName, CancellationToken ct)
+    private async Task<(List<AdditionalFile> additional, List<StateFile> state)> EnumerateFilesAsync(
+        string assetId,
+        string entryBlobName,
+        CancellationToken ct)
     {
-        var additional = new List<AdditionalFile>();
+        var additionalFiles = new List<AdditionalFile>();
+        var stateFiles = new List<StateFile>();
+
         var prefix = assetId.TrimEnd('/') + "/";
 
+        // We need metadata here, not just properties, so use BlobTraits.Metadata
         await foreach (var sub in _container.GetBlobsAsync(
-                           traits: BlobTraits.None,
+                           traits: BlobTraits.Metadata,
                            states: BlobStates.None,
                            prefix: prefix,
                            cancellationToken: ct))
         {
+            // skip the main model file
             if (string.Equals(sub.Name, entryBlobName, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var subUri = BuildBlobUri(sub.Name);
 
-            additional.Add(new AdditionalFile
+            // Extract timestamp:
+            // Priority: custom metadata["UploadedAtUtc"] we wrote in SaveStateAsync
+            // Fallback: blob.Properties.CreatedOn
+            DateTimeOffset? createdAt = null;
+            if (sub.Metadata != null &&
+                sub.Metadata.TryGetValue("UploadedAtUtc", out var uploadedAtRaw) &&
+                DateTimeOffset.TryParse(uploadedAtRaw, out var dto))
             {
-                Name = Path.GetFileName(sub.Name),
-                Url = subUri,
-                SizeBytes = sub.Properties.ContentLength,
-                CreatedOn = sub.Properties.CreatedOn,
-                ContentType = sub.Properties.ContentType
-            });
+                createdAt = dto;
+            }
+            else
+            {
+                createdAt = sub.Properties.CreatedOn;
+            }
+
+            // Detect if this is a state snapshot
+            // State blobs always live under {assetId}/state/.../state.json
+            bool isStateBlob = sub.Name.Contains("/state/", StringComparison.OrdinalIgnoreCase)
+                               && sub.Name.EndsWith("state.json", StringComparison.OrdinalIgnoreCase);
+
+            if (isStateBlob)
+            {
+                // figure out the version name
+                // examples:
+                //   "{assetId}/state/state.json"           -> "latest"
+                //   "{assetId}/state/v2/state.json"        -> "v2"
+                //   "{assetId}/state/Whatever/state.json"  -> "Whatever"
+                var version = ExtractVersionFromStatePath(sub.Name);
+
+                stateFiles.Add(new StateFile
+                {
+                    Version = version,
+                    Name = Path.GetFileName(sub.Name), // probably "state.json"
+                    Url = subUri,
+                    SizeBytes = sub.Properties.ContentLength,
+                    CreatedOn = createdAt,
+                    ContentType = sub.Properties.ContentType
+                });
+            }
+            else
+            {
+                additionalFiles.Add(new AdditionalFile
+                {
+                    Name = Path.GetFileName(sub.Name),
+                    Url = subUri,
+                    SizeBytes = sub.Properties.ContentLength,
+                    CreatedOn = createdAt,
+                    ContentType = sub.Properties.ContentType
+                });
+            }
         }
 
-        return additional;
+        return (additionalFiles, stateFiles);
+    }
+
+    private static string ExtractVersionFromStatePath(string blobName)
+    {
+        // blobName examples:
+        //   "0c00fb4d3f8f4ec7bf720e125ae91289/state/state.json"
+        //   "0c00fb4d3f8f4ec7bf720e125ae91289/state/v2/state.json"
+        //   "0c00fb4d3f8f4ec7bf720e125ae91289/state/WhateverName_I_Like/state.json"
+
+        var parts = blobName.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // find "state" in path
+        var idx = Array.IndexOf(parts, "state");
+        if (idx == -1)
+            return "unknown";
+
+        // case 1: .../state/state.json  → "latest"
+        // after "state", next is "state.json"? then it's latest
+        if (idx + 1 < parts.Length && parts[idx + 1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
+            return "latest";
+
+        // case 2: .../state/v2/state.json → take parts[idx+1] ("v2")
+        if (idx + 2 < parts.Length && parts[^1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
+            return parts[idx + 1];
+
+        // fallback
+        return "latest";
     }
 
     private static bool Matches(ModelFilter filter, BlobItem blob, IDictionary<string, string> md)
@@ -463,11 +543,13 @@ public class AzureBlobModelStorage : IModelStorage
         // METADATA
         var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
         var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
-        var categories = categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
+        var categories =
+            categoriesStr?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList() ?? [];
         var description = ReadStringMetadataOrNull(md, MetaDescription);
         var fav = ParseBoolMetadata(md, MetaIsFavourite);
         var isNew = ParseBoolMetadata(md, MetaIsNew);
-        
+
         // IS NEW?
         if (filter.IsNew is not null && isNew != filter.IsNew.Value)
             return false;
