@@ -124,6 +124,40 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         if (entryTuple.FileName is null)
             throw new BadRequestException($"The main model file '{entryFileName}' is missing from the uploaded files. Please include it and try again.");
 
+        // Extra validation ONLY for .gltf models: ensure required external files exist
+        if (entryExt == ".gltf")
+        {
+            // 1. Read the .gltf content into memory so we can inspect references
+            string gltfText;
+            using (var reader = new StreamReader(entryTuple.Content, leaveOpen: true))
+            {
+                gltfText = await reader.ReadToEndAsync(cancellationToken);
+            }
+            entryTuple.Content.Position = 0; // rewind after reading so we can still upload it later
+
+            // 2. Very light/rough dependency scan:
+            //    - look for "uri": "something.bin"
+            //    - look for "uri": "textures/diffuse.png"
+            // We’ll grab anything that looks like an external file.
+            var referencedFiles = ExtractReferencedUrisFromGltfJson(gltfText);
+
+            // 3. Check that each referenced file name is present in request.Files
+            var uploadedFileNames = request.Files
+                .Select(f => Path.GetFileName(f.FileName))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var missing = referencedFiles
+                .Where(refFile => !uploadedFileNames.Contains(Path.GetFileName(refFile)))
+                .ToList();
+
+            if (missing.Count > 0)
+            {
+                throw new BadRequestException(
+                    $"The uploaded .gltf file references external resources that were not provided: {string.Join(", ", missing)}. " +
+                    "Please include all required .bin/texture files and try again.");
+            }
+        }
+        
         var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
 
@@ -274,5 +308,47 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         {
             Message = ""
         };
+    }
+    
+    private static List<string> ExtractReferencedUrisFromGltfJson(string gltfJson)
+    {
+        // We're being pragmatic, not doing full schema validation.
+        // We look for `"uri": "something"` patterns and collect file-like values.
+        // We skip data URIs (base64 inlined) like `data:image/png;base64,...`.
+        var uris = new List<string>();
+
+        // very lightweight scan – you can upgrade this to real JSON parsing if you want
+        // but let's do a safe parse with System.Text.Json to avoid regexing JSON.
+        using var doc = System.Text.Json.JsonDocument.Parse(gltfJson);
+
+        // 1. buffers[*].uri
+        if (doc.RootElement.TryGetProperty("buffers", out var buffersElem) && buffersElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var b in buffersElem.EnumerateArray())
+            {
+                if (b.TryGetProperty("uri", out var uriProp) && uriProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var uriVal = uriProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(uriVal) && !uriVal.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                        uris.Add(uriVal);
+                }
+            }
+        }
+
+        // 2. images[*].uri
+        if (doc.RootElement.TryGetProperty("images", out var imagesElem) && imagesElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            foreach (var img in imagesElem.EnumerateArray())
+            {
+                if (img.TryGetProperty("uri", out var uriProp) && uriProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var uriVal = uriProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(uriVal) && !uriVal.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                        uris.Add(uriVal);
+                }
+            }
+        }
+
+        return uris;
     }
 }
