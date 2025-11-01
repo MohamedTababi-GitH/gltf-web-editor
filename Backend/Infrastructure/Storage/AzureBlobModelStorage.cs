@@ -442,6 +442,7 @@ public class AzureBlobModelStorage : IModelStorage
                 Name = Path.GetFileName(sub.Name),
                 Url = subUri,
                 SizeBytes = sub.Properties.ContentLength,
+                CreatedOn = sub.Properties.CreatedOn,
                 ContentType = sub.Properties.ContentType
             });
         }

@@ -40,6 +40,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             Name = x.Name,
             Url = x.Url,
             SizeBytes = x.SizeBytes,
+            CreatedOn = x.CreatedOn,
             ContentType = x.ContentType
         }).ToList()
     };
