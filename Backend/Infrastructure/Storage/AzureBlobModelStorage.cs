@@ -326,7 +326,7 @@ public class AzureBlobModelStorage : IModelStorage
         return true;
     }
 
-    public async Task<bool> UpdateNewAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default)
     {
         await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
         {

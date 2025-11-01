@@ -191,7 +191,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var update = await _service.UpdateNewAsync(id, cancellationToken);
+        var update = await _service.UpdateIsNewAsync(id, cancellationToken);
         
         return Ok( new UpdateResultDto{Message = update.Message} );
     }
