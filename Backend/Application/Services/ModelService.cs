@@ -32,6 +32,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         CreatedOn = f.CreatedOn,
         Categories = f.Categories,
         Description = f.Description,
+        AssetId = f.AssetId,                   
         IsFavourite = f.IsFavourite,
         AdditionalFiles = f.AdditionalFiles?.Select(x => new AdditionalFileDto
         {
@@ -284,6 +285,68 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return true;
+    }
+    
+    public async Task<UpdateResultDto> SaveStateAsync(
+        UpdateStateRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+            throw new BadRequestException("The state update request is empty.");
+
+        if (string.IsNullOrWhiteSpace(request.AssetId))
+            throw new ValidationException("AssetId is required.");
+
+        if (string.IsNullOrWhiteSpace(request.StateJson))
+            throw new ValidationException("StateJson is required.");
+
+        // Enforce valid JSON
+        try
+        {
+            System.Text.Json.JsonDocument.Parse(request.StateJson);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            throw new ValidationException("StateJson must be valid JSON.");
+        }
+
+        // 2. Enforce size ceiling (defense-in-depth in case controller attr changes)
+        var jsonBytes = System.Text.Encoding.UTF8.GetBytes(request.StateJson);
+        if (jsonBytes.Length > 1_000_000) // 1 MB
+            throw new ValidationException("StateJson is too large.");
+
+        var basePrefix = string.IsNullOrWhiteSpace(request.TargetVersion)
+            ? $"{request.AssetId.Trim()}/state"
+            : $"{request.AssetId.Trim()}/state/{request.TargetVersion!.Trim()}";
+
+        var blobName = $"{basePrefix}/state.json";
+
+        using var ms = new MemoryStream(jsonBytes);
+
+        var metadata = new Dictionary<string, string>
+        {
+            ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
+            ["assetId"] = request.AssetId,
+            ["isStateFile"] = "true"
+        };
+
+        if (!string.IsNullOrWhiteSpace(request.TargetVersion))
+            metadata["stateVersion"] = request.TargetVersion!.Trim();
+
+        await storage.UploadOrOverwriteAsync(
+            blobName: blobName,
+            content: ms,
+            contentType: "application/json",
+            metadata: metadata,
+            ct: cancellationToken);
+
+        return new UpdateResultDto
+        {
+            Message = "State saved successfully.",
+            AssetId = request.AssetId,
+            Version = request.TargetVersion,
+            BlobName = blobName
+        };
     }
     
     private static List<string> ExtractReferencedUrisFromGltfJson(string gltfJson)
