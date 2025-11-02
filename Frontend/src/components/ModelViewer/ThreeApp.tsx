@@ -81,7 +81,11 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
   const sortedFiles = [...files].sort((a, b) =>
     a.createdOn > b.createdOn ? -1 : 1,
   );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setSelectedVersion(sortedFiles[0]);
+  }, [sortedFiles]);
+
   const cursorTools = [
     { name: CursorEnum.Select, shortcut: "S" },
     { name: CursorEnum.MultiSelect, shortcut: "X" },
@@ -167,6 +171,8 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
           formData,
         );
         showNotification(res.data.message, "success");
+        setVersionModalOpen(false);
+        setVersionName("");
       } catch (error) {
         console.error("Error saving model:", error);
       }
@@ -185,7 +191,11 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
       }
       if (event.ctrlKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        saveModel();
+        if (selectedVersion?.version !== "Default") {
+          saveModel(selectedVersion?.version);
+        } else {
+          saveModel();
+        }
         return;
       }
 
@@ -335,7 +345,13 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
               <TooltipTrigger asChild={true}>
                 <Button
                   disabled={!groupRef}
-                  onClick={() => saveModel()}
+                  onClick={() => {
+                    if (selectedVersion?.version !== "Default") {
+                      saveModel(selectedVersion?.version);
+                    } else {
+                      saveModel();
+                    }
+                  }}
                   className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="size-4 lg:size-5 text-foreground" />
@@ -381,11 +397,14 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
                   <div className="grid gap-2">
                     {sortedFiles.map((file) => (
                       <div
-                        className={`bg-muted py-2 px-4 rounded-md cursor-pointer`}
+                        onClick={() => setSelectedVersion(file)}
+                        className={`py-2 px-4 rounded-md cursor-pointer ${file === selectedVersion ? "bg-primary/90 text-primary-foreground" : "bg-muted"}`}
                         key={file.createdOn}
                       >
                         <p className="text-sm">{file.version}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p
+                          className={`text-sm ${file === selectedVersion ? "text-muted" : "text-muted-foreground"}`}
+                        >
                           {formatDateTime(file.createdOn).fullStr}
                         </p>
                       </div>
