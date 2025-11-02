@@ -1,14 +1,14 @@
 import { Center, OrbitControls, Environment, Resize } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Model } from "./Model";
-import { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { loadModel } from "@/utils/ModelLoader.ts";
 import { useModel } from "@/contexts/ModelContext.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
 import Cursors from "@/components/ModelViewer/Cursors.tsx";
 import type { Cursor } from "@/types/Cursor.ts";
 import * as THREE from "three";
-import { Redo2, Undo2, X, Keyboard } from "lucide-react";
+import { Redo2, Undo2, X, Keyboard, Save, SaveAll } from "lucide-react";
 import { useHistory } from "@/contexts/HistoryContext.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -22,6 +22,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover.tsx";
 import { Cursor as CursorEnum } from "@/types/Cursor.ts";
+import { handleSaveScene } from "@/utils/StateSaver.ts";
+import { ButtonGroup } from "@/components/ui/button-group.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
+import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import { useNotification } from "@/contexts/NotificationContext.tsx";
 
 type ThreeAppProps = {
   setShowViewer: (show: boolean) => void;
@@ -40,6 +45,11 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
   const { url, model } = useModel();
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
+  const [versionModalOpen, setVersionModalOpen] = useState(false);
+  const apiClient = useAxiosConfig();
+  const { showNotification } = useNotification();
+  const [groupRef, setGroupRef] =
+    useState<React.RefObject<THREE.Group | null>>();
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
@@ -125,8 +135,30 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     };
   }, [url, model]);
 
+  const saveModel = useCallback(async () => {
+    if (!groupRef || !model?.assetId) return;
+    try {
+      const state = handleSaveScene(groupRef);
+      const formData = new FormData();
+      formData.append("StateJson", state);
+      const res = await apiClient.post(
+        `/api/model/${model?.assetId}/state`,
+        formData,
+      );
+      showNotification(res.data.message, "success");
+    } catch (error) {
+      console.error("Error saving model:", error);
+    }
+  }, [apiClient, groupRef, model?.assetId, showNotification]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === "s") {
+        event.preventDefault();
+        saveModel();
+        return;
+      }
+
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
         return;
       }
@@ -146,7 +178,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [cursorTools, setSelectedTool]);
+  }, [cursorTools, saveModel, setSelectedTool]);
 
   return (
     <div className={`w-full h-full relative`}>
@@ -236,6 +268,18 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
                       {redoShortcut}
                     </kbd>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm">Save</p>
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                      Ctrl+S
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm">Save as Version</p>
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                      Ctrl+Shift+S
+                    </kbd>
+                  </div>
                 </div>
                 <div className="grid gap-2">
                   <h5 className="text-sm font-medium text-muted-foreground">
@@ -256,6 +300,39 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
               </div>
             </PopoverContent>
           </Popover>
+          <ButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild={true}>
+                <Button
+                  disabled={!groupRef}
+                  onClick={saveModel}
+                  className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="size-4 lg:size-5 text-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Save (Ctrl+S)</p>
+              </TooltipContent>
+            </Tooltip>
+            <Separator orientation={"vertical"} />
+            <Tooltip>
+              <TooltipTrigger asChild={true}>
+                <Button
+                  disabled={!groupRef}
+                  onClick={() => {
+                    setVersionModalOpen(true);
+                  }}
+                  className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <SaveAll className="size-4 lg:size-5 text-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Save as Version (Ctrl+Shift+S)</p>
+              </TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
         </div>
 
         <Cursors
@@ -271,6 +348,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
             <Resize scale={3}>
               {processedModelURL && (
                 <Model
+                  setGroupRef={setGroupRef}
                   selectedTool={selectedTool}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
