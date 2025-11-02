@@ -102,38 +102,9 @@ public class AzureBlobModelStorage : IModelStorage
                 var md = blob.Metadata ?? new Dictionary<string, string>();
                 if (!Matches(filterDto, blob, md)) continue;
 
-                // Build only after passing filters
-                var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
-                var fileUri = BuildBlobUri(blob.Name);
-                var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
-                var (additional, stateFiles) = await EnumerateFilesAsync(assetId, blob.Name, ct);
-                var format = GetFormatOrNull(blob.Name)!; // safe due to Matches() check
-                var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
-                var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
-                var categories = categoriesStr
-                    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-                var description = ReadStringMetadataOrNull(md, MetaDescription);
-                var fav = ParseBoolMetadata(md, MetaIsFavourite);
-                var nevv = ParseBoolMetadata(md, MetaIsNew);
-                var created = blob.Properties.CreatedOn;
+                var model = await BuildModelFileAsync(blob, md, ct);
 
-
-                items.Add(new ModelFile
-                {
-                    Id = id,
-                    Name = alias,
-                    Format = format,
-                    SizeBytes = blob.Properties.ContentLength,
-                    CreatedOn = created,
-                    Url = fileUri,
-                    Categories = categories,
-                    Description = description,
-                    AssetId = assetId,
-                    AdditionalFiles = additional,
-                    StateFiles = stateFiles,
-                    IsFavourite = fav,
-                    IsNew = nevv
-                });
+                items.Add(model);
 
                 var lastEmittedName = blob.Name;
 
@@ -598,6 +569,46 @@ public class AzureBlobModelStorage : IModelStorage
         }
 
         return count;
+    }
+    
+    private async Task<ModelFile> BuildModelFileAsync(
+        BlobItem blob,
+        IDictionary<string,string> md,
+        CancellationToken ct)
+    {
+        var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
+        var fileUri = BuildBlobUri(blob.Name);
+        var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
+        var (additional, stateFiles) = await EnumerateFilesAsync(assetId, blob.Name, ct);
+
+        var format = GetFormatOrNull(blob.Name)!;
+        var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
+
+        var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
+        var categories = categoriesStr?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        var description = ReadStringMetadataOrNull(md, MetaDescription);
+        var fav = ParseBoolMetadata(md, MetaIsFavourite);
+        var isNew = ParseBoolMetadata(md, MetaIsNew);
+
+        return new ModelFile
+        {
+            Id = id,
+            Name = alias,
+            Format = format,
+            SizeBytes = blob.Properties.ContentLength,
+            CreatedOn = blob.Properties.CreatedOn,
+            Url = fileUri,
+            Categories = categories,
+            Description = description,
+            AssetId = assetId,
+            AdditionalFiles = additional,
+            StateFiles = stateFiles,
+            IsFavourite = fav,
+            IsNew = isNew
+        };
     }
 
     #endregion
