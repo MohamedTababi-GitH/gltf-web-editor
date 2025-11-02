@@ -18,6 +18,9 @@ services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 // Cursor serializer (stateless)
 services.AddSingleton<ICursorSerializer, Base64JsonCursorSerializer>();
 services.AddSingleton<IModelMapper, ModelMapper>();
+services.AddScoped<IModelService, ModelService>();
+services.AddScoped<IModelUploadService, ModelUploadService>();
+services.AddScoped<IModelStateService, ModelStateService>();
 
 
 builder.Services.AddProblemDetails();

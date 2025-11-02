@@ -17,13 +17,23 @@ namespace ECAD_Backend.Web.Controllers;
 [Route("api/model")]
 public class ModelController : ControllerBase
 {
-    private readonly IModelService _service;
+    private readonly IModelService _modelService;
+    private readonly IModelUploadService _uploadService;
+    private readonly IModelStateService _stateService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelController"/> class.
     /// </summary>
     /// <param name="service">The model service used for handling model operations.</param>
-    public ModelController(IModelService service) => _service = service;
+    /// <param name="modelService"></param>
+    /// <param name="uploadService"></param>
+    /// <param name="stateService"></param>
+    public ModelController(IModelService modelService, IModelUploadService uploadService, IModelStateService stateService)
+    {
+        _modelService = modelService;
+        _uploadService = uploadService;
+        _stateService = stateService;
+    }
 
     /// <summary>
     /// Retrieves a list of all model items.
@@ -63,7 +73,7 @@ public class ModelController : ControllerBase
             Prefix = prefix
         };
 
-        var page = await _service.ListAsync(limit, cursor, filter, cancellationToken);
+        var page = await _modelService.ListAsync(limit, cursor, filter, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(page.NextCursor))
             Response.Headers["X-Next-Cursor"] = page.NextCursor;
@@ -123,7 +133,7 @@ public class ModelController : ControllerBase
             };
 
             // Perform upload via the service layer
-            var result = await _service.UploadAsync(request, cancellationToken);
+            var result = await _uploadService.UploadAsync(request, cancellationToken);
             return Ok(new UploadResultDto
                 { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
@@ -150,7 +160,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var deleted = await _service.DeleteAsync(id, cancellationToken);
+        var deleted = await _modelService.DeleteAsync(id, cancellationToken);
         if (!deleted)
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
@@ -178,7 +188,7 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         // Ask the service to update model details
-        var update = await _service.UpdateDetailsAsync(
+        var update = await _modelService.UpdateDetailsAsync(
             id,
             requestDto.NewAlias,
             requestDto.Categories,
@@ -197,7 +207,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var update = await _service.UpdateIsNewAsync(id, cancellationToken);
+        var update = await _modelService.UpdateIsNewAsync(id, cancellationToken);
         
         return Ok( new UpdateDetailsResultDto{Message = update.Message} );
     }
@@ -235,7 +245,7 @@ public class ModelController : ControllerBase
             StateJson = finalStateJson
         };
 
-        var result = await _service.SaveStateAsync(request, cancellationToken);
+        var result = await _stateService.SaveStateAsync(request, cancellationToken);
 
         return Ok(new UpdateStateResultDto
         {
