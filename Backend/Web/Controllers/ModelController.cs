@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.Forms;
 using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
@@ -16,13 +17,23 @@ namespace ECAD_Backend.Web.Controllers;
 [Route("api/model")]
 public class ModelController : ControllerBase
 {
-    private readonly IModelService _service;
+    private readonly IModelService _modelService;
+    private readonly IModelUploadService _uploadService;
+    private readonly IModelStateService _stateService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ModelController"/> class.
     /// </summary>
     /// <param name="service">The model service used for handling model operations.</param>
-    public ModelController(IModelService service) => _service = service;
+    /// <param name="modelService"></param>
+    /// <param name="uploadService"></param>
+    /// <param name="stateService"></param>
+    public ModelController(IModelService modelService, IModelUploadService uploadService, IModelStateService stateService)
+    {
+        _modelService = modelService;
+        _uploadService = uploadService;
+        _stateService = stateService;
+    }
 
     /// <summary>
     /// Retrieves a list of all model items.
@@ -39,9 +50,9 @@ public class ModelController : ControllerBase
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(PageResult<ModelItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PageResultDto<ModelItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
+    public async Task<ActionResult<PageResultDto<ModelItemDto>>> GetAll(
         [FromQuery, Range(1, 100)] int limit = 10,
         [FromQuery] string? cursor = null,
         [FromQuery] bool? isNew = null,
@@ -52,7 +63,7 @@ public class ModelController : ControllerBase
         [FromQuery] string? prefix = null,
         CancellationToken cancellationToken = default)
     {
-        var filter = new ModelFilter
+        var filter = new ModelFilterDto
         {
             IsNew = isNew,
             Categories = categories,
@@ -62,7 +73,7 @@ public class ModelController : ControllerBase
             Prefix = prefix
         };
 
-        var page = await _service.ListAsync(limit, cursor, filter, cancellationToken);
+        var page = await _modelService.ListAsync(limit, cursor, filter, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(page.NextCursor))
             Response.Headers["X-Next-Cursor"] = page.NextCursor;
@@ -112,7 +123,7 @@ public class ModelController : ControllerBase
                 uploadFiles.Add((file.FileName, file.OpenReadStream()));
 
             // Build the upload request DTO
-            var request = new UploadModelRequest
+            var request = new UploadModelRequestDto
             {
                 OriginalFileName = originalFileName,
                 Files = uploadFiles,
@@ -122,7 +133,7 @@ public class ModelController : ControllerBase
             };
 
             // Perform upload via the service layer
-            var result = await _service.UploadAsync(request, cancellationToken);
+            var result = await _uploadService.UploadAsync(request, cancellationToken);
             return Ok(new UploadResultDto
                 { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
@@ -149,7 +160,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var deleted = await _service.DeleteAsync(id, cancellationToken);
+        var deleted = await _modelService.DeleteAsync(id, cancellationToken);
         if (!deleted)
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
@@ -161,15 +172,15 @@ public class ModelController : ControllerBase
     /// Updates details (alias, category, description, etc.) for a model.
     /// </summary>
     /// <param name="id">The model ID.</param>
-    /// <param name="request">The update request data.</param>
+    /// <param name="requestDto">The update requestDto data.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <response code="204">Update succeeded.</response>
-    /// <response code="400">Invalid ID or request data.</response>
+    /// <response code="400">Invalid ID or requestDto data.</response>
     /// <response code="404">Model not found.</response>
     [HttpPut("{id:guid}/details")]
     public async Task<IActionResult> PutDetails(
         Guid id,
-        [FromBody] UpdateModelDetailsRequest request,
+        [FromBody] UpdateModelDetailsRequestDto requestDto,
         CancellationToken cancellationToken)
     {
         // Validate input
@@ -177,12 +188,12 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         // Ask the service to update model details
-        var update = await _service.UpdateDetailsAsync(
+        var update = await _modelService.UpdateDetailsAsync(
             id,
-            request.NewAlias,
-            request.Categories,
-            request.Description,
-            request.IsFavourite,
+            requestDto.NewAlias,
+            requestDto.Categories,
+            requestDto.Description,
+            requestDto.IsFavourite,
             cancellationToken);
 
         return Ok( new UpdateDetailsResultDto{Message = update.Message} );
@@ -196,7 +207,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var update = await _service.UpdateIsNewAsync(id, cancellationToken);
+        var update = await _modelService.UpdateIsNewAsync(id, cancellationToken);
         
         return Ok( new UpdateDetailsResultDto{Message = update.Message} );
     }
@@ -206,7 +217,7 @@ public class ModelController : ControllerBase
     [RequestSizeLimit(1048576)] // ~1 MB
     public async Task<IActionResult> SaveState(
         [FromRoute] string assetId,
-        [FromForm] SaveStateFormRequest form,
+        [FromForm] SaveStateFormDto form,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(assetId))
@@ -227,16 +238,16 @@ public class ModelController : ControllerBase
         if (string.IsNullOrWhiteSpace(finalStateJson))
             throw new BadRequestException("State content is empty.");
 
-        var request = new UpdateStateRequest
+        var request = new UpdateStateRequestDto
         {
             AssetId = assetId,
             TargetVersion = form.TargetVersion,
             StateJson = finalStateJson
         };
 
-        var result = await _service.SaveStateAsync(request, cancellationToken);
+        var result = await _stateService.SaveStateAsync(request, cancellationToken);
 
-        return Ok(new UpdateResultDto
+        return Ok(new UpdateStateResultDto
         {
             Message = result.Message,
             AssetId = result.AssetId,

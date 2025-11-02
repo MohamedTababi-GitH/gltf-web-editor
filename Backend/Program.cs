@@ -1,5 +1,7 @@
 using Azure.Storage.Blobs;
 using ECAD_Backend.Application.Interfaces;
+using ECAD_Backend.Application.Mappers.Implementation;
+using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Cursor;
 using ECAD_Backend.Infrastructure.Middleware;
@@ -15,6 +17,11 @@ services.Configure<BlobOptions>(builder.Configuration.GetSection("Storage"));
 
 // Cursor serializer (stateless)
 services.AddSingleton<ICursorSerializer, Base64JsonCursorSerializer>();
+services.AddSingleton<IModelMapper, ModelMapper>();
+services.AddScoped<IModelService, ModelService>();
+services.AddScoped<IModelUploadService, ModelUploadService>();
+services.AddScoped<IModelStateService, ModelStateService>();
+
 
 builder.Services.AddProblemDetails();
 
