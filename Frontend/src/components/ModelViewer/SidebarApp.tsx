@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SidebarHeader,
   SidebarContent,
@@ -54,11 +54,83 @@ const ExpandableSidebarGroup = ({
   );
 };
 
+const PositionInput = ({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  onCommit: (newValue: string) => void;
+}) => {
+  const [localValue, setLocalValue] = useState(value);
+
+  // Sync local state when external 'value' prop changes
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    setLocalValue(inputValue);
+
+    const parsedInput = parseFloat(inputValue);
+    const parsedValue = parseFloat(value);
+
+    // Check if a valid number and it's different from the committed value
+    if (
+      !isNaN(parsedInput) &&
+      parsedInput.toString() === inputValue &&
+      parsedInput !== parsedValue
+    ) {
+      onCommit(parsedInput.toString());
+    }
+  };
+
+  const handleBlur = () => {
+    // commit on blur if the local value is different from the committed prop value
+    if (localValue !== value) {
+      const parsed = parseFloat(localValue);
+      if (!isNaN(parsed)) {
+        onCommit(parsed.toString());
+      } else {
+        setLocalValue(value);
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      (e.target as HTMLInputElement).blur(); // trigger handleBlur logic
+    }
+  };
+
+  return (
+    <div className="flex justify-between w-full text-left cursor-default  pl-2">
+      <span className="font-medium text-sidebar-foreground/70">{label}</span>
+      <input
+        type="number"
+        value={localValue}
+        step={10}
+        className="w-25 text-left border rounded px-1"
+        onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+      />
+    </div>
+  );
+};
+
 const AppSidebar = () => {
-  const { model, meshes, toggleComponentVisibility, toggleComponentOpacity } =
-    useModel();
+  const {
+    model,
+    meshes,
+    toggleComponentVisibility,
+    toggleComponentOpacity,
+    updateMeshPosition,
+  } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
-    "metadata",
+    "metadata"
   );
 
   if (!model) return null;
@@ -145,44 +217,55 @@ const AppSidebar = () => {
                   label={mesh.name}
                   defaultOpen={true}
                 >
+                  {/* X Position */}
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <div className="flex justify-between w-full text-left cursor-default">
-                        <span className="font-medium text-sidebar-foreground/70">
-                          X Position
-                        </span>
-                        <span className="truncate text-sidebar-foreground">
-                          {mesh.X}
-                        </span>
-                      </div>
+                      <PositionInput
+                        label="X Position"
+                        value={mesh.X}
+                        onCommit={(newX) =>
+                          updateMeshPosition(mesh.id, {
+                            x: parseFloat(newX),
+                            y: parseFloat(mesh.Y),
+                            z: parseFloat(mesh.Z),
+                          })
+                        }
+                      />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <div className="flex justify-between w-full text-left cursor-default">
-                        <span className="font-medium text-sidebar-foreground/70">
-                          Y Position
-                        </span>
-                        <span className="truncate text-sidebar-foreground">
-                          {mesh.Y}
-                        </span>
-                      </div>
+                      <PositionInput
+                        label="Y Position"
+                        value={mesh.Y}
+                        onCommit={(newY) =>
+                          updateMeshPosition(mesh.id, {
+                            x: parseFloat(mesh.X),
+                            y: parseFloat(newY),
+                            z: parseFloat(mesh.Z),
+                          })
+                        }
+                      />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <div className="flex justify-between w-full text-left cursor-default">
-                        <span className="font-medium text-sidebar-foreground/70">
-                          Z Position
-                        </span>
-                        <span className="truncate text-sidebar-foreground">
-                          {mesh.Z}
-                        </span>
-                      </div>
+                      <PositionInput
+                        label="Z Position"
+                        value={mesh.Z}
+                        onCommit={(newZ) =>
+                          updateMeshPosition(mesh.id, {
+                            x: parseFloat(mesh.X),
+                            y: parseFloat(mesh.Y),
+                            z: parseFloat(newZ),
+                          })
+                        }
+                      />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <div className="flex justify-between w-full text-left cursor-default">

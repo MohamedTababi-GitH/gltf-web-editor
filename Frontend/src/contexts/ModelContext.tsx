@@ -16,21 +16,30 @@ interface ModelContextType {
   meshes: MeshData[];
   setMeshes: Dispatch<SetStateAction<MeshData[]>>;
 
-  // NEW: The function AppSidebar will call to toggle visibility
+  // Visibility control
   toggleComponentVisibility: (
     componentId: number,
-    newVisibility: boolean,
-  ) => void; //new
-
-  // NEW: The setter Model.tsx will call to provide the implementation
+    newVisibility: boolean
+  ) => void;
   setToggleComponentVisibility: Dispatch<
     SetStateAction<(id: number, visibility: boolean) => void>
   >;
 
-  // NEW: Opacity control
+  // Opacity control
   toggleComponentOpacity: (componentId: number, newOpacity: number) => void;
   setToggleComponentOpacity: Dispatch<
     SetStateAction<(id: number, opacity: number) => void>
+  >;
+
+  // Mesh position control
+  updateMeshPosition: (
+    id: number,
+    position: { x: number; y: number; z: number }
+  ) => void;
+  setUpdateMeshPosition: Dispatch<
+    SetStateAction<
+      (id: number, position: { x: number; y: number; z: number }) => void
+    >
   >;
 }
 
@@ -40,11 +49,17 @@ export function ModelProvider({ children }: { children: ReactNode }) {
   const [url, setUrl] = useState<string>();
   const [model, setModel] = useState<ModelItem>();
   const [meshes, setMeshes] = useState<MeshData[]>([]);
+
   const [toggleComponentVisibility, setToggleComponentVisibility] = useState<
     (id: number, visibility: boolean) => void
-  >(() => (/* Default placeholder function */) => {});
+  >(() => () => {});
+
   const [toggleComponentOpacity, setToggleComponentOpacity] = useState<
     (id: number, opacity: number) => void
+  >(() => () => {});
+
+  const [updateMeshPosition, setUpdateMeshPosition] = useState<
+    (id: number, position: { x: number; y: number; z: number }) => void
   >(() => () => {});
 
   return (
@@ -60,6 +75,8 @@ export function ModelProvider({ children }: { children: ReactNode }) {
         setToggleComponentVisibility,
         toggleComponentOpacity,
         setToggleComponentOpacity,
+        updateMeshPosition,
+        setUpdateMeshPosition,
       }}
     >
       {children}
@@ -70,10 +87,8 @@ export function ModelProvider({ children }: { children: ReactNode }) {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useModel() {
   const context = useContext(ModelContext);
-
   if (context === undefined) {
     throw new Error("useModel must be used within a ModelProvider");
   }
-
   return context;
 }
