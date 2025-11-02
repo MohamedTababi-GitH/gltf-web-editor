@@ -9,9 +9,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ECAD_Backend.Web.Controllers;
 
-
-
-
 /// <summary>
 /// Handles API requests related to model files.
 /// </summary>
@@ -30,22 +27,24 @@ public class ModelController : ControllerBase
     /// <summary>
     /// Retrieves a list of all model items.
     /// </summary>
-    /// <param name="prefix"></param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <param name="limit"></param>
     /// <param name="cursor"></param>
-    /// <param name="category"></param>
+    /// <param name="isNew"></param>
+    /// <param name="categories"></param>
     /// <param name="isFavourite"></param>
     /// <param name="q"></param>
     /// <param name="format"></param>
+    /// <param name="prefix"></param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>A list of model item DTOs.</returns>
     /// <response code="200">Returns the list of model items.</response>
     [HttpGet]
     [ProducesResponseType(typeof(PageResult<ModelItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PageResult<ModelItemDto>>> GetAll(
-        [FromQuery, Range(1,100)] int limit = 10,
+        [FromQuery, Range(1, 100)] int limit = 10,
         [FromQuery] string? cursor = null,
+        [FromQuery] bool? isNew = null,
         [FromQuery] List<string>? categories = null,
         [FromQuery] bool? isFavourite = null,
         [FromQuery] string? q = null,
@@ -55,6 +54,7 @@ public class ModelController : ControllerBase
     {
         var filter = new ModelFilter
         {
+            IsNew = isNew,
             Categories = categories,
             IsFavourite = isFavourite,
             Q = q,
@@ -76,7 +76,7 @@ public class ModelController : ControllerBase
     /// <param name="files">The uploaded file(s).</param>
     /// <param name="fileAlias">An alias for the uploaded file.</param>
     /// <param name="originalFileName">The original filename of the uploaded model.</param>
-    /// <param name="category">Optional category for the file.</param>
+    /// <param name="categories">Optional categories for the file.</param>
     /// <param name="description">Optional description for the file.</param>
     /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
     /// <returns>Returns a message with details about the uploaded file.</returns>
@@ -123,7 +123,8 @@ public class ModelController : ControllerBase
 
             // Perform upload via the service layer
             var result = await _service.UploadAsync(request, cancellationToken);
-            return Ok(new UploadResultDto { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
+            return Ok(new UploadResultDto
+                { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         catch (ArgumentException ex)
         {
@@ -150,7 +151,8 @@ public class ModelController : ControllerBase
 
         var deleted = await _service.DeleteAsync(id, cancellationToken);
         if (!deleted)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+            throw new NotFoundException(
+                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
         return NoContent();
     }
@@ -175,7 +177,7 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         // Ask the service to update model details
-        var ok = await _service.UpdateDetailsAsync(
+        var update = await _service.UpdateDetailsAsync(
             id,
             request.NewAlias,
             request.Categories,
@@ -183,10 +185,64 @@ public class ModelController : ControllerBase
             request.IsFavourite,
             cancellationToken);
 
-        // Throw domain-specific exception if not found
-        if (!ok)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
-
-        return NoContent();
+        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
     }
+
+    [HttpPatch("{id:guid}/isNew")]
+    public async Task<IActionResult> PutIsNew(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
+
+        var update = await _service.UpdateIsNewAsync(id, cancellationToken);
+        
+        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+    }
+    
+    [HttpPost("{assetId}/state")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(1048576)] // ~1 MB
+    public async Task<IActionResult> SaveState(
+        [FromRoute] string assetId,
+        [FromForm] SaveStateFormRequest form,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new BadRequestException("AssetId is required.");
+
+        // normalize content
+        string finalStateJson = form.StateJson ?? string.Empty;
+
+        if (string.IsNullOrEmpty(finalStateJson))
+        {
+            if (form.StateFile is null)
+                throw new BadRequestException("Either 'StateJson' or 'StateFile' must be provided.");
+
+            using var reader = new StreamReader(form.StateFile.OpenReadStream());
+            finalStateJson = await reader.ReadToEndAsync(cancellationToken);
+        }
+
+        if (string.IsNullOrWhiteSpace(finalStateJson))
+            throw new BadRequestException("State content is empty.");
+
+        var request = new UpdateStateRequest
+        {
+            AssetId = assetId,
+            TargetVersion = form.TargetVersion,
+            StateJson = finalStateJson
+        };
+
+        var result = await _service.SaveStateAsync(request, cancellationToken);
+
+        return Ok(new UpdateResultDto
+        {
+            Message = result.Message,
+            AssetId = result.AssetId,
+            Version = result.Version,
+            BlobName = result.BlobName
+        });
+    }
+    
 }

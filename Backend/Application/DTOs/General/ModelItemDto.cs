@@ -23,8 +23,13 @@ public sealed class ModelItemDto
 
     /// Timestamp (UTC) when the model was created in storage, if available.
     public DateTimeOffset? CreatedOn { get; init; }
-
-    public List<string>? Categories { get; set; }    public string? Description { get; init; }
+    
+    public string? AssetId { get; init; }
+    public List<string>? Categories { get; set; }    
+    public string? Description { get; init; }
     public bool IsFavourite { get; init; } 
+    public bool IsNew { get; init; }
     public List<AdditionalFileDto>? AdditionalFiles { get; init; }
+    public List<StateFileDto>? StateFiles { get; init; }
+
 }
