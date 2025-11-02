@@ -15,14 +15,18 @@ namespace ECAD_Backend.UnitTests;
 [TestClass]
 public class ModelControllerTest
 {
-    private Mock<IModelService> _mockService = null!;
+    private Mock<IModelService> _mockModelService = null!;
+    private Mock<IModelStateService> _mockStateService = null!;
+    private Mock<IModelUploadService> _mockUploadService = null!;
     private ModelController _controller = null!;
 
     [TestInitialize]
     public void SetUp()
     {
-        _mockService = new Mock<IModelService>();
-        _controller = new ModelController(_mockService.Object);
+        _mockModelService = new Mock<IModelService>();
+        _mockStateService = new Mock<IModelStateService>();
+        _mockUploadService = new Mock<IModelUploadService>();
+        _controller = new ModelController(_mockModelService.Object, _mockUploadService.Object, _mockStateService.Object);
     }
 
     [TestMethod]
@@ -39,7 +43,7 @@ public class ModelControllerTest
                     Url = new Uri("http://localhost")
                 }
             }, null, false);
-        _mockService.Setup(s => s.ListAsync(It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<ModelFilterDto>(), It.IsAny<CancellationToken>()))
+        _mockModelService.Setup(s => s.ListAsync(It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<ModelFilterDto>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(expectedPage);
 
         // Act
@@ -74,7 +78,7 @@ public class ModelControllerTest
         
         fileMocked.Setup(f => f.FileName).Returns(fileName);
         fileMocked.Setup(f => f.OpenReadStream()).Returns(memoryStream);
-        _mockService.Setup(s => s.UploadAsync(It.IsAny<UploadModelRequestDto>(), It.IsAny<CancellationToken>()))
+        _mockUploadService.Setup(s => s.UploadAsync(It.IsAny<UploadModelRequestDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedUploadResult);
 
         // Act
@@ -111,7 +115,7 @@ public class ModelControllerTest
     {
         // Arrange
         var id = Guid.NewGuid();
-        _mockService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         
         // Act
         var result = await _controller.Delete(id, CancellationToken.None);
@@ -126,7 +130,7 @@ public class ModelControllerTest
         // Arrange
         var expectedErrorMessage = "We couldn't find a model with the ID";
         var id = Guid.NewGuid();
-        _mockService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         
         // Act
         var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _controller.Delete(id, CancellationToken.None));

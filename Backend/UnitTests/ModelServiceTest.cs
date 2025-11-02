@@ -1,7 +1,9 @@
 ﻿using Moq;
 using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.Interfaces;
+using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Exceptions;
@@ -12,13 +14,17 @@ namespace ECAD_Backend.UnitTests;
 public class ModelServiceTest
 {
     private Mock<IModelStorage> _mockStorage = null!;
-    private ModelService _service = null!;
+    private Mock<IModelMapper> _mockMapper = null!;
+    private ModelService _modelService = null!;
+    private ModelUploadService _modelUploadService = null!;
 
     [TestInitialize]
     public void SetUp()
     {
         _mockStorage = new Mock<IModelStorage>();
-        // _service = new ModelService(_mockStorage.Object);
+        _mockMapper = new Mock<IModelMapper>();
+        _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object);
+        _modelUploadService = new ModelUploadService(_mockStorage.Object);
     }
 
     [TestMethod]
@@ -27,20 +33,59 @@ public class ModelServiceTest
         // Arrange
         var name = "TestFile1";
         var format = "glb";
-        var guid = Guid.NewGuid() ;
-        var url = new Uri("http://localhost"); 
-        var files = new List<ModelFile> { new() { Name = name, Format = format, Id = guid , Url = url} };
+        var guid = Guid.NewGuid();
+        var url = new Uri("http://localhost");
+
+        var modelFile = new ModelFile
+        {
+            Name = name,
+            Format = format,
+            Id = guid,
+            Url = url
+        };
+
+        var files = new List<ModelFile> { modelFile };
         var limit = 5;
         var filter = new ModelFilterDto();
-        _mockStorage.Setup(s => s.ListPageAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<ModelFilterDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((files, null));
+
+        // storage.ListPageAsync -> returns (files, null cursor)
+        _mockStorage
+            .Setup(s => s.ListPageAsync(
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<ModelFilterDto>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((files, (string?)null));
+
+        // storage.CountAsync -> return some total (doesn't affect NRE but keeps service happy)
+        _mockStorage
+            .Setup(s => s.CountAsync(
+                It.IsAny<ModelFilterDto>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+
+        // mapper.ToDto -> map ModelFile -> ModelItemDto that the controller / API returns
+        _mockMapper
+            .Setup(m => m.ToDto(modelFile))
+            .Returns(new ModelItemDto
+            {
+                Id = guid,
+                Name = name,
+                Format = format,
+                Url = url
+            });
 
         // Act
-        var result = await _service.ListAsync(limit, null, filter, CancellationToken.None);
+        var result = await _modelService.ListAsync(limit, null, filter, CancellationToken.None);
 
         // Assert
-        Assert.HasCount(1, result.Items);
-        Assert.AreEqual(name, result.Items[0].Name);
+        Assert.AreEqual(1, result.Items.Count, "Expected one item in the page result.");
+        Assert.AreEqual(name, result.Items[0].Name, "Item Name should match mapped alias.");
+        Assert.AreEqual(format, result.Items[0].Format);
+        Assert.AreEqual(url, result.Items[0].Url);
+        Assert.AreEqual(1, result.TotalCount);
+        Assert.IsNull(result.NextCursor);
+        Assert.IsFalse(result.HasMore);
     }
 
     [TestMethod]
@@ -52,7 +97,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await _service.ListAsync(limit, null, filter, CancellationToken.None));
+            await _modelService.ListAsync(limit, null, filter, CancellationToken.None));
         
         // Assert
         Assert.AreEqual(nameof(limit), result.ParamName);
@@ -68,7 +113,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async() =>
-            await _service.ListAsync(limit, null, filter, CancellationToken.None));
+            await _modelService.ListAsync(limit, null, filter, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -89,7 +134,7 @@ public class ModelServiceTest
         };
 
         // Act
-        var result = await _service.UploadAsync(request, CancellationToken.None);
+        var result = await _modelUploadService.UploadAsync(request, CancellationToken.None);
 
         // Assert
         _mockStorage.Verify(s => s.UploadAsync(
@@ -113,7 +158,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.UploadAsync(requestDto, CancellationToken.None));
+            await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -133,7 +178,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -154,7 +199,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -178,7 +223,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -202,7 +247,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -226,7 +271,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -250,7 +295,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -274,7 +319,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
         
         // Assert
         var expectedErrorMessage = $"The main model file '{entryFileName}' is missing";
@@ -298,7 +343,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         var expectedErrorMessage = $"The content of the file '{filename}' is empty";
@@ -324,7 +369,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         var expectedErrorMessage = $"The content of the file '{fileFail}' is empty";
@@ -350,7 +395,7 @@ public class ModelServiceTest
 
         // Act & Assert
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UploadAsync(request, CancellationToken.None));
+            await _modelUploadService.UploadAsync(request, CancellationToken.None));
 
         // Assert
         var expectedErrorMessage = $"file type of '{fileFail}' is not supported";
@@ -365,7 +410,7 @@ public class ModelServiceTest
         _mockStorage.Setup(s => s.DeleteByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         // Act
-        var result = await _service.DeleteAsync(id, CancellationToken.None);
+        var result = await _modelService.DeleteAsync(id, CancellationToken.None);
 
         // Assert
         Assert.IsTrue(result);
@@ -380,7 +425,7 @@ public class ModelServiceTest
         
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.DeleteAsync(id, CancellationToken.None));
+            await _modelService.DeleteAsync(id, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -395,7 +440,7 @@ public class ModelServiceTest
         _mockStorage.Setup(s => s.DeleteByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         
         // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _service.DeleteAsync(id, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.DeleteAsync(id, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -411,7 +456,7 @@ public class ModelServiceTest
             It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         
         // Act
-        var result = await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
+        var result = await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
         
         // Assert
         _mockStorage.Verify(s => s.UpdateDetailsAsync(
@@ -436,7 +481,7 @@ public class ModelServiceTest
         
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UpdateDetailsAsync(id, null, null,null, null, CancellationToken.None));
+            await _modelService.UpdateDetailsAsync(id, null, null,null, null, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -452,7 +497,7 @@ public class ModelServiceTest
         
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
+            await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -470,7 +515,7 @@ public class ModelServiceTest
         
         // Act
         var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
+            await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);

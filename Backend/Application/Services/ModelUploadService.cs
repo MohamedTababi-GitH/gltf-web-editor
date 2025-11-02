@@ -67,6 +67,60 @@ public class ModelUploadService(IModelStorage storage) : IModelUploadService
     }
 
     /// <summary>
+    /// Validates that all provided file streams are non-null, readable, and contain data.
+    /// </summary>
+    /// <param name="files">
+    /// A collection of file entries, where each tuple contains the file name and its associated content stream.
+    /// </param>
+    /// <exception cref="BadRequestException">
+    /// Thrown when any stream is null, unreadable, or empty.
+    /// </exception>
+    /// <remarks>
+    /// This method performs lightweight validation of uploaded file streams before processing:
+    /// <list type="bullet">
+    /// <item><description>Ensures each stream is not <see langword="null"/> and can be read.</description></item>
+    /// <item><description>Checks for zero-length <see cref="MemoryStream"/> instances.</description></item>
+    /// <item><description>Performs a minimal content read on non-memory streams to confirm non-emptiness.</description></item>
+    /// </list>
+    /// The method resets stream positions when possible to avoid affecting downstream consumers.
+    /// </remarks>
+    private static void ValidateFileStreams(IReadOnlyCollection<(string FileName, Stream Content)> files)
+    {
+        foreach (var (fileName, content) in files)
+        {
+            if (content == null || !content.CanRead)
+            {
+                throw new BadRequestException(
+                    $"The content of the file '{fileName}' is empty or unreadable. Please provide a valid file.");
+            }
+
+            // Empty MemoryStream
+            if (content is MemoryStream ms && ms.Length == 0)
+            {
+                throw new BadRequestException(
+                    $"The content of the file '{fileName}' is empty. Please provide a valid file.");
+            }
+
+            // Non-MemoryStream: try minimal content check
+            if (content is not MemoryStream)
+            {
+                if (content.CanSeek)
+                {
+                    var originalPos = content.Position;
+                    int b = content.ReadByte();
+                    if (b == -1)
+                    {
+                        throw new BadRequestException(
+                            $"The content of the file '{fileName}' is empty. Please provide a valid file.");
+                    }
+
+                    content.Position = originalPos;
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Sanitizes a file name by removing directory parts and limiting its length.
     /// </summary>
     /// <param name="s">The input string to sanitize.</param>
@@ -123,6 +177,9 @@ public class ModelUploadService(IModelStorage storage) : IModelUploadService
         if (requestDto.Files is null || requestDto.Files.Count == 0)
             throw new BadRequestException(
                 "No files were provided in the upload requestDto. Please select a file to upload.");
+
+        // Validate that all files are readable and non-empty
+        ValidateFileStreams(requestDto.Files);
 
         // Validate alias once (applies only to an entry file)
         if (string.IsNullOrWhiteSpace(requestDto.Alias))
