@@ -1,9 +1,10 @@
 namespace ECAD_Backend.Domain.Entities;
 
-public class AdditionalFile
+public class StateFile
 {
-    public required string Name { get; init; }
-    public required Uri Url { get; init; }
+    public string Version { get; init; } = default!;
+    public string Name { get; init; } = default!;
+    public Uri Url { get; init; } = default!;
     public long? SizeBytes { get; init; }
     public DateTimeOffset? CreatedOn { get; init; }
     public string? ContentType { get; init; }

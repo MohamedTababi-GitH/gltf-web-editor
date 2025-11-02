@@ -3,6 +3,9 @@ namespace ECAD_Backend.Application.DTOs.Filter;
 public sealed class ModelFilter
 {
     public List<string>? Categories { get; set; }
+    
+    // e.g. /api/model?isNew=true
+    public bool? IsNew { get; init; }
 
     // e.g. /api/model?isFavourite=true
     public bool? IsFavourite { get; init; }
