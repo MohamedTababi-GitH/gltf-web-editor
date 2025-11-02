@@ -218,7 +218,13 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [cursorTools, saveModel, setSelectedTool, versionModalOpen]);
+  }, [
+    cursorTools,
+    saveModel,
+    selectedVersion?.version,
+    setSelectedTool,
+    versionModalOpen,
+  ]);
 
   return (
     <div className={`w-full h-full relative`}>
