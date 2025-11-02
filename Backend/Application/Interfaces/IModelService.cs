@@ -22,16 +22,6 @@ public interface IModelService
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Uploads a model asynchronously based on the specified requestDto data.
-    /// </summary>
-    /// <param name="requestDto">The requestDto containing model upload details.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation, containing the upload result as <see cref="UploadResultDto"/>.</returns>
-    Task<UploadResultDto> UploadAsync(
-        UploadModelRequestDto requestDto,
-        CancellationToken cancellationToken);
-
-    /// <summary>
     /// Deletes a model by its unique identifier.
     /// </summary>
     /// <param name="id">The unique identifier of the model to delete.</param>
@@ -69,12 +59,4 @@ public interface IModelService
         Guid id,
         CancellationToken cancellationToken
     );
-
-    /// <summary>
-    /// Saves the state of a model asynchronously.
-    /// </summary>
-    /// <param name="requestDto">The request containing the state data to save.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation, containing the state update result.</returns>
-    Task<UpdateStateResultDto> SaveStateAsync(UpdateStateRequestDto requestDto, CancellationToken cancellationToken);
 }
