@@ -491,14 +491,14 @@ public class AzureBlobModelStorage : IModelStorage
         // case 1: .../state/state.json  → "latest"
         // after "state", next is "state.json"? then it's latest
         if (idx + 1 < parts.Length && parts[idx + 1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
-            return "latest";
+            return "Default";
 
         // case 2: .../state/v2/state.json → take parts[idx+1] ("v2")
         if (idx + 2 < parts.Length && parts[^1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
             return parts[idx + 1];
 
         // fallback
-        return "latest";
+        return "Default";
     }
 
     private static bool Matches(ModelFilterDto filterDto, BlobItem blob, IDictionary<string, string> md)
