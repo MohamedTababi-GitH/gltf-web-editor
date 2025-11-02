@@ -4,7 +4,7 @@ namespace ECAD_Backend.Application.DTOs.RequestDTO;
 /// Data Transfer Object (DTO) representing an upload request for a 3D model.
 /// Used by the application service layer to process incoming files.
 /// </summary>
-public sealed class UploadModelRequest
+public sealed class UploadModelRequestDto
 {
     /// <summary>
     /// All files to upload. For .glb this is typically just one file.
@@ -24,6 +24,13 @@ public sealed class UploadModelRequest
     /// </summary>
     public required string Alias { get; init; }
 
+    /// <summary>
+    /// Gets or sets the list of categories associated with the model.
+    /// </summary>
     public List<string>? Categories { get; set; }
+
+    /// <summary>
+    /// Gets the description of the model.
+    /// </summary>
     public string? Description { get; init; }
 }

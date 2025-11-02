@@ -68,7 +68,7 @@ public class AzureBlobModelStorage : IModelStorage
     #region CRUD Methods
 
     public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
-        int limit, string? cursorRaw, ModelFilter filter, CancellationToken ct = default)
+        int limit, string? cursorRaw, ModelFilterDto filterDto, CancellationToken ct = default)
     {
         var items = new List<ModelFile>(limit);
 
@@ -77,9 +77,9 @@ public class AzureBlobModelStorage : IModelStorage
         var azureCt = cur.AzureCt; // maybe null
         var resumeAfter = cur.LastName; // maybe null
 
-        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
+        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filterDto.Prefix)
             ? _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct)
-            : _container.GetBlobsAsync(BlobTraits.Metadata, prefix: filter.Prefix,
+            : _container.GetBlobsAsync(BlobTraits.Metadata, prefix: filterDto.Prefix,
                 cancellationToken: ct);
 
         var pageSizeHint = Math.Clamp(limit, 1, 500);
@@ -100,40 +100,11 @@ public class AzureBlobModelStorage : IModelStorage
                 }
 
                 var md = blob.Metadata ?? new Dictionary<string, string>();
-                if (!Matches(filter, blob, md)) continue;
+                if (!Matches(filterDto, blob, md)) continue;
 
-                // Build only after passing filters
-                var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
-                var fileUri = BuildBlobUri(blob.Name);
-                var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
-                var (additional, stateFiles) = await EnumerateFilesAsync(assetId, blob.Name, ct);
-                var format = GetFormatOrNull(blob.Name)!; // safe due to Matches() check
-                var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
-                var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
-                var categories = categoriesStr
-                    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-                var description = ReadStringMetadataOrNull(md, MetaDescription);
-                var fav = ParseBoolMetadata(md, MetaIsFavourite);
-                var nevv = ParseBoolMetadata(md, MetaIsNew);
-                var created = blob.Properties.CreatedOn;
+                var model = await BuildModelFileAsync(blob, md, ct);
 
-
-                items.Add(new ModelFile
-                {
-                    Id = id,
-                    Name = alias,
-                    Format = format,
-                    SizeBytes = blob.Properties.ContentLength,
-                    CreatedOn = created,
-                    Url = fileUri,
-                    Categories = categories,
-                    Description = description,
-                    AssetId = assetId,
-                    AdditionalFiles = additional,
-                    StateFiles = stateFiles,
-                    IsFavourite = fav,
-                    IsNew = nevv
-                });
+                items.Add(model);
 
                 var lastEmittedName = blob.Name;
 
@@ -141,7 +112,7 @@ public class AzureBlobModelStorage : IModelStorage
                 {
                     // Check if there are more eligible items on this current Azure page.
                     bool moreInCurrentPage =
-                        HasAnotherEligibleInCurrentPage(page.Values, blob.Name, resumeAfter, filter);
+                        HasAnotherEligibleInCurrentPage(page.Values, blob.Name, resumeAfter, filterDto);
 
                     // Case 1: More items exist on the CURRENT page.
                     if (moreInCurrentPage)
@@ -376,7 +347,7 @@ public class AzureBlobModelStorage : IModelStorage
     }
 
     private bool HasAnotherEligibleInCurrentPage(
-        IEnumerable<BlobItem> values, string currentName, string? resume, ModelFilter f)
+        IEnumerable<BlobItem> values, string currentName, string? resume, ModelFilterDto f)
     {
         bool localSkipping = !string.IsNullOrEmpty(resume);
 
@@ -520,24 +491,24 @@ public class AzureBlobModelStorage : IModelStorage
         // case 1: .../state/state.json  → "latest"
         // after "state", next is "state.json"? then it's latest
         if (idx + 1 < parts.Length && parts[idx + 1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
-            return "latest";
+            return "Default";
 
         // case 2: .../state/v2/state.json → take parts[idx+1] ("v2")
         if (idx + 2 < parts.Length && parts[^1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
             return parts[idx + 1];
 
         // fallback
-        return "latest";
+        return "Default";
     }
 
-    private static bool Matches(ModelFilter filter, BlobItem blob, IDictionary<string, string> md)
+    private static bool Matches(ModelFilterDto filterDto, BlobItem blob, IDictionary<string, string> md)
     {
         var format = GetFormatOrNull(blob.Name);
         if (format is null) return false;
 
         // FORMAT
-        if (!string.IsNullOrWhiteSpace(filter.Format) &&
-            !string.Equals(format, filter.Format, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(filterDto.Format) &&
+            !string.Equals(format, filterDto.Format, StringComparison.OrdinalIgnoreCase))
             return false;
 
         // METADATA
@@ -551,25 +522,25 @@ public class AzureBlobModelStorage : IModelStorage
         var isNew = ParseBoolMetadata(md, MetaIsNew);
 
         // IS NEW?
-        if (filter.IsNew is not null && isNew != filter.IsNew.Value)
+        if (filterDto.IsNew is not null && isNew != filterDto.IsNew.Value)
             return false;
 
         // IS FAVOURITE?
-        if (filter.IsFavourite is not null && fav != filter.IsFavourite.Value)
+        if (filterDto.IsFavourite is not null && fav != filterDto.IsFavourite.Value)
             return false;
 
         // CATEGORY
-        if (filter.Categories is { Count: > 0 })
+        if (filterDto.Categories is { Count: > 0 })
         {
-            // Require any overlap between filter.Categories and blob categories
-            if (!categories.Any(c => filter.Categories.Contains(c, StringComparer.OrdinalIgnoreCase)))
+            // Require any overlap between filterDto.Categories and blob categories
+            if (!categories.Any(c => filterDto.Categories.Contains(c, StringComparer.OrdinalIgnoreCase)))
                 return false;
         }
 
         // QUERY (fuzzy or partial)
-        if (!string.IsNullOrWhiteSpace(filter.Q))
+        if (!string.IsNullOrWhiteSpace(filterDto.Q))
         {
-            var q = filter.Q.Trim();
+            var q = filterDto.Q.Trim();
             bool matches =
                 Fuzz.PartialRatio(q, alias) > 80 ||
                 Fuzz.PartialRatio(q, string.Join(" ", categories)) > 80 ||
@@ -581,23 +552,63 @@ public class AzureBlobModelStorage : IModelStorage
         return true;
     }
 
-    public async Task<int> CountAsync(ModelFilter filter, CancellationToken ct = default)
+    public async Task<int> CountAsync(ModelFilterDto filterDto, CancellationToken ct = default)
     {
         int count = 0;
 
-        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filter.Prefix)
+        AsyncPageable<BlobItem> pageable = string.IsNullOrWhiteSpace(filterDto.Prefix)
             ? _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct)
-            : _container.GetBlobsAsync(BlobTraits.Metadata, prefix: filter.Prefix,
+            : _container.GetBlobsAsync(BlobTraits.Metadata, prefix: filterDto.Prefix,
                 cancellationToken: ct);
 
         await foreach (var blob in pageable.WithCancellation(ct))
         {
             var md = blob.Metadata ?? new Dictionary<string, string>();
-            if (Matches(filter, blob, md))
+            if (Matches(filterDto, blob, md))
                 count++;
         }
 
         return count;
+    }
+    
+    private async Task<ModelFile> BuildModelFileAsync(
+        BlobItem blob,
+        IDictionary<string,string> md,
+        CancellationToken ct)
+    {
+        var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();
+        var fileUri = BuildBlobUri(blob.Name);
+        var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
+        var (additional, stateFiles) = await EnumerateFilesAsync(assetId, blob.Name, ct);
+
+        var format = GetFormatOrNull(blob.Name)!;
+        var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
+
+        var categoriesStr = ReadStringMetadataOrNull(md, MetaCategories);
+        var categories = categoriesStr?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        var description = ReadStringMetadataOrNull(md, MetaDescription);
+        var fav = ParseBoolMetadata(md, MetaIsFavourite);
+        var isNew = ParseBoolMetadata(md, MetaIsNew);
+
+        return new ModelFile
+        {
+            Id = id,
+            Name = alias,
+            Format = format,
+            SizeBytes = blob.Properties.ContentLength,
+            CreatedOn = blob.Properties.CreatedOn,
+            Url = fileUri,
+            Categories = categories,
+            Description = description,
+            AssetId = assetId,
+            AdditionalFiles = additional,
+            StateFiles = stateFiles,
+            IsFavourite = fav,
+            IsNew = isNew
+        };
     }
 
     #endregion
