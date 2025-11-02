@@ -1,18 +1,19 @@
 using System.Text.RegularExpressions;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
-using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Interfaces;
-using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Exceptions;
 
 namespace ECAD_Backend.Application.Services;
 
 /// <summary>
-/// Provides application logic for managing 3D model files, including validation and interaction with storage.
-/// Orchestrates the validation of model uploads and retrieval of stored models.
+/// Provides application logic for managing existing 3D model metadata.
+/// Handles listing, updating details, deleting models, and clearing "isNew" flags.
+/// 
+/// This service doesn't handle file uploads or editor state persistence —
+/// those are managed by <see cref="IModelUploadService"/> and <see cref="IModelStateService"/> respectively.
 /// </summary>
 public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : IModelService
 {
@@ -144,7 +145,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
         string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         List<string>? NormalizeList(List<string>? list) =>
-            list is null ? null : list.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+            list?.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
 
         var normalizedCategories = NormalizeList(categories);
         Normalize(description);

@@ -14,7 +14,7 @@ namespace ECAD_Backend.Application.Interfaces
         /// <param name="requestDto">The request containing the state data to save.</param>
         /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
         /// <returns>A task representing the asynchronous operation, containing the state update result.</returns>
-        Task<UpdateStateResultDto> SaveStateAsync(UpdateStateRequestDto requestDto, CancellationToken cancellationToken);
+        Task<UpdateStateResultDto> SaveStateAsync(UpdateStateRequestDto requestDto,
+            CancellationToken cancellationToken);
     }
 }
-

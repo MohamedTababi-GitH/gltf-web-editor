@@ -5,6 +5,13 @@ using ECAD_Backend.Infrastructure.Exceptions;
 
 namespace ECAD_Backend.Application.Services;
 
+/// <summary>
+/// Provides application logic for saving and versioning editor or runtime state associated with 3D models.
+/// Responsible for validating, storing, and tagging JSON-based state snapshots in model storage.
+/// 
+/// This service does not handle model file uploads or metadata updates —
+/// those are managed by <see cref="IModelUploadService"/> and <see cref="IModelService"/> respectively.
+/// </summary>
 public class ModelStateService(IModelStorage storage) : IModelStateService
 {
     /// <summary>

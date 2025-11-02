@@ -6,11 +6,23 @@ using ECAD_Backend.Infrastructure.Exceptions;
 
 namespace ECAD_Backend.Application.Services;
 
+/// <summary>
+/// Provides application logic for validating and processing 3D model uploads.
+/// Responsible for verifying model structure (GLB/GLTF), ensuring all referenced resources are included,
+/// sanitizing file names, assigning metadata, and delegating file storage.
+/// 
+/// This service does not handle model metadata management or state persistence —
+/// those are managed by <see cref="IModelService"/> and <see cref="IModelStateService"/> respectively.
+/// </summary>
 public class ModelUploadService(IModelStorage storage) : IModelUploadService
 {
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
-    
-     private static List<string> ExtractReferencedUrisFromGltfJson(string gltfJson)
+
+    /// <summary>
+    /// Extracts external resource file URIs from a GLTF JSON string,
+    /// including buffers and images, excluding embedded data URIs.
+    /// </summary>
+    private static List<string> ExtractReferencedUrisFromGltfJson(string gltfJson)
     {
         var uris = new List<string>();
 
@@ -65,8 +77,8 @@ public class ModelUploadService(IModelStorage storage) : IModelUploadService
         s = s.Replace("..", "");
         return s.Length > 120 ? s[..120] : s;
     }
-    
-     /// <summary>
+
+    /// <summary>
     /// Validates and uploads a new 3D model (and its companion assets) into blob storage.
     /// </summary>
     /// <param name="requestDto">
@@ -238,5 +250,4 @@ public class ModelUploadService(IModelStorage storage) : IModelUploadService
             BlobName = $"{assetId}/{safeBase}{entryExt}"
         };
     }
-
 }
