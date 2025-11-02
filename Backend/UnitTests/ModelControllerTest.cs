@@ -7,6 +7,8 @@ using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Infrastructure.Exceptions;
 using ECAD_Backend.Web.Controllers;
+using Microsoft.AspNetCore.Http;
+
 
 namespace ECAD_Backend.UnitTests;
 
