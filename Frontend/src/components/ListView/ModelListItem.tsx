@@ -136,20 +136,7 @@ function ModelListItem({
     setIsNew(newIsNewStatus);
 
     try {
-      const payload = {
-        newAlias: editData.alias?.trim() || item.name,
-        description: editData.description?.trim() || "",
-        categories:
-          Array.isArray(editData.categories) && editData.categories.length > 0
-            ? editData.categories.map(String)
-            : [],
-        isFavourite: isFavorite,
-        isNew: newIsNewStatus,
-      };
-
-      console.log("Updating model with payload:", payload);
-
-      await apiClient.put(`/api/model/${item.id}/details`, payload);
+      await apiClient.patch(`/api/model/${item.id}/isNew`);
 
       if (refreshList) refreshList();
     } catch (error) {
