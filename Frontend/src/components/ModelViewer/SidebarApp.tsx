@@ -16,6 +16,7 @@ import { formatDateTime } from "@/utils/DateTime";
 import { formatBytes } from "@/utils/BytesConverter.ts";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useModel } from "@/contexts/ModelContext";
+import { Checkbox } from "@/components/ui/checkbox.tsx";
 
 const ExpandableSidebarGroup = ({
   label,
@@ -130,7 +131,7 @@ const AppSidebar = () => {
     updateMeshPosition,
   } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
-    "metadata"
+    "metadata",
   );
 
   if (!model) return null;
@@ -272,11 +273,10 @@ const AppSidebar = () => {
                         <span className="font-medium text-sidebar-foreground/70">
                           Is Visible
                         </span>
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={mesh.isVisible}
-                          onChange={(e) =>
-                            toggleComponentVisibility(mesh.id, e.target.checked)
+                          onCheckedChange={(checked) =>
+                            toggleComponentVisibility(mesh.id, checked)
                           }
                           className="cursor-pointer"
                         />

@@ -287,9 +287,7 @@ export function Model({
         });
       }
     });
-
-    updateSidebarMeshes(scene.children);
-  }, [loadedState, scene, updateSidebarMeshes]);
+  }, [loadedState, scene]);
 
   const handleDragStart = useCallback(() => {
     dragStartStates.current = selectedComponents.map((comp) => ({

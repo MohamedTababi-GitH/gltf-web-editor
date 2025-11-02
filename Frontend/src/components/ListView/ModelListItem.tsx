@@ -119,7 +119,7 @@ function ModelListItem({
         description: editData.description?.trim() || null,
         categories:
           editData?.categories?.length > 0 ? editData.categories : null,
-        isFavorite: newFavoriteStatus,
+        isFavourite: newFavoriteStatus,
       });
 
       if (refreshList) refreshList();

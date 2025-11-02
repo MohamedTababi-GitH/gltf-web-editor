@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import Cursors from "@/components/ModelViewer/Cursors.tsx";
 import type { Cursor } from "@/types/Cursor.ts";
 import * as THREE from "three";
-import { Redo2, Undo2, X, Keyboard, Save, SaveAll } from "lucide-react";
+import { Redo2, Undo2, X, Keyboard, Save, SaveAll, Layers } from "lucide-react";
 import { useHistory } from "@/contexts/HistoryContext.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -27,6 +27,17 @@ import { ButtonGroup } from "@/components/ui/button-group.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import { useNotification } from "@/contexts/NotificationContext.tsx";
+import { formatDateTime } from "@/utils/DateTime.ts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import { Input } from "@/components/ui/input.tsx";
+import type { StateFile } from "@/types/StateFile.ts";
 
 type ThreeAppProps = {
   setShowViewer: (show: boolean) => void;
@@ -48,6 +59,8 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
   const [versionModalOpen, setVersionModalOpen] = useState(false);
   const apiClient = useAxiosConfig();
   const { showNotification } = useNotification();
+  const [versionName, setVersionName] = useState("");
+  const [selectedVersion, setSelectedVersion] = useState<StateFile>();
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null>>();
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
@@ -64,6 +77,10 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
   const [undoShortcut, setUndoShortcut] = useState("Ctrl+Z");
   const [redoShortcut, setRedoShortcut] = useState("Ctrl+Y");
 
+  const files = model?.stateFiles || [];
+  const sortedFiles = [...files].sort((a, b) =>
+    a.createdOn > b.createdOn ? -1 : 1,
+  );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const cursorTools = [
     { name: CursorEnum.Select, shortcut: "S" },
@@ -135,25 +152,38 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     };
   }, [url, model]);
 
-  const saveModel = useCallback(async () => {
-    if (!groupRef || !model?.assetId) return;
-    try {
-      const state = handleSaveScene(groupRef);
-      const formData = new FormData();
-      formData.append("StateJson", state);
-      const res = await apiClient.post(
-        `/api/model/${model?.assetId}/state`,
-        formData,
-      );
-      showNotification(res.data.message, "success");
-    } catch (error) {
-      console.error("Error saving model:", error);
-    }
-  }, [apiClient, groupRef, model?.assetId, showNotification]);
+  const saveModel = useCallback(
+    async (targetVersion?: string) => {
+      if (!groupRef || !model?.assetId) return;
+      try {
+        const state = handleSaveScene(groupRef);
+        const formData = new FormData();
+        formData.append("StateJson", state);
+        if (targetVersion) {
+          formData.append("TargetVersion", targetVersion);
+        }
+        const res = await apiClient.post(
+          `/api/model/${model?.assetId}/state`,
+          formData,
+        );
+        showNotification(res.data.message, "success");
+      } catch (error) {
+        console.error("Error saving model:", error);
+      }
+    },
+    [apiClient, groupRef, model?.assetId, showNotification],
+  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key === "s") {
+      if (versionModalOpen) return;
+
+      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        setVersionModalOpen(true);
+        return;
+      }
+      if (event.ctrlKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
         saveModel();
         return;
@@ -178,7 +208,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [cursorTools, saveModel, setSelectedTool]);
+  }, [cursorTools, saveModel, setSelectedTool, versionModalOpen]);
 
   return (
     <div className={`w-full h-full relative`}>
@@ -305,7 +335,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
               <TooltipTrigger asChild={true}>
                 <Button
                   disabled={!groupRef}
-                  onClick={saveModel}
+                  onClick={() => saveModel()}
                   className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Save className="size-4 lg:size-5 text-foreground" />
@@ -333,7 +363,75 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
               </TooltipContent>
             </Tooltip>
           </ButtonGroup>
+
+          {model?.stateFiles && model?.stateFiles?.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="default"
+                  className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+                >
+                  <Layers />
+                  {sortedFiles[0].version}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64">
+                <div className="grid gap-4">
+                  <h4 className="font-medium leading-none">Versions</h4>
+                  <div className="grid gap-2">
+                    {sortedFiles.map((file) => (
+                      <div
+                        className={`bg-muted py-2 px-4 rounded-md cursor-pointer`}
+                        key={file.createdOn}
+                      >
+                        <p className="text-sm">{file.version}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDateTime(file.createdOn).fullStr}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
+
+        <Dialog open={versionModalOpen} onOpenChange={setVersionModalOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Save as Version</DialogTitle>
+              <DialogDescription>
+                Enter a name for this version to save your changes.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                placeholder="e.g., 'My First Design'"
+                value={versionName}
+                onChange={(e) => setVersionName(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                className={`cursor-pointer`}
+                variant="outline"
+                onClick={() => {
+                  setVersionModalOpen(false);
+                  setVersionName("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className={`cursor-pointer`}
+                onClick={() => saveModel(versionName)}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Cursors
           setSelectedTool={setSelectedTool}
