@@ -57,3 +57,7 @@ _ReSharper*/
 # The packages folder can be ignored unless you commit package sources
 **/[Pp]ackages/*
 !**/[Pp]()**
+
+
+.sonarqube/
+sonarqubecoverage

@@ -6,7 +6,7 @@ scanner(
     token: process.env.SONAR_TOKEN,
     options: {
       "sonar.projectKey": "react-frontend",
-      "sonar.projectName": "React Frontend",
+      "sonar.projectName": "ECAD Frontend",
       "sonar.sources": "src",
       "sonar.tests": "src",
       "sonar.test.inclusions":

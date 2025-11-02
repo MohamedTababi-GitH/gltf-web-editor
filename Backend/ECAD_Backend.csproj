@@ -9,6 +9,7 @@
     <DockerfileContext>.</DockerfileContext>
 	 <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	 <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  <SonarQubeTestProject>false</SonarQubeTestProject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,13 +23,7 @@
   </ItemGroup>
 
    <ItemGroup>
-       <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting"/>
-   </ItemGroup>
-
-   <ItemGroup>
-     <_ContentIncludedByDefault Remove="UnitTests\obj\project.assets.json" />
-     <_ContentIncludedByDefault Remove="UnitTests\obj\project.packagespec.json" />
-     <_ContentIncludedByDefault Remove="UnitTests\obj\UnitTests.csproj.nuget.dgspec.json" />
+       <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
    </ItemGroup>
 
 </Project>
