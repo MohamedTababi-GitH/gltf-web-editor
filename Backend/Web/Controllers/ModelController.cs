@@ -256,4 +256,21 @@ public class ModelController : ControllerBase
         });
     }
     
+    /// <summary>
+    /// Retrieves a specific model by its unique identifier.
+    /// </summary>
+    /// <param name="id">The model's unique ID.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The model details as a <see cref="ModelItemDto"/>.</returns>
+    /// <response code="200">Returns the requested model.</response>
+    /// <response code="404">If no model was found with the given ID.</response>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(ModelItemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _modelService.GetByIdAsync(id, cancellationToken);
+        return Ok(result);
+    }
+    
 }

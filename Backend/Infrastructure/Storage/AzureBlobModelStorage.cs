@@ -334,6 +334,22 @@ public class AzureBlobModelStorage : IModelStorage
 
         return true;
     }
+    
+    public async Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        await foreach (var blob in _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct))
+        {
+            var md = blob.Metadata ?? new Dictionary<string, string>();
+
+            var metaId = TryGetGuidMetadata(md, MetaId);
+            if (metaId.HasValue && metaId.Value == id)
+            {
+                return await BuildModelFileAsync(blob, md, ct);
+            }
+        }
+
+        return null;
+    }
 
     #endregion
 

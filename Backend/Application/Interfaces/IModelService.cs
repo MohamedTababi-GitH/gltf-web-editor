@@ -59,4 +59,14 @@ public interface IModelService
         Guid id,
         CancellationToken cancellationToken
     );
+    
+    /// <summary>
+    /// Retrieves a specific model by its unique identifier.
+    /// </summary>
+    /// <param name="id">The unique ID of the model.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>
+    /// The <see cref="ModelItemDto"/> representing the model, or throws <see cref="NotFoundException"/> if not found.
+    /// </returns>
+    Task<ModelItemDto> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 }
