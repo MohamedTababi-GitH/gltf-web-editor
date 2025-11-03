@@ -15,10 +15,21 @@ namespace ECAD_Backend.Application.Services;
 /// This service doesn't handle file uploads or editor state persistence —
 /// those are managed by <see cref="IModelUploadService"/> and <see cref="IModelStateService"/> respectively.
 /// </summary>
-public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : IModelService
+public sealed class ModelService(IModelStorage storage,IModelMapper mapper,IMutexService mutexService) : IModelService
 {
+    private readonly IMutexService _mutex = mutexService;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
+    
+    public void LockModel(Guid id)
+    {
+        _mutex.AcquireLock(id);
+    }
 
+    public void UnlockModel(Guid id)
+    {
+        _mutex.ReleaseLock(id);
+    }
+    
     #region CRUD Operations
     public async Task<ModelItemDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -98,6 +109,17 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
     /// </exception>
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
+        if (!_mutex.IsLocked(id))
+        {
+            Console.WriteLine($"Model {id} is NOT locked, cannot delete.********************************************************************************************************************************");
+        }
+
+        if (_mutex.IsLocked(id))
+        {
+            Console.WriteLine($"Model {id} is locked, cannot delete.*********************************************************************************************************************************");
+            throw new ModelLockedException($"Model {id} is currently locked.");
+        }
+
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
 
@@ -149,6 +171,9 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
         bool? isFavourite,
         CancellationToken cancellationToken)
     {
+        if (_mutex.IsLocked(id))
+            throw new ModelLockedException($"Model {id} is currently locked.");
+
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
 
@@ -174,10 +199,11 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-        return new UpdateDetailsResultDto
-        {
-            Message = "Updated successfully."
-        };
+            return new UpdateDetailsResultDto
+            {
+                Message = "Updated successfully."
+            };
+        }
     }
 
     /// <summary>
@@ -205,9 +231,9 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
     {
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
-
+        
         var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
-
+        
         if (!updated)
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
@@ -219,4 +245,6 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
     }
 
     #endregion
+    
+
 }

@@ -273,4 +273,24 @@ public class ModelController : ControllerBase
         return Ok(result);
     }
     
+    [HttpPost("{id:guid}/lock")]
+    public IActionResult LockModel(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+
+        _modelService.LockModel(id); // will internally call MutexService.AcquireLock(id)
+        return Ok(new { Message = $"Model {id} is now locked." });
+    }
+
+    [HttpPost("{id:guid}/unlock")]
+    public IActionResult UnlockModel(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+
+        _modelService.UnlockModel(id); // will internally call MutexService.ReleaseLock(id)
+        return Ok(new { Message = $"Model {id} has been unlocked." });
+    }
+
 }

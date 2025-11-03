@@ -10,6 +10,9 @@ namespace ECAD_Backend.Application.Interfaces;
 /// </summary>
 public interface IModelService
 {
+    
+    void LockModel(Guid id);
+    void UnlockModel(Guid id);
     /// <summary>
     /// Retrieves a read-only list of model items asynchronously.
     /// </summary>
