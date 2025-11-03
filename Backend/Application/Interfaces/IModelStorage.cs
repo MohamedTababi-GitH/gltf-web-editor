@@ -106,4 +106,6 @@ public interface IModelStorage
         string contentType,
         IDictionary<string, string>? metadata = null,
         CancellationToken ct = default);
+    
+    Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct);
 }
