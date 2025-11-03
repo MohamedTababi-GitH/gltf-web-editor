@@ -23,7 +23,7 @@ public class ModelServiceTest
     {
         _mockStorage = new Mock<IModelStorage>();
         _mockMapper = new Mock<IModelMapper>();
-        _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object);
+        _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object, null!);
         _modelUploadService = new ModelUploadService(_mockStorage.Object);
     }
 

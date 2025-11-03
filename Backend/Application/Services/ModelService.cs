@@ -15,11 +15,12 @@ namespace ECAD_Backend.Application.Services;
 /// This service doesn't handle file uploads or editor state persistence —
 /// those are managed by <see cref="IModelUploadService"/> and <see cref="IModelStateService"/> respectively.
 /// </summary>
-public sealed class ModelService(IModelStorage storage,IModelMapper mapper,IMutexService mutexService) : IModelService
+public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMutexService mutexService) : IModelService
 {
     private readonly IMutexService _mutex = mutexService;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
-    
+
+    //Authour: Zou
     public void LockModel(Guid id)
     {
         _mutex.AcquireLock(id);
@@ -30,7 +31,10 @@ public sealed class ModelService(IModelStorage storage,IModelMapper mapper,IMute
         _mutex.ReleaseLock(id);
     }
     
+    // -----
+
     #region CRUD Operations
+
     public async Task<ModelItemDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
@@ -111,12 +115,14 @@ public sealed class ModelService(IModelStorage storage,IModelMapper mapper,IMute
     {
         if (!_mutex.IsLocked(id))
         {
-            Console.WriteLine($"Model {id} is NOT locked, cannot delete.********************************************************************************************************************************");
+            Console.WriteLine(
+                $"Model {id} is NOT locked, cannot delete.********************************************************************************************************************************");
         }
 
         if (_mutex.IsLocked(id))
         {
-            Console.WriteLine($"Model {id} is locked, cannot delete.*********************************************************************************************************************************");
+            Console.WriteLine(
+                $"Model {id} is locked, cannot delete.*********************************************************************************************************************************");
             throw new ModelLockedException($"Model {id} is currently locked.");
         }
 
@@ -199,13 +205,12 @@ public sealed class ModelService(IModelStorage storage,IModelMapper mapper,IMute
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-            return new UpdateDetailsResultDto
-            {
-                Message = "Updated successfully."
-            };
-        }
+        return new UpdateDetailsResultDto
+        {
+            Message = "Updated successfully."
+        };
     }
-
+    
     /// <summary>
     /// Clears or updates the <c>isNew</c> flag for a model so that it no longer appears as "new" in the UI.
     /// </summary>
@@ -243,8 +248,6 @@ public sealed class ModelService(IModelStorage storage,IModelMapper mapper,IMute
             Message = ""
         };
     }
-
-    #endregion
     
-
+    #endregion
 }
