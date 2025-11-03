@@ -12,13 +12,18 @@ namespace ECAD_Backend.UnitTests;
 public class ModelServiceTest
 {
     private Mock<IModelStorage> _mockStorage = null!;
+    private Mock<IMutexService> _mockMutex = null!;
     private ModelService _service = null!;
 
     [TestInitialize]
     public void SetUp()
     {
         _mockStorage = new Mock<IModelStorage>();
-        _service = new ModelService(_mockStorage.Object);
+        _mockMutex = new Mock<IMutexService>();
+
+
+
+        _service = new ModelService(_mockStorage.Object, _mockMutex.Object);
     }
 
     [TestMethod]
@@ -27,9 +32,9 @@ public class ModelServiceTest
         // Arrange
         var name = "TestFile1";
         var format = "glb";
-        var guid = Guid.NewGuid() ;
-        var url = new Uri("http://localhost"); 
-        var files = new List<ModelFile> { new() { Name = name, Format = format, Id = guid , Url = url} };
+        var guid = Guid.NewGuid();
+        var url = new Uri("http://localhost");
+        var files = new List<ModelFile> { new() { Name = name, Format = format, Id = guid, Url = url } };
         var limit = 5;
         var filter = new ModelFilter();
         _mockStorage.Setup(s => s.ListPageAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<ModelFilter>(), It.IsAny<CancellationToken>()))
@@ -53,7 +58,7 @@ public class ModelServiceTest
         // Act & Assert
         var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await _service.ListAsync(limit, null, filter, CancellationToken.None));
-        
+
         // Assert
         Assert.AreEqual(nameof(limit), result.ParamName);
     }
@@ -67,13 +72,13 @@ public class ModelServiceTest
         var filter = new ModelFilter();
 
         // Act & Assert
-        var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async() =>
+        var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await _service.ListAsync(limit, null, filter, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
-    
+
     [TestMethod]
     public async Task UploadAsync_CallsStorageUpload_WhenValid()
     {
@@ -103,7 +108,7 @@ public class ModelServiceTest
         Assert.AreEqual("Uploaded successfully.", result.Message);
         Assert.AreEqual(alias, result.Alias);
     }
-    
+
     [TestMethod]
     public async Task UploadAsync_Throws_WhenRequestIsNull()
     {
@@ -138,7 +143,7 @@ public class ModelServiceTest
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
-    
+
     [TestMethod]
     public async Task UploadAsync_Throws_WhenFileListIsEmpty()
     {
@@ -167,7 +172,7 @@ public class ModelServiceTest
         var expectedErrorMessage = "name for the model is required";
         var filename = "file.glb";
         var stream = new MemoryStream([1]);
-        var files = new List<(string, Stream)> {(filename, stream)};
+        var files = new List<(string, Stream)> { (filename, stream) };
         string alias = null!;
         var request = new UploadModelRequest
         {
@@ -191,7 +196,7 @@ public class ModelServiceTest
         var expectedErrorMessage = "name can only contain letters, numbers, and underscores";
         var filename = "file.glb";
         var stream = new MemoryStream([1]);
-        var files = new List<(string, Stream)> {(filename, stream)};
+        var files = new List<(string, Stream)> { (filename, stream) };
         var alias = "Invalid Alias!";
         var request = new UploadModelRequest
         {
@@ -215,7 +220,7 @@ public class ModelServiceTest
         var expectedErrorMessage = "original file name";
         string filename = null!;
         var stream = new MemoryStream([1]);
-        var files = new List<(string, Stream)> {(filename, stream)};
+        var files = new List<(string, Stream)> { (filename, stream) };
         var alias = "alias";
         var request = new UploadModelRequest
         {
@@ -239,7 +244,7 @@ public class ModelServiceTest
         var expectedErrorMessage = ".glb or .gltf file";
         var filename = "file.jpg";
         var stream = new MemoryStream([1]);
-        var files = new List<(string, Stream)> {(filename, stream)};
+        var files = new List<(string, Stream)> { (filename, stream) };
         var alias = "alias";
         var request = new UploadModelRequest
         {
@@ -262,7 +267,7 @@ public class ModelServiceTest
         // Arrange
         var filename = "model.glb";
         var stream = new MemoryStream([1]);
-        var files = new List<(string, Stream)> {(filename, stream)};
+        var files = new List<(string, Stream)> { (filename, stream) };
         var entryFileName = "entryFile.glb";
         var alias = "alias";
         var request = new UploadModelRequest
@@ -275,7 +280,7 @@ public class ModelServiceTest
         // Act & Assert
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
             await _service.UploadAsync(request, CancellationToken.None));
-        
+
         // Assert
         var expectedErrorMessage = $"The main model file '{entryFileName}' is missing";
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -287,7 +292,7 @@ public class ModelServiceTest
         // Arrange
         var filename = "model.glb";
         MemoryStream stream = null!;
-        var files = new List<(string, Stream)> {(filename, stream)};
+        var files = new List<(string, Stream)> { (filename, stream) };
         var alias = "alias";
         var request = new UploadModelRequest
         {
@@ -304,7 +309,7 @@ public class ModelServiceTest
         var expectedErrorMessage = $"The content of the file '{filename}' is empty";
         Assert.Contains(expectedErrorMessage, result.Message);
     }
-    
+
     [TestMethod]
     public async Task UploadAsync_Throws_WhenAnyFileEmpty()
     {
@@ -313,7 +318,7 @@ public class ModelServiceTest
         var stream1 = new MemoryStream([1]);
         var fileFail = "model.bin";
         MemoryStream stream2 = null!;
-        var files = new List<(string, Stream)> {(file1, stream1), (fileFail, stream2)};
+        var files = new List<(string, Stream)> { (file1, stream1), (fileFail, stream2) };
         var alias = "alias";
         var request = new UploadModelRequest
         {
@@ -339,7 +344,7 @@ public class ModelServiceTest
         var stream1 = new MemoryStream([1]);
         var fileFail = "model.txt";
         var stream2 = new MemoryStream([2]);
-        var files = new List<(string, Stream)> {(file1, stream1), (fileFail, stream2)};
+        var files = new List<(string, Stream)> { (file1, stream1), (fileFail, stream2) };
         var alias = "alias";
         var request = new UploadModelRequest
         {
@@ -370,14 +375,14 @@ public class ModelServiceTest
         // Assert
         Assert.IsTrue(result);
     }
-    
+
     [TestMethod]
     public async Task DeleteAsync_Throws_WhenEmptyId()
     {
         // Arrange
         var expectedErrorMessage = "provided model ID is not valid";
         var id = Guid.Empty;
-        
+
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
             await _service.DeleteAsync(id, CancellationToken.None));
@@ -393,7 +398,7 @@ public class ModelServiceTest
         var expectedErrorMessage = "couldn't find a model with the ID";
         var id = Guid.NewGuid();
         _mockStorage.Setup(s => s.DeleteByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
+
         // Act
         var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _service.DeleteAsync(id, CancellationToken.None));
 
@@ -409,10 +414,10 @@ public class ModelServiceTest
         var newAlias = "newAlias";
         _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
             It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        
+
         // Act
         var result = await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
-        
+
         // Assert
         _mockStorage.Verify(s => s.UpdateDetailsAsync(
                 It.IsAny<Guid>(),
@@ -422,9 +427,9 @@ public class ModelServiceTest
                 It.IsAny<bool?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
-        
+
         Assert.AreEqual("Updated successfully.", result.Message);
-        
+
     }
 
     [TestMethod]
@@ -433,11 +438,11 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "provided model ID is not valid";
         var id = Guid.Empty;
-        
+
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _service.UpdateDetailsAsync(id, null, null,null, null, CancellationToken.None));
-        
+            await _service.UpdateDetailsAsync(id, null, null, null, null, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -448,12 +453,12 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "alias format is invalid";
         var newAlias = "Invalid Alias!";
-        var id  = Guid.NewGuid();
-        
+        var id = Guid.NewGuid();
+
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
             await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
-        
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -464,15 +469,78 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "couldn't find a model with the ID";
         var newAlias = "newAlias";
-        var id  = Guid.NewGuid();
+        var id = Guid.NewGuid();
         _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
             It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
+
         // Act
         var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
             await _service.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
-        
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
+    /*
+    [TestMethod]
+    public async Task UpdateDetailsAsync_Throws_WhenLocked()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockMutex.Setup(m => m.IsLocked(It.IsAny<int>(), out It.Ref<string?>.IsAny))
+                  .Returns(true);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ModelLockedException>(
+            async () => await _service.UpdateDetailsAsync(id, "alias", null, null, null, CancellationToken.None));
+    }
+    
+    [TestMethod]
+    public async Task UpdateDetailsAsync_ReleasesLock_AfterExecution()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockStorage.Setup(s => s.UpdateDetailsAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string?>(),
+                It.IsAny<List<string>?>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await _service.UpdateDetailsAsync(id, "alias", null, null, null, CancellationToken.None);
+
+        // Assert
+        _mockMutex.Verify(m => m.ReleaseLock(id.GetHashCode(), "system"), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task DeleteAsync_Throws_WhenLocked()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockMutex.Setup(m => m.IsLocked(It.IsAny<int>(), out It.Ref<string?>.IsAny))
+                  .Returns(true);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ModelLockedException>(
+            async () => await _service.DeleteAsync(id, CancellationToken.None));
+    }
+
+    [TestMethod]
+    public async Task DeleteAsync_ReleasesLock_AfterExecution()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockStorage.Setup(s => s.DeleteByIdAsync(id, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(true);
+
+        // Act
+        await _service.DeleteAsync(id, CancellationToken.None);
+
+        // Assert
+        _mockMutex.Verify(m => m.ReleaseLock(id.GetHashCode(), "system"), Times.Once);
+    }
+    */
 }

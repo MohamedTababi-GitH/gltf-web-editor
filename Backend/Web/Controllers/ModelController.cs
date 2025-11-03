@@ -124,7 +124,7 @@ public class ModelController : ControllerBase
             // Perform upload via the service layer
             var result = await _service.UploadAsync(request, cancellationToken);
             return Ok(new UploadResultDto
-                { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
+            { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         catch (ArgumentException ex)
         {
@@ -185,7 +185,7 @@ public class ModelController : ControllerBase
             request.IsFavourite,
             cancellationToken);
 
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+        return Ok(new UpdateDetailsResultDto { Message = update.Message });
     }
 
     [HttpPatch("{id:guid}/isNew")]
@@ -197,10 +197,10 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         var update = await _service.UpdateIsNewAsync(id, cancellationToken);
-        
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+
+        return Ok(new UpdateDetailsResultDto { Message = update.Message });
     }
-    
+
     [HttpPost("{assetId}/state")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(1048576)] // ~1 MB
@@ -244,5 +244,24 @@ public class ModelController : ControllerBase
             BlobName = result.BlobName
         });
     }
-    
+    [HttpPost("{id:guid}/lock")]
+    public IActionResult LockModel(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+
+        _service.LockModel(id); // will internally call MutexService.AcquireLock(id)
+        return Ok(new { Message = $"Model {id} is now locked." });
+    }
+
+    [HttpPost("{id:guid}/unlock")]
+    public IActionResult UnlockModel(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+
+        _service.UnlockModel(id); // will internally call MutexService.ReleaseLock(id)
+        return Ok(new { Message = $"Model {id} has been unlocked." });
+    }
+
 }

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
@@ -13,8 +14,9 @@ namespace ECAD_Backend.Application.Services;
 /// Provides application logic for managing 3D model files, including validation and interaction with storage.
 /// Orchestrates the validation of model uploads and retrieval of stored models.
 /// </summary>
-public sealed class ModelService(IModelStorage storage) : IModelService
+public sealed class ModelService(IModelStorage storage, IMutexService mutexService) : IModelService
 {
+    private readonly IMutexService _mutex = mutexService;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
     /// <summary>
@@ -170,7 +172,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
                     "Please include all required .bin/texture files and try again.");
             }
         }
-        
+
         var safeBase = Sanitize(Path.GetFileNameWithoutExtension(entryFileName));
         var assetId = Guid.NewGuid().ToString("N");
 
@@ -246,12 +248,23 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     /// <exception cref="NotFoundException">Thrown when no model with the specified ID exists.</exception>
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
+        if (!_mutex.IsLocked(id))
+        {
+            Console.WriteLine($"Model {id} is NOT locked, cannot delete.********************************************************************************************************************************");
+        }
+
+        if (_mutex.IsLocked(id))
+        {
+            Console.WriteLine($"Model {id} is locked, cannot delete.*********************************************************************************************************************************");
+            throw new ModelLockedException($"Model {id} is currently locked.");
+        }
+
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
 
         var deleted = await storage.DeleteByIdAsync(id, cancellationToken);
         if (!deleted)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+            throw new NotFoundException($"We couldn't find a model with the ID '{id}'.");
 
         return true;
     }
@@ -276,32 +289,46 @@ public sealed class ModelService(IModelStorage storage) : IModelService
         bool? isFavourite,
         CancellationToken cancellationToken)
     {
+        if (_mutex.IsLocked(id))
+            throw new ModelLockedException($"Model {id} is currently locked.");
+
         if (id == Guid.Empty)
-            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+            throw new ValidationException("Invalid model ID.");
 
-        // Normalize whitespace-only strings to null (treat as deletion)
-        string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-        List<string>? NormalizeList(List<string>? list) =>
-            list is null ? null : list.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
-        var normalizedCategories = NormalizeList(categories);
-        Normalize(description);
-        var alias = Normalize(newAlias);
-
-        // Validate alias only if it's being set (not deleted)
-        if (alias is not null && !AliasRegex.IsMatch(alias))
-            throw new ValidationException("The alias format is invalid. It can only contain letters, numbers, and underscores.");
-
-        var updated = await storage.UpdateDetailsAsync(
-            id, alias, normalizedCategories, Normalize(description), isFavourite, cancellationToken);
-
-        if (!updated)
-            throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
-
-        return new UpdateDetailsResultDto
+        try
         {
-            Message = "Updated successfully."
-        };
+            if (id == Guid.Empty)
+                throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+
+            // Normalize whitespace-only strings to null (treat as deletion)
+            string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+            List<string>? NormalizeList(List<string>? list) =>
+                list is null ? null : list.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
+            var normalizedCategories = NormalizeList(categories);
+            Normalize(description);
+            var alias = Normalize(newAlias);
+
+            // Validate alias only if it's being set (not deleted)
+            if (alias is not null && !AliasRegex.IsMatch(alias))
+                throw new ValidationException("The alias format is invalid. It can only contain letters, numbers, and underscores.");
+
+            var updated = await storage.UpdateDetailsAsync(
+                id, alias, normalizedCategories, Normalize(description), isFavourite, cancellationToken);
+
+            if (!updated)
+                throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+
+            return new UpdateDetailsResultDto
+            {
+                Message = "Updated successfully."
+            };
+        }
+        finally
+        {
+            _mutex.ReleaseLock(id);
+        }
     }
 
     public async Task<UpdateDetailsResultDto> UpdateIsNewAsync(
@@ -311,9 +338,9 @@ public sealed class ModelService(IModelStorage storage) : IModelService
     {
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
-        
+
         var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
-        
+
         if (!updated)
             throw new NotFoundException($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
@@ -322,7 +349,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             Message = ""
         };
     }
-    
+
     public async Task<UpdateResultDto> SaveStateAsync(
         UpdateStateRequest request,
         CancellationToken cancellationToken)
@@ -384,7 +411,7 @@ public sealed class ModelService(IModelStorage storage) : IModelService
             BlobName = blobName
         };
     }
-    
+
     private static List<string> ExtractReferencedUrisFromGltfJson(string gltfJson)
     {
         // We're being pragmatic, not doing full schema validation.
@@ -426,4 +453,15 @@ public sealed class ModelService(IModelStorage storage) : IModelService
 
         return uris;
     }
+
+    public void LockModel(Guid id)
+    {
+        _mutex.AcquireLock(id);
+    }
+
+    public void UnlockModel(Guid id)
+    {
+        _mutex.ReleaseLock(id);
+    }
+
 }

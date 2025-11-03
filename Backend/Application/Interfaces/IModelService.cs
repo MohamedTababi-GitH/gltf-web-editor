@@ -51,5 +51,7 @@ public interface IModelService
         CancellationToken cancellationToken
     );
 
-    Task<UpdateResultDto> SaveStateAsync( UpdateStateRequest request, CancellationToken cancellationToken);
+    Task<UpdateResultDto> SaveStateAsync(UpdateStateRequest request, CancellationToken cancellationToken);
+    void LockModel(Guid id);
+    void UnlockModel(Guid id);
 }

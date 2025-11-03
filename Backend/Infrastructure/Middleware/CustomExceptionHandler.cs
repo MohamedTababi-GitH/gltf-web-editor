@@ -14,6 +14,9 @@ namespace ECAD_Backend.Infrastructure.Middleware
         : BaseExceptionHandler<ValidationException>(logger, StatusCodes.Status422UnprocessableEntity,
             "Validation Error");
 
+    internal sealed class ModelLockedExceptionHandler(ILogger<ModelLockedExceptionHandler> logger)
+        : BaseExceptionHandler<ModelLockedException>(logger, StatusCodes.Status423Locked,
+            "Model Locked");
     /// <summary>
     /// Base handler to reduce repetition for all specific exception handlers.
     /// </summary>

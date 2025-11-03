@@ -22,6 +22,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddExceptionHandler<NotFoundExceptionHandler>();
 builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
+builder.Services.AddExceptionHandler<ModelLockedExceptionHandler>();
 
 // adding Global exception handeler
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>(); // Keep this last
@@ -48,6 +49,7 @@ services.AddSingleton<BlobContainerClient>(sp =>
 // App services
 services.AddScoped<IModelStorage, AzureBlobModelStorage>();
 services.AddScoped<IModelService, ModelService>();
+services.AddSingleton<IMutexService, MutexService>();
 
 // MVC / Swagger / CORS
 services.AddControllers();
