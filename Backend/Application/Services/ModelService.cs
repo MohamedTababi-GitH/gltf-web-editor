@@ -20,6 +20,17 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
     #region CRUD Operations
+    public async Task<ModelItemDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            throw new ValidationException("The provided model ID is invalid.");
+
+        var modelFile = await storage.GetByIdAsync(id, cancellationToken);
+        if (modelFile is null)
+            throw new NotFoundException($"No model was found with ID '{id}'.");
+
+        return mapper.ToDto(modelFile);
+    }
 
     /// <summary>
     /// Returns a paginated list of stored model entries based on filter criteria.
