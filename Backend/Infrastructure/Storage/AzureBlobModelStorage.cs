@@ -605,9 +605,9 @@ public class AzureBlobModelStorage : IModelStorage
         {
             var q = filterDto.Q.Trim();
             bool matches =
-                Fuzz.PartialRatio(q, alias) > 80 ||
-                Fuzz.PartialRatio(q, string.Join(" ", categories)) > 80 ||
-                Fuzz.PartialRatio(q, description ?? "") > 80;
+                Fuzz.PartialRatio(q, alias) > 70 ||
+                Fuzz.PartialRatio(q, string.Join(" ", categories)) > 70 ||
+                Fuzz.PartialRatio(q, description ?? "") > 70;
 
             if (!matches) return false;
         }
