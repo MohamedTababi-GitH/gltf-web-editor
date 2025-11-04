@@ -1,7 +1,13 @@
 import { Center, OrbitControls, Environment, Resize } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Model } from "./Model";
-import React, { Suspense, useCallback, useEffect, useState } from "react";
+import React, {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { loadModel } from "@/utils/ModelLoader.ts";
 import { useModel } from "@/contexts/ModelContext.tsx";
 import { Spinner } from "@/components/ui/spinner.tsx";
@@ -26,7 +32,6 @@ import { handleSaveScene } from "@/utils/StateSaver.ts";
 import { ButtonGroup } from "@/components/ui/button-group.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
-import { useNotification } from "@/contexts/NotificationContext.tsx";
 import { formatDateTime } from "@/utils/DateTime.ts";
 import {
   Dialog,
@@ -53,12 +58,11 @@ function Loading({ progress }: { progress: number }) {
 }
 
 export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
-  const { url, model } = useModel();
+  const { url, model, setModel } = useModel();
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
   const [versionModalOpen, setVersionModalOpen] = useState(false);
   const apiClient = useAxiosConfig();
-  const { showNotification } = useNotification();
   const [versionName, setVersionName] = useState("");
   const [selectedVersion, setSelectedVersion] = useState<StateFile>();
   const [groupRef, setGroupRef] =
@@ -77,15 +81,23 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
   const [undoShortcut, setUndoShortcut] = useState("Ctrl+Z");
   const [redoShortcut, setRedoShortcut] = useState("Ctrl+Y");
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const files = model?.stateFiles || [];
-  const sortedFiles = [...files].sort((a, b) =>
-    a.createdOn > b.createdOn ? -1 : 1,
+  const sortedFiles = useMemo(
+    () => [...files].sort((a, b) => (a.createdOn > b.createdOn ? -1 : 1)),
+    [files],
   );
 
-  useEffect(() => {
-    setSelectedVersion(sortedFiles[0]);
-  }, [sortedFiles]);
+  const refetchModel = useCallback(async () => {
+    try {
+      const res = await apiClient.get(`api/model/${model?.id}`);
+      setModel(res.data);
+    } catch (e) {
+      console.error("Error fetching model:", e);
+    }
+  }, [apiClient, model?.id, setModel]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const cursorTools = [
     { name: CursorEnum.Select, shortcut: "S" },
     { name: CursorEnum.MultiSelect, shortcut: "X" },
@@ -100,6 +112,8 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     setUndoShortcut(isMac ? "⌘+Z" : "Ctrl+Z");
     setRedoShortcut(isMac ? "⌘+Y" : "Ctrl+Y");
   }, []);
+
+  const additionalFilesJson = JSON.stringify(model?.additionalFiles);
 
   useEffect(() => {
     let isMounted = true;
@@ -154,11 +168,16 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
       isMounted = false;
       objectUrlsToRevoke.forEach(URL.revokeObjectURL);
     };
-  }, [url, model]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, additionalFilesJson]);
+
+  useEffect(() => {
+    setSelectedVersion(sortedFiles[0]);
+  }, [sortedFiles]);
 
   const saveModel = useCallback(
     async (targetVersion?: string) => {
-      if (!groupRef || !model?.assetId) return;
+      if (!groupRef || !model?.assetId || !refetchModel) return;
       try {
         const state = handleSaveScene(groupRef);
         const formData = new FormData();
@@ -166,30 +185,32 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
         if (targetVersion) {
           formData.append("TargetVersion", targetVersion);
         }
-        const res = await apiClient.post(
-          `/api/model/${model?.assetId}/state`,
-          formData,
-        );
-        showNotification(res.data.message, "success");
+        await apiClient.post(`/api/model/${model?.assetId}/state`, formData);
         setVersionModalOpen(false);
         setVersionName("");
+
+        await refetchModel();
       } catch (error) {
         console.error("Error saving model:", error);
       }
     },
-    [apiClient, groupRef, model?.assetId, showNotification],
+    [apiClient, groupRef, model?.assetId, refetchModel],
   );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (versionModalOpen) return;
 
-      if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "s") {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "s"
+      ) {
         event.preventDefault();
         setVersionModalOpen(true);
         return;
       }
-      if (event.ctrlKey && event.key.toLowerCase() === "s") {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         if (selectedVersion?.version !== "Default") {
           saveModel(selectedVersion?.version);
@@ -394,10 +415,10 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
                   className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
                 >
                   <Layers />
-                  {sortedFiles[0].version}
+                  {selectedVersion?.version}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64">
+              <PopoverContent className="w-80">
                 <div className="grid gap-4">
                   <h4 className="font-medium leading-none">Versions</h4>
                   <div className="grid gap-2">
@@ -411,7 +432,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
                         <p
                           className={`text-sm ${file === selectedVersion ? "text-muted" : "text-muted-foreground"}`}
                         >
-                          {formatDateTime(file.createdOn).fullStr}
+                          Last Saved: {formatDateTime(file.createdOn).fullStr}
                         </p>
                       </div>
                     ))}
@@ -473,6 +494,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
                 <Model
                   setGroupRef={setGroupRef}
                   selectedTool={selectedTool}
+                  selectedVersion={selectedVersion}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
                 />

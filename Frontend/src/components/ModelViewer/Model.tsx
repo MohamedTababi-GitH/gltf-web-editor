@@ -16,6 +16,8 @@ import {
 } from "@/services/MultiTransformCommand.ts";
 import { useHistory } from "@/contexts/HistoryContext.tsx";
 import type { SavedComponentState } from "@/utils/StateSaver.ts";
+import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import type { StateFile } from "@/types/StateFile.ts";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -25,12 +27,14 @@ export function Model({
   processedUrl,
   setLoadingProgress,
   selectedTool,
+  selectedVersion,
   setGroupRef,
 }: {
   processedUrl: string;
   setLoadingProgress: (progress: number) => void;
   selectedTool: string;
   setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
+  selectedVersion: StateFile | undefined;
 }) {
   const {
     model,
@@ -46,6 +50,7 @@ export function Model({
   const dragStartStates = useRef<TransformState[]>([]);
   const [loadedState, setLoadedState] = useState<SavedComponentState[]>();
   const { addCommand } = useHistory();
+  const apiClient = useAxiosConfig();
 
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
@@ -96,23 +101,29 @@ export function Model({
       return;
     }
 
-    const sortedFiles = [...files].sort((a, b) =>
-      a.createdOn > b.createdOn ? -1 : 1,
-    );
-    const latestFile = sortedFiles[0];
+    const versionToLoad = selectedVersion ?? files[0];
 
-    if (!latestFile || !latestFile.url) {
+    if (!versionToLoad || !versionToLoad.url) {
       console.error("Latest state file has no valid URL.");
       return;
     }
 
     const loadFromUrl = async () => {
       try {
-        const response = await fetch(latestFile.url);
-        const jsonString = await response.text();
+        const response = await apiClient.get(versionToLoad.url, {
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
+        const jsonString = response.data;
 
         try {
-          const parsedData: unknown = JSON.parse(jsonString);
+          const parsedData: unknown =
+            typeof jsonString === "string"
+              ? JSON.parse(jsonString)
+              : jsonString;
 
           if (isSavedStateArray(parsedData)) {
             setLoadedState(parsedData);
@@ -132,7 +143,7 @@ export function Model({
     };
 
     loadFromUrl();
-  }, [model?.stateFiles]);
+  }, [apiClient, model?.stateFiles, selectedVersion]);
 
   useEffect(() => {
     handleLoadScene();
