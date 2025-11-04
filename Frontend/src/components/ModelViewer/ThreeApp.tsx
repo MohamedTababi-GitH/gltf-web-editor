@@ -282,7 +282,7 @@ export default function ThreeApp() {
           <Loading progress={loadingProgress} />
         </div>
       )}
-      <div className="absolute top-3 left-5 z-20 flex items-center gap-2 select-none">
+      <div className="absolute top-3 left-5 right-5 z-20 flex items-center flex-wrap gap-2 select-none">
         <Tooltip>
           <TooltipTrigger asChild={true}>
             <Button
@@ -296,7 +296,6 @@ export default function ThreeApp() {
             <p>Close</p>
           </TooltipContent>
         </Tooltip>
-
         <Tooltip>
           <TooltipTrigger asChild={true}>
             <Button
@@ -311,7 +310,6 @@ export default function ThreeApp() {
             <p>Undo ({undoShortcut})</p>
           </TooltipContent>
         </Tooltip>
-
         <Tooltip>
           <TooltipTrigger asChild={true}>
             <Button
@@ -433,7 +431,6 @@ export default function ThreeApp() {
             </TooltipContent>
           </Tooltip>
         </ButtonGroup>
-
         {model?.stateFiles && model?.stateFiles?.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
