@@ -240,10 +240,10 @@ export default function ThreeApp() {
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        if (selectedVersion?.version !== "Default") {
-          saveModel(selectedVersion?.version);
-        } else {
+        if (selectedVersion?.version === "Default") {
           saveModel();
+        } else {
+          saveModel(selectedVersion?.version);
         }
         return;
       }
@@ -398,10 +398,10 @@ export default function ThreeApp() {
               <Button
                 disabled={!groupRef || !canUndo}
                 onClick={() => {
-                  if (selectedVersion?.version !== "Default") {
-                    saveModel(selectedVersion?.version);
-                  } else {
+                  if (selectedVersion?.version === "Default") {
                     saveModel();
+                  } else {
+                    saveModel(selectedVersion?.version);
                   }
                 }}
                 className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -448,6 +448,8 @@ export default function ThreeApp() {
                 <div className="grid gap-2">
                   {sortedFiles.map((file) => (
                     <div
+                      role={"listitem"}
+                      onKeyDown={() => {}}
                       onClick={() => {
                         if (canUndo) {
                           setShowSwitchWarning(true);
@@ -514,10 +516,10 @@ export default function ThreeApp() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (selectedVersion?.version !== "Default") {
-                  saveModel(selectedVersion?.version);
-                } else {
+                if (selectedVersion?.version === "Default") {
                   saveModel();
+                } else {
+                  saveModel(selectedVersion?.version);
                 }
                 setIsModelViewer(false);
               }}

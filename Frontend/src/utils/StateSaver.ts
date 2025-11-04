@@ -36,15 +36,14 @@ export type SavedComponentState = {
 export const handleSaveScene = (
   groupRef: React.RefObject<THREE.Group | null>,
 ): string => {
-  if (!groupRef.current || !groupRef.current.children[0]) {
+  if (!groupRef?.current?.children[0]) {
     console.error("Scene not ready to save.");
     return "[]";
   }
 
   const scene = groupRef.current.children[0];
   const savedComponentData: SavedComponentState[] = [];
-
-  scene.children.forEach((component) => {
+  for (const component of scene.children) {
     if (component.isObject3D) {
       const euler = new THREE.Euler().setFromQuaternion(
         component.quaternion,
@@ -61,7 +60,7 @@ export const handleSaveScene = (
         opacity: getComponentOpacity(component),
       });
     }
-  });
+  }
 
   return JSON.stringify(savedComponentData);
 };

@@ -103,7 +103,7 @@ export function Model({
 
     const versionToLoad = selectedVersion ?? files[0];
 
-    if (!versionToLoad || !versionToLoad.url) {
+    if (!versionToLoad?.url) {
       console.error("Latest state file has no valid URL.");
       return;
     }
@@ -264,7 +264,7 @@ export function Model({
       return;
     }
 
-    loadedState.forEach((savedComponent) => {
+    for (const savedComponent of loadedState) {
       const componentToLoad = scene.getObjectByName(savedComponent.name);
 
       if (componentToLoad) {
@@ -284,11 +284,11 @@ export function Model({
           if (isMesh(child)) {
             const mat = child.material;
             if (Array.isArray(mat)) {
-              mat.forEach((m) => {
+              for (const m of mat) {
                 m.transparent = savedComponent.opacity < 1;
                 m.opacity = savedComponent.opacity;
                 m.needsUpdate = true;
-              });
+              }
             } else {
               mat.transparent = savedComponent.opacity < 1;
               mat.opacity = savedComponent.opacity;
@@ -297,7 +297,7 @@ export function Model({
           }
         });
       }
-    });
+    }
   }, [loadedState, scene]);
 
   const handleDragStart = useCallback(() => {
