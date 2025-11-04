@@ -360,11 +360,26 @@ public class AzureBlobModelStorage : IModelStorage
         if (string.IsNullOrWhiteSpace(version))
             throw new ArgumentException("Version cannot be empty.", nameof(version));
 
-        // Guard against accidental "state" (the working-copy file lives at .../state/state.json, not a folder).
-        if (string.Equals(version, "state", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Deleting the working copy is not supported via this endpoint.", nameof(version));
+        var asset = assetId.Trim().TrimEnd('/');
+        var ver = version.Trim();
 
-        var prefix = $"{assetId.TrimEnd('/')}/state/{version.TrimEnd('/')}/";
+        // Allow deleting the "latest" working copy:
+        // Accept both "state" and "latest" as aliases for the working copy.
+        if (string.Equals(ver, "state", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(ver, "Default", StringComparison.OrdinalIgnoreCase))
+        {
+            var blobName = $"{asset}/state/state.json";
+            var client = _container.GetBlobClient(blobName);
+            var resp = await client.DeleteIfExistsAsync(
+                DeleteSnapshotsOption.IncludeSnapshots,
+                conditions: null,
+                cancellationToken: ct);
+            
+            return resp.Value ? 1 : 0;
+        }
+
+        // Otherwise delete all blobs under the named version folder: {assetId}/state/{version}/
+        var prefix = $"{asset}/state/{ver.TrimEnd('/')}/";
         var deleted = 0;
 
         await foreach (var blob in _container.GetBlobsAsync(

@@ -141,19 +141,31 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
             throw new ValidationException("AssetId is required.");
         if (string.IsNullOrWhiteSpace(version))
             throw new ValidationException("Version is required.");
-        if (string.Equals(version, "state", StringComparison.OrdinalIgnoreCase))
-            throw new ValidationException("Deleting the working copy is not supported.");
 
-        var deletedCount = await storage.DeleteStateVersionAsync(assetId.Trim(), version.Trim(), cancellationToken);
+        var trimmedAsset = assetId.Trim();
+        var trimmedVersion = version.Trim();
+        var deletedCount = await storage.DeleteStateVersionAsync(trimmedAsset, trimmedVersion, cancellationToken);
 
         if (deletedCount == 0)
-            throw new NotFoundException($"Version '{version}' was not found for asset '{assetId}'.");
+        {
+            var label = (trimmedVersion.Equals("state", StringComparison.OrdinalIgnoreCase) ||
+                         trimmedVersion.Equals("Default", StringComparison.OrdinalIgnoreCase))
+                ? "latest working copy"
+                : $"version '{trimmedVersion}'";
+            throw new NotFoundException($"{label} was not found for asset '{trimmedAsset}'.");
+        }
+
+        // Human-friendly message
+        var message = (trimmedVersion.Equals("state", StringComparison.OrdinalIgnoreCase) ||
+                       trimmedVersion.Equals("latest", StringComparison.OrdinalIgnoreCase))
+            ? "Deleted latest working copy."
+            : $"Deleted version '{trimmedVersion}'.";
 
         return new DeleteStateVersionResultDto
         {
-            Message = $"Deleted version '{version}'.",
-            AssetId = assetId,
-            Version = version,
+            Message = message,
+            AssetId = trimmedAsset,
+            Version = trimmedVersion,
             DeletedBlobs = deletedCount
         };
     }
