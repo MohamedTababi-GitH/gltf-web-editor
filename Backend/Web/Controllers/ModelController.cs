@@ -273,4 +273,25 @@ public class ModelController : ControllerBase
         return Ok(result);
     }
     
+    /// <summary>
+    /// Deletes a named state version for the given asset.
+    /// </summary>
+    /// <param name="assetId">The asset folder identifier.</param>
+    /// <param name="version">The version label (e.g., "v2", "test4").</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <response code="200">Version deleted successfully.</response>
+    /// <response code="404">Version not found.</response>
+    /// <response code="422">Validation error.</response>
+    [HttpDelete("{assetId}/state/{version}")]
+    [ProducesResponseType(typeof(DeleteStateVersionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteStateVersion(
+        string assetId,
+        string version,
+        CancellationToken cancellationToken)
+    {
+        var result = await _stateService.DeleteVersionAsync(assetId, version, cancellationToken);
+        return Ok(result);
+    }
+    
 }
