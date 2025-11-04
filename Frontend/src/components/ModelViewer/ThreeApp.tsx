@@ -205,15 +205,13 @@ export default function ThreeApp() {
   const handleVersionClick = (
     file: React.SetStateAction<StateFile | undefined>,
   ) => {
-    {
-      if (canUndo) {
-        setShowSwitchWarning(true);
-        setVersionToSwitch(file);
-        return;
-      }
-      setSelectedVersion(file);
-      resetStacks();
+    if (canUndo) {
+      setShowSwitchWarning(true);
+      setVersionToSwitch(file);
+      return;
     }
+    setSelectedVersion(file);
+    resetStacks();
   };
 
   const saveModel = useCallback(
