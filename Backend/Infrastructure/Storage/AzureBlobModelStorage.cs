@@ -334,7 +334,7 @@ public class AzureBlobModelStorage : IModelStorage
 
         return true;
     }
-    
+
     public async Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct)
     {
         await foreach (var blob in _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct))
@@ -352,6 +352,53 @@ public class AzureBlobModelStorage : IModelStorage
     }
 
     #endregion
+
+    public async Task<int> DeleteStateVersionAsync(string assetId, string version, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new ArgumentException("AssetId cannot be empty.", nameof(assetId));
+        if (string.IsNullOrWhiteSpace(version))
+            throw new ArgumentException("Version cannot be empty.", nameof(version));
+
+        var asset = assetId.Trim().TrimEnd('/');
+        var ver = version.Trim();
+
+        // Allow deleting the "latest" working copy:
+        // Accept both "state" and "latest" as aliases for the working copy.
+        if (string.Equals(ver, "state", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(ver, "Default", StringComparison.OrdinalIgnoreCase))
+        {
+            var blobName = $"{asset}/state/state.json";
+            var client = _container.GetBlobClient(blobName);
+            var resp = await client.DeleteIfExistsAsync(
+                DeleteSnapshotsOption.IncludeSnapshots,
+                conditions: null,
+                cancellationToken: ct);
+            
+            return resp.Value ? 1 : 0;
+        }
+
+        // Otherwise delete all blobs under the named version folder: {assetId}/state/{version}/
+        var prefix = $"{asset}/state/{ver.TrimEnd('/')}/";
+        var deleted = 0;
+
+        await foreach (var blob in _container.GetBlobsAsync(
+                           traits: BlobTraits.None,
+                           states: BlobStates.None,
+                           prefix: prefix,
+                           cancellationToken: ct))
+        {
+            var client = _container.GetBlobClient(blob.Name);
+            var resp = await client.DeleteIfExistsAsync(
+                DeleteSnapshotsOption.IncludeSnapshots,
+                conditions: null,
+                cancellationToken: ct);
+
+            if (resp.Value) deleted++;
+        }
+
+        return deleted;
+    }
 
     #region Private Helpers
 
@@ -558,9 +605,9 @@ public class AzureBlobModelStorage : IModelStorage
         {
             var q = filterDto.Q.Trim();
             bool matches =
-                Fuzz.PartialRatio(q, alias) > 80 ||
-                Fuzz.PartialRatio(q, string.Join(" ", categories)) > 80 ||
-                Fuzz.PartialRatio(q, description ?? "") > 80;
+                Fuzz.PartialRatio(q, alias) > 70 ||
+                Fuzz.PartialRatio(q, string.Join(" ", categories)) > 70 ||
+                Fuzz.PartialRatio(q, description ?? "") > 70;
 
             if (!matches) return false;
         }
@@ -586,10 +633,10 @@ public class AzureBlobModelStorage : IModelStorage
 
         return count;
     }
-    
+
     private async Task<ModelFile> BuildModelFileAsync(
         BlobItem blob,
-        IDictionary<string,string> md,
+        IDictionary<string, string> md,
         CancellationToken ct)
     {
         var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();

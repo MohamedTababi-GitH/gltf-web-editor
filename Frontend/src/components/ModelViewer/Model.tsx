@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { TransformControls } from "@react-three/drei";
 import { useModel } from "@/contexts/ModelContext";
 import * as THREE from "three";
@@ -9,6 +15,9 @@ import {
   type TransformState,
 } from "@/services/MultiTransformCommand.ts";
 import { useHistory } from "@/contexts/HistoryContext.tsx";
+import { type SavedComponentState } from "@/utils/StateSaver.ts";
+import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import type { StateFile } from "@/types/StateFile.ts";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -18,16 +27,20 @@ export function Model({
   processedUrl,
   setLoadingProgress,
   selectedTool,
+  selectedVersion,
+  setGroupRef,
 }: {
   processedUrl: string;
   setLoadingProgress: (progress: number) => void;
   selectedTool: string;
+  setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
+  selectedVersion: StateFile | undefined;
 }) {
   const {
+    model,
     setMeshes,
     setToggleComponentVisibility,
     setToggleComponentOpacity,
-    setUpdateMeshPosition,
   } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
@@ -35,13 +48,15 @@ export function Model({
   const initialRotations = useRef(new Map<THREE.Object3D, THREE.Quaternion>());
   const initialScales = useRef(new Map<THREE.Object3D, THREE.Vector3>());
   const dragStartStates = useRef<TransformState[]>([]);
+  const [loadedState, setLoadedState] = useState<SavedComponentState[]>();
   const { addCommand } = useHistory();
+  const apiClient = useAxiosConfig();
 
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
   >([]);
   const originalMaterials = useRef(
-    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>()
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
   );
 
   const highlightMaterial = useMemo(
@@ -55,8 +70,128 @@ export function Model({
         roughness: 0.5,
         metalness: 0.5,
       }),
-    []
+    [],
   );
+
+  function isSavedStateArray(data: unknown): data is SavedComponentState[] {
+    if (!Array.isArray(data)) {
+      return false;
+    }
+
+    if (data.length > 0) {
+      const item = data[0];
+      return (
+        typeof item === "object" &&
+        item !== null &&
+        "name" in item &&
+        "position" in item &&
+        "rotation" in item &&
+        "scale" in item &&
+        "visible" in item &&
+        "opacity" in item
+      );
+    }
+
+    return true;
+  }
+
+  const handleLoadScene = useCallback((): void => {
+    const files = model?.stateFiles;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const versionToLoad = selectedVersion ?? files[0];
+
+    if (!versionToLoad?.url) {
+      console.error("Latest state file has no valid URL.");
+      return;
+    }
+
+    const loadFromUrl = async () => {
+      try {
+        const response = await apiClient.get(versionToLoad.url, {
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
+        const jsonString = response.data;
+
+        try {
+          const parsedData: unknown =
+            typeof jsonString === "string"
+              ? JSON.parse(jsonString)
+              : jsonString;
+
+          if (isSavedStateArray(parsedData)) {
+            setLoadedState(parsedData);
+            console.log("Scene state loaded successfully.");
+          } else {
+            console.error(
+              "Loaded file is not a valid scene state:",
+              parsedData,
+            );
+          }
+        } catch (parseError) {
+          console.error("Failed to parse JSON:", parseError, jsonString);
+        }
+      } catch (fetchError) {
+        console.error("Failed to fetch state file:", fetchError);
+      }
+    };
+
+    loadFromUrl();
+  }, [apiClient, model?.stateFiles, selectedVersion]);
+
+  useEffect(() => {
+    handleLoadScene();
+  }, [handleLoadScene]);
+
+  const gltf = useLoader(GLTFLoader, processedUrl, (loader) => {
+    loader.manager.onProgress = (_url, loaded, total) => {
+      const progress = Math.round((loaded / total) * 100);
+      setLoadingProgress(progress);
+      if (progress === 100) {
+        setLoadingProgress(0);
+      }
+    };
+  });
+
+  const scene = useMemo(() => {
+    if (!gltf.scene) return new THREE.Group();
+    const clonedScene = gltf.scene.clone(true);
+
+    const box = new THREE.Box3().setFromObject(clonedScene);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDimension = Math.max(size.x, size.y, size.z);
+    const targetSize = 3;
+    const scaleFactor = maxDimension > 0 ? targetSize / maxDimension : 1;
+    clonedScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    const scaledBox = new THREE.Box3().setFromObject(clonedScene);
+    const center = scaledBox.getCenter(new THREE.Vector3());
+    clonedScene.position.sub(center);
+
+    // FIX: Give each mesh its own material clone - otherwise the similar meshes will change together..
+    clonedScene.traverse((obj) => {
+      if (isMesh(obj)) {
+        if (Array.isArray(obj.material)) {
+          obj.material = obj.material.map((m) => m.clone());
+        } else {
+          obj.material = obj.material.clone();
+        }
+      }
+    });
+
+    return clonedScene;
+  }, [gltf.scene]);
+
+  useEffect(() => {
+    if (groupRef.current && scene) {
+      setGroupRef(groupRef);
+    }
+  }, [setGroupRef, scene]);
 
   const updateSidebarMeshes = useCallback(
     (components: THREE.Object3D[]) => {
@@ -118,11 +253,52 @@ export function Model({
             isVisible: component.visible,
             opacity: opacity,
           };
-        })
+        }),
       );
     },
-    [setMeshes]
+    [setMeshes],
   );
+
+  useEffect(() => {
+    if (!loadedState || !scene) {
+      return;
+    }
+
+    for (const savedComponent of loadedState) {
+      const componentToLoad = scene.getObjectByName(savedComponent.name);
+
+      if (componentToLoad) {
+        componentToLoad.position.fromArray(savedComponent.position);
+
+        componentToLoad.rotation.fromArray([
+          savedComponent.rotation[0],
+          savedComponent.rotation[1],
+          savedComponent.rotation[2],
+          "YXZ",
+        ]);
+
+        componentToLoad.scale.fromArray(savedComponent.scale);
+        componentToLoad.visible = savedComponent.visible;
+
+        componentToLoad.traverse((child) => {
+          if (isMesh(child)) {
+            const mat = child.material;
+            if (Array.isArray(mat)) {
+              for (const m of mat) {
+                m.transparent = savedComponent.opacity < 1;
+                m.opacity = savedComponent.opacity;
+                m.needsUpdate = true;
+              }
+            } else {
+              mat.transparent = savedComponent.opacity < 1;
+              mat.opacity = savedComponent.opacity;
+              mat.needsUpdate = true;
+            }
+          }
+        });
+      }
+    }
+  }, [loadedState, scene]);
 
   const handleDragStart = useCallback(() => {
     dragStartStates.current = selectedComponents.map((comp) => ({
@@ -146,7 +322,7 @@ export function Model({
         selectedComponents,
         oldStates,
         newStates,
-        updateSidebarMeshes
+        updateSidebarMeshes,
       );
       addCommand(command);
     }
@@ -157,7 +333,7 @@ export function Model({
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
       const componentToToggle = selectedComponents.find(
-        (comp) => comp.id === componentId
+        (comp) => comp.id === componentId,
       );
 
       if (componentToToggle) {
@@ -166,17 +342,19 @@ export function Model({
 
       setMeshes((prevMeshes) =>
         prevMeshes.map((mesh) =>
-          mesh.id === componentId ? { ...mesh, isVisible: newVisibility } : mesh
-        )
+          mesh.id === componentId
+            ? { ...mesh, isVisible: newVisibility }
+            : mesh,
+        ),
       );
     },
-    [selectedComponents, setMeshes]
+    [selectedComponents, setMeshes],
   );
 
   const toggleComponentOpacity = useCallback(
     (componentId: number, newOpacity: number) => {
       const componentToChange = selectedComponents.find(
-        (comp) => comp.id === componentId
+        (comp) => comp.id === componentId,
       );
 
       if (componentToChange) {
@@ -212,89 +390,22 @@ export function Model({
 
       setMeshes((prevMeshes) =>
         prevMeshes.map((mesh) =>
-          mesh.id === componentId ? { ...mesh, opacity: newOpacity } : mesh
-        )
+          mesh.id === componentId ? { ...mesh, opacity: newOpacity } : mesh,
+        ),
       );
     },
-    [selectedComponents, setMeshes]
-  );
-
-  // Update mesh position
-  const updateMeshPosition = useCallback(
-    (componentId: number, newPosition: { x: number; y: number; z: number }) => {
-      const component = selectedComponents.find(
-        (comp) => comp.id === componentId
-      );
-      if (!component) return;
-
-      component.position.set(newPosition.x, newPosition.y, newPosition.z);
-
-      setMeshes((prev) =>
-        prev.map((mesh) =>
-          mesh.id === componentId
-            ? {
-                ...mesh,
-                X: newPosition.x.toFixed(3),
-                Y: newPosition.y.toFixed(3),
-                Z: newPosition.z.toFixed(3),
-              }
-            : mesh
-        )
-      );
-    },
-    [selectedComponents, setMeshes]
+    [selectedComponents, setMeshes],
   );
 
   useEffect(() => {
     setToggleComponentVisibility(() => toggleComponentVisibility);
     setToggleComponentOpacity(() => toggleComponentOpacity);
-    setUpdateMeshPosition(() => updateMeshPosition);
   }, [
     setToggleComponentVisibility,
     setToggleComponentOpacity,
-    setUpdateMeshPosition,
     toggleComponentVisibility,
     toggleComponentOpacity,
-    updateMeshPosition,
   ]);
-
-  const gltf = useLoader(GLTFLoader, processedUrl, (loader) => {
-    loader.manager.onProgress = (_url, loaded, total) => {
-      const progress = Math.round((loaded / total) * 100);
-      setLoadingProgress(progress);
-      if (progress === 100) {
-        setLoadingProgress(0);
-      }
-    };
-  });
-
-  const scene = useMemo(() => {
-    if (!gltf.scene) return new THREE.Group();
-    const clonedScene = gltf.scene.clone(true);
-
-    const box = new THREE.Box3().setFromObject(clonedScene);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDimension = Math.max(size.x, size.y, size.z);
-    const targetSize = 3;
-    const scaleFactor = maxDimension > 0 ? targetSize / maxDimension : 1;
-    clonedScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
-    const scaledBox = new THREE.Box3().setFromObject(clonedScene);
-    const center = scaledBox.getCenter(new THREE.Vector3());
-    clonedScene.position.sub(center);
-
-    // FIX: Give each mesh its own material clone - otherwise the similar meshes will change together..
-    clonedScene.traverse((obj) => {
-      if (isMesh(obj)) {
-        if (Array.isArray(obj.material)) {
-          obj.material = obj.material.map((m) => m.clone());
-        } else {
-          obj.material = obj.material.clone();
-        }
-      }
-    });
-
-    return clonedScene;
-  }, [gltf.scene]);
 
   useEffect(() => {
     initialOffsets.current.clear();
@@ -318,11 +429,11 @@ export function Model({
         initialOffsets.current.set(follower, offset);
 
         const followerWorldRot = follower.getWorldQuaternion(
-          new THREE.Quaternion()
+          new THREE.Quaternion(),
         );
         const rotationDelta = new THREE.Quaternion().copy(followerWorldRot);
         rotationDelta.premultiply(
-          new THREE.Quaternion().copy(leaderWorldRot).invert()
+          new THREE.Quaternion().copy(leaderWorldRot).invert(),
         );
         initialRotations.current.set(follower, rotationDelta);
 
@@ -410,7 +521,7 @@ export function Model({
         }
       });
     },
-    [highlightMaterial]
+    [highlightMaterial],
   );
 
   const removeHighlight = useCallback((component: THREE.Object3D) => {
@@ -443,13 +554,13 @@ export function Model({
       if (!componentParent) return;
 
       const isSelected = selectedComponents.some(
-        (comp) => comp.id === componentParent.id
+        (comp) => comp.id === componentParent.id,
       );
 
       if (selectedTool === "Multi-Select") {
         if (isSelected) {
           const newSelection = selectedComponents.filter(
-            (comp) => comp.id !== componentParent.id
+            (comp) => comp.id !== componentParent.id,
           );
           setSelectedComponents(newSelection);
           removeHighlight(componentParent);
@@ -480,7 +591,7 @@ export function Model({
       applyHighlight,
       removeHighlight,
       restoreOriginalMaterials,
-    ]
+    ],
   );
 
   const handleMiss = useCallback(() => {
@@ -515,11 +626,13 @@ export function Model({
           />
         )}
       <group ref={groupRef}>
-        <primitive
-          object={scene}
-          onClick={handleMeshClick}
-          onPointerMissed={handleMiss}
-        />
+        {scene && (
+          <primitive
+            object={scene}
+            onClick={handleMeshClick}
+            onPointerMissed={handleMiss}
+          />
+        )}
       </group>
     </>
   );

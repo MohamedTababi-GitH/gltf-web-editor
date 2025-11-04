@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
@@ -14,6 +15,8 @@ namespace ECAD_Backend.Application.Services;
 /// </summary>
 public class ModelStateService(IModelStorage storage) : IModelStateService
 {
+    private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
+
     /// <summary>
     /// Saves editor state (scene configuration, transforms, annotations, etc.) as JSON under the model's asset folder.
     /// </summary>
@@ -122,10 +125,48 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
 
         return new UpdateStateResultDto
         {
-            Message = "State saved successfully.",
+            Message = "Saved successfully.",
             AssetId = requestDto.AssetId,
             Version = requestDto.TargetVersion,
             BlobName = blobName
+        };
+    }
+
+    public async Task<DeleteStateVersionResultDto> DeleteVersionAsync(
+        string assetId,
+        string version,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new ValidationException("AssetId is required.");
+        if (string.IsNullOrWhiteSpace(version))
+            throw new ValidationException("Version is required.");
+
+        var trimmedAsset = assetId.Trim();
+        var trimmedVersion = version.Trim();
+        var deletedCount = await storage.DeleteStateVersionAsync(trimmedAsset, trimmedVersion, cancellationToken);
+
+        if (deletedCount == 0)
+        {
+            var label = (trimmedVersion.Equals("state", StringComparison.OrdinalIgnoreCase) ||
+                         trimmedVersion.Equals("Default", StringComparison.OrdinalIgnoreCase))
+                ? "latest working copy"
+                : $"version '{trimmedVersion}'";
+            throw new NotFoundException($"{label} was not found for asset '{trimmedAsset}'.");
+        }
+
+        // Human-friendly message
+        var message = (trimmedVersion.Equals("state", StringComparison.OrdinalIgnoreCase) ||
+                       trimmedVersion.Equals("latest", StringComparison.OrdinalIgnoreCase))
+            ? "Deleted latest working copy."
+            : $"Deleted version '{trimmedVersion}'.";
+
+        return new DeleteStateVersionResultDto
+        {
+            Message = message,
+            AssetId = trimmedAsset,
+            Version = trimmedVersion,
+            DeletedBlobs = deletedCount
         };
     }
 }
