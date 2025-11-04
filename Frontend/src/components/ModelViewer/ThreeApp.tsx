@@ -202,6 +202,20 @@ export default function ThreeApp() {
     setSelectedVersion(sortedFiles[0]);
   }, [sortedFiles]);
 
+  const handleVersionClick = (
+    file: React.SetStateAction<StateFile | undefined>,
+  ) => {
+    {
+      if (canUndo) {
+        setShowSwitchWarning(true);
+        setVersionToSwitch(file);
+        return;
+      }
+      setSelectedVersion(file);
+      resetStacks();
+    }
+  };
+
   const saveModel = useCallback(
     async (targetVersion?: string) => {
       if (!groupRef || !model?.assetId || !refetchModel) return;
@@ -445,32 +459,34 @@ export default function ThreeApp() {
             <PopoverContent className="w-80">
               <div className="grid gap-4">
                 <h4 className="font-medium leading-none">Versions</h4>
-                <div className="grid gap-2">
+                <ul className="grid gap-2">
                   {sortedFiles.map((file) => (
-                    <div
-                      role={"listitem"}
-                      onKeyDown={() => {}}
-                      onClick={() => {
-                        if (canUndo) {
-                          setShowSwitchWarning(true);
-                          setVersionToSwitch(file);
-                          return;
-                        }
-                        setSelectedVersion(file);
-                        resetStacks();
-                      }}
-                      className={`py-2 px-4 rounded-md cursor-pointer ${file === selectedVersion ? "bg-primary/90 text-primary-foreground" : "bg-muted"}`}
-                      key={file.createdOn}
-                    >
-                      <p className="text-sm">{file.version}</p>
-                      <p
-                        className={`text-sm ${file === selectedVersion ? "text-muted" : "text-muted-foreground"}`}
+                    <li className="list-none" key={file.createdOn}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleVersionClick(file);
+                        }}
+                        className={`w-full text-left py-2 px-4 rounded-md cursor-pointer ${
+                          file === selectedVersion
+                            ? "bg-primary/90 text-primary-foreground"
+                            : "bg-muted"
+                        }`}
                       >
-                        Last Saved: {formatDateTime(file.createdOn).fullStr}
-                      </p>
-                    </div>
+                        <p className="text-sm">{file.version}</p>
+                        <p
+                          className={`text-sm ${
+                            file === selectedVersion
+                              ? "text-muted"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          Last Saved: {formatDateTime(file.createdOn).fullStr}
+                        </p>
+                      </button>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             </PopoverContent>
           </Popover>
