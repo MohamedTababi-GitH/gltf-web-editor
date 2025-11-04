@@ -43,10 +43,17 @@ import {
 } from "../ui/dialog";
 import { Input } from "@/components/ui/input.tsx";
 import type { StateFile } from "@/types/StateFile.ts";
-
-type ThreeAppProps = {
-  setShowViewer: (show: boolean) => void;
-};
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog.tsx";
+import { useNavigation } from "@/contexts/NavigationContext.tsx";
 
 function Loading({ progress }: { progress: number }) {
   return (
@@ -57,29 +64,39 @@ function Loading({ progress }: { progress: number }) {
   );
 }
 
-export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
+export default function ThreeApp() {
   const { url, model, setModel } = useModel();
+  const { setIsModelViewer } = useNavigation();
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
   const [versionModalOpen, setVersionModalOpen] = useState(false);
   const apiClient = useAxiosConfig();
   const [versionName, setVersionName] = useState("");
   const [selectedVersion, setSelectedVersion] = useState<StateFile>();
+  const [versionToSwitch, setVersionToSwitch] = useState<StateFile>();
+  const [showSwitchWarning, setShowSwitchWarning] = useState(false);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null>>();
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
   const closeModel = () => {
-    setShowViewer(false);
+    if (canUndo) {
+      setShowCloseWarning(true);
+      return;
+    }
+    setIsModelViewer(false);
   };
-  const { undo, redo, undoStack, redoStack } = useHistory();
+  const { undo, redo, undoStack, redoStack, resetStacks } = useHistory();
 
   const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
 
   const [undoShortcut, setUndoShortcut] = useState("Ctrl+Z");
   const [redoShortcut, setRedoShortcut] = useState("Ctrl+Y");
+  const [saveShortcut, setSaveShortcut] = useState("Ctrl+S");
+  const [saveAsShortcut, setSaveAsShortcut] = useState("Ctrl+Shift+S");
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const files = model?.stateFiles || [];
@@ -111,7 +128,17 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
     const isMac = /Mac/i.test(navigator.userAgent);
     setUndoShortcut(isMac ? "⌘+Z" : "Ctrl+Z");
     setRedoShortcut(isMac ? "⌘+Y" : "Ctrl+Y");
+    setSaveShortcut(isMac ? "⌘+S" : "Ctrl+S");
+    setSaveAsShortcut(isMac ? "⌘+Shift+S" : "Ctrl+Shift+S");
   }, []);
+
+  const handleSwitch = async () => {
+    if (!versionToSwitch) return;
+    setSelectedVersion(versionToSwitch);
+    resetStacks();
+    setVersionModalOpen(false);
+    setVersionToSwitch(undefined);
+  };
 
   const additionalFilesJson = JSON.stringify(model?.additionalFiles);
 
@@ -188,13 +215,14 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
         await apiClient.post(`/api/model/${model?.assetId}/state`, formData);
         setVersionModalOpen(false);
         setVersionName("");
+        resetStacks();
 
         await refetchModel();
       } catch (error) {
         console.error("Error saving model:", error);
       }
     },
-    [apiClient, groupRef, model?.assetId, refetchModel],
+    [apiClient, groupRef, model?.assetId, refetchModel, resetStacks],
   );
 
   useEffect(() => {
@@ -254,236 +282,294 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
           <Loading progress={loadingProgress} />
         </div>
       )}
-      <div className={`justify-between`}>
-        <div className="absolute top-3 left-5 z-20 flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild={true}>
-              <Button
-                onClick={closeModel}
-                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
-              >
-                <X className="size-4 lg:size-5 text-foreground" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>Close</p>
-            </TooltipContent>
-          </Tooltip>
+      <div className="absolute top-3 left-5 z-20 flex items-center gap-2 select-none">
+        <Tooltip>
+          <TooltipTrigger asChild={true}>
+            <Button
+              onClick={closeModel}
+              className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+            >
+              <X className="size-4 lg:size-5 text-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Close</p>
+          </TooltipContent>
+        </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild={true}>
-              <Button
-                onClick={undo}
-                disabled={!canUndo}
-                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Undo2 className="size-4 lg:size-5 text-foreground" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              <p>Undo ({undoShortcut})</p>
-            </TooltipContent>
-          </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild={true}>
+            <Button
+              onClick={undo}
+              disabled={!canUndo}
+              className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Undo2 className="size-4 lg:size-5 text-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Undo ({undoShortcut})</p>
+          </TooltipContent>
+        </Tooltip>
 
+        <Tooltip>
+          <TooltipTrigger asChild={true}>
+            <Button
+              onClick={redo}
+              disabled={!canRedo}
+              className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Redo2 className="size-4 lg:size-5 text-foreground" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Redo ({redoShortcut})</p>
+          </TooltipContent>
+        </Tooltip>
+        <Popover>
           <Tooltip>
             <TooltipTrigger asChild={true}>
-              <Button
-                onClick={redo}
-                disabled={!canRedo}
-                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Redo2 className="size-4 lg:size-5 text-foreground" />
-              </Button>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+                >
+                  <Keyboard className="size-4 lg:size-5 text-foreground" />
+                </Button>
+              </PopoverTrigger>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Redo ({redoShortcut})</p>
+              <p>Keyboard Shortcuts</p>
             </TooltipContent>
           </Tooltip>
-          <Popover>
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
-                  >
-                    <Keyboard className="size-4 lg:size-5 text-foreground" />
-                  </Button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Keyboard Shortcuts</p>
-              </TooltipContent>
-            </Tooltip>
-            <PopoverContent className="w-64">
-              <div className="grid gap-4">
-                <h4 className="font-medium leading-none">Shortcuts</h4>
-                <div className="grid gap-2">
-                  <h5 className="text-sm font-medium text-muted-foreground">
-                    Actions
-                  </h5>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm">Undo</p>
-                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
-                      {undoShortcut}
-                    </kbd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm">Redo</p>
-                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
-                      {redoShortcut}
-                    </kbd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm">Save</p>
-                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
-                      Ctrl+S
-                    </kbd>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm">Save as Version</p>
-                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
-                      Ctrl+Shift+S
-                    </kbd>
-                  </div>
+          <PopoverContent className="w-64">
+            <div className="grid gap-4">
+              <h4 className="font-medium leading-none">Shortcuts</h4>
+              <div className="grid gap-2">
+                <h5 className="text-sm font-medium text-muted-foreground">
+                  Actions
+                </h5>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm">Undo</p>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                    {undoShortcut}
+                  </kbd>
                 </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm">Redo</p>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                    {redoShortcut}
+                  </kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm">Save</p>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                    {saveShortcut}
+                  </kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm">Save as Version</p>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                    {saveAsShortcut}
+                  </kbd>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <h5 className="text-sm font-medium text-muted-foreground">
+                  Tools
+                </h5>
+                {cursorTools.map((tool) => (
+                  <div
+                    key={tool.name}
+                    className="flex items-center justify-between"
+                  >
+                    <p className="text-sm">{tool.name}</p>
+                    <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                      {tool.shortcut}
+                    </kbd>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+        <ButtonGroup>
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                disabled={!groupRef || !canUndo}
+                onClick={() => {
+                  if (selectedVersion?.version !== "Default") {
+                    saveModel(selectedVersion?.version);
+                  } else {
+                    saveModel();
+                  }
+                }}
+                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="size-4 lg:size-5 text-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Save ({saveShortcut})</p>
+            </TooltipContent>
+          </Tooltip>
+          <Separator orientation={"vertical"} />
+          <Tooltip>
+            <TooltipTrigger asChild={true}>
+              <Button
+                disabled={!groupRef || !canUndo}
+                onClick={() => {
+                  setVersionModalOpen(true);
+                }}
+                className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <SaveAll className="size-4 lg:size-5 text-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Save as Version ({saveAsShortcut})</p>
+            </TooltipContent>
+          </Tooltip>
+        </ButtonGroup>
+
+        {model?.stateFiles && model?.stateFiles?.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="default"
+                className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+              >
+                <Layers />
+                {selectedVersion?.version}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <h4 className="font-medium leading-none">Versions</h4>
                 <div className="grid gap-2">
-                  <h5 className="text-sm font-medium text-muted-foreground">
-                    Tools
-                  </h5>
-                  {cursorTools.map((tool) => (
+                  {sortedFiles.map((file) => (
                     <div
-                      key={tool.name}
-                      className="flex items-center justify-between"
+                      onClick={() => {
+                        if (canUndo) {
+                          setShowSwitchWarning(true);
+                          setVersionToSwitch(file);
+                          return;
+                        }
+                        setSelectedVersion(file);
+                        resetStacks();
+                      }}
+                      className={`py-2 px-4 rounded-md cursor-pointer ${file === selectedVersion ? "bg-primary/90 text-primary-foreground" : "bg-muted"}`}
+                      key={file.createdOn}
                     >
-                      <p className="text-sm">{tool.name}</p>
-                      <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
-                        {tool.shortcut}
-                      </kbd>
+                      <p className="text-sm">{file.version}</p>
+                      <p
+                        className={`text-sm ${file === selectedVersion ? "text-muted" : "text-muted-foreground"}`}
+                      >
+                        Last Saved: {formatDateTime(file.createdOn).fullStr}
+                      </p>
                     </div>
                   ))}
                 </div>
               </div>
             </PopoverContent>
           </Popover>
-          <ButtonGroup>
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  disabled={!groupRef || !canUndo}
-                  onClick={() => {
-                    if (selectedVersion?.version !== "Default") {
-                      saveModel(selectedVersion?.version);
-                    } else {
-                      saveModel();
-                    }
-                  }}
-                  className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Save className="size-4 lg:size-5 text-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Save (Ctrl+S)</p>
-              </TooltipContent>
-            </Tooltip>
-            <Separator orientation={"vertical"} />
-            <Tooltip>
-              <TooltipTrigger asChild={true}>
-                <Button
-                  disabled={!groupRef || !canUndo}
-                  onClick={() => {
-                    setVersionModalOpen(true);
-                  }}
-                  className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <SaveAll className="size-4 lg:size-5 text-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Save as Version (Ctrl+Shift+S)</p>
-              </TooltipContent>
-            </Tooltip>
-          </ButtonGroup>
-
-          {model?.stateFiles && model?.stateFiles?.length > 0 && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="default"
-                  className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
-                >
-                  <Layers />
-                  {selectedVersion?.version}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="grid gap-4">
-                  <h4 className="font-medium leading-none">Versions</h4>
-                  <div className="grid gap-2">
-                    {sortedFiles.map((file) => (
-                      <div
-                        onClick={() => setSelectedVersion(file)}
-                        className={`py-2 px-4 rounded-md cursor-pointer ${file === selectedVersion ? "bg-primary/90 text-primary-foreground" : "bg-muted"}`}
-                        key={file.createdOn}
-                      >
-                        <p className="text-sm">{file.version}</p>
-                        <p
-                          className={`text-sm ${file === selectedVersion ? "text-muted" : "text-muted-foreground"}`}
-                        >
-                          Last Saved: {formatDateTime(file.createdOn).fullStr}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-
-        <Dialog open={versionModalOpen} onOpenChange={setVersionModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Save as Version</DialogTitle>
-              <DialogDescription>
-                Enter a name for this version to save your changes.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Input
-                placeholder="e.g., 'My First Design'"
-                value={versionName}
-                onChange={(e) => setVersionName(e.target.value)}
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                className={`cursor-pointer`}
-                variant="outline"
-                onClick={() => {
-                  setVersionModalOpen(false);
-                  setVersionName("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                className={`cursor-pointer`}
-                onClick={() => saveModel(versionName)}
-              >
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Cursors
-          setSelectedTool={setSelectedTool}
-          selectedTool={selectedTool}
-        />
+        )}
       </div>
+
+      <AlertDialog open={showSwitchWarning} onOpenChange={setShowSwitchWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You have unsaved changes!</AlertDialogTitle>
+            <AlertDialogDescription>
+              Switching to a different version will discard your unsaved
+              changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSwitch}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Discard and Switch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You have unsaved changes!</AlertDialogTitle>
+            <AlertDialogDescription>
+              Closing this view will discard your unsaved changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setIsModelViewer(false);
+              }}
+            >
+              Discard and Close
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (selectedVersion?.version !== "Default") {
+                  saveModel(selectedVersion?.version);
+                } else {
+                  saveModel();
+                }
+                setIsModelViewer(false);
+              }}
+              className="bg-chart-2 hover:bg-chart-2/90"
+            >
+              Save and Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={versionModalOpen} onOpenChange={setVersionModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save as Version</DialogTitle>
+            <DialogDescription>
+              Enter a name for this version to save your changes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="e.g., 'My First Design'"
+              maxLength={25}
+              value={versionName}
+              onChange={(e) => setVersionName(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              className={`cursor-pointer`}
+              variant="outline"
+              onClick={() => {
+                setVersionModalOpen(false);
+                setVersionName("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className={`cursor-pointer`}
+              onClick={() => saveModel(versionName)}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
       <Canvas>
         <color attach="background" args={["#888888"]} />
         <Suspense fallback={null}>
