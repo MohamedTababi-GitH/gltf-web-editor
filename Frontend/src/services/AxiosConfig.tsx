@@ -20,36 +20,13 @@ export function useAxiosConfig() {
     if (!isInterceptorAttached) {
       interceptorRef.current = apiClient.interceptors.response.use(
         (response: AxiosResponse) => {
-          let message = "";
-
           if (
             response.data &&
             typeof response.data === "object" &&
             response.data.message
           ) {
-            message = response.data.message;
-          } else {
-            const method = response.config.method?.toUpperCase();
-            if (method === "GET") {
-              return response;
-            }
-            switch (method) {
-              case "POST":
-                message = "Created successfully";
-                break;
-              case "PUT":
-              case "PATCH":
-                message = "Updated successfully";
-                break;
-              case "DELETE":
-                message = "Deleted successfully";
-                break;
-              default:
-                message = "Operation completed successfully";
-            }
+            showNotification(response.data.message, "success");
           }
-
-          showNotification(message, "success");
 
           return response;
         },

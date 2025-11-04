@@ -1,31 +1,25 @@
 import AppSidebar from "./SidebarApp";
-import type { ModelItem } from "@/types/ModelItem";
 import { SidebarTrigger, useSidebar } from "../ui/sidebar";
 import ThreeApp from "./ThreeApp";
-import React from "react";
 import { HistoryProvider } from "@/contexts/HistoryContext.tsx";
 
-type ModelViewerProps = {
-  model: ModelItem | null;
-  setShowViewer: (show: boolean) => void;
-};
+const ModelViewer = () => {
+  const { open, isMobile } = useSidebar();
 
-const ModelViewer: React.FC<ModelViewerProps> = ({ setShowViewer }) => {
-  const { open } = useSidebar();
   return (
     <HistoryProvider>
       <div className="flex w-full h-full overflow-hidden">
         <div
           className={`transition-all duration-300 w-full ${open ? "md:w-[calc(100%-var(--sidebar-width))]" : "w-full"}`}
         >
-          <ThreeApp setShowViewer={setShowViewer} />
+          <ThreeApp />
         </div>
 
         <SidebarTrigger
           className={` absolute 
-            md:top-18 md:right-4
-            top-18 right-2 md:h-10 md:w-10 h-8 w-8 bg-sidebar rounded-l-md 
-            z-50 transition-all duration-300 ${open ? "md:right-[calc(var(--sidebar-width))] rounded-r-none" : "right-0 rounded-r-md"}`}
+            md:top-3 md:right-4
+            top-18 md:h-10 md:w-10 h-8 w-8 bg-muted rounded-l-md 
+            z-50 transition-all duration-300 ${open && !isMobile ? "md:right-[calc(var(--sidebar-width))] rounded-r-none" : "right-2 rounded-r-md"}`}
         />
         <AppSidebar />
       </div>

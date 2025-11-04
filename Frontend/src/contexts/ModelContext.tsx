@@ -7,6 +7,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import type { CheckedState } from "@radix-ui/react-checkbox";
 
 interface ModelContextType {
   url: string | undefined;
@@ -19,10 +20,10 @@ interface ModelContextType {
   // Visibility control
   toggleComponentVisibility: (
     componentId: number,
-    newVisibility: boolean
+    newVisibility: CheckedState,
   ) => void;
   setToggleComponentVisibility: Dispatch<
-    SetStateAction<(id: number, visibility: boolean) => void>
+    SetStateAction<(id: number, visibility: CheckedState) => void>
   >;
 
   // Opacity control
@@ -34,7 +35,7 @@ interface ModelContextType {
   // Mesh position control
   updateMeshPosition: (
     id: number,
-    position: { x: number; y: number; z: number }
+    position: { x: number; y: number; z: number },
   ) => void;
   setUpdateMeshPosition: Dispatch<
     SetStateAction<
@@ -51,7 +52,7 @@ export function ModelProvider({ children }: { children: ReactNode }) {
   const [meshes, setMeshes] = useState<MeshData[]>([]);
 
   const [toggleComponentVisibility, setToggleComponentVisibility] = useState<
-    (id: number, visibility: boolean) => void
+    (id: number, visibility: CheckedState) => void
   >(() => () => {});
 
   const [toggleComponentOpacity, setToggleComponentOpacity] = useState<

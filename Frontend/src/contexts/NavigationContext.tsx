@@ -5,6 +5,8 @@ type NavigationTab = "home" | "model";
 interface NavigationContextType {
   activeTab: NavigationTab;
   navigateTo: (tab: NavigationTab) => void;
+  isModelViewer: boolean;
+  setIsModelViewer: (isModelViewer: boolean) => void;
 }
 
 const NavigationContext = createContext<NavigationContextType | undefined>(
@@ -13,6 +15,7 @@ const NavigationContext = createContext<NavigationContextType | undefined>(
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
   const [activeTab, setActiveTab] = useState<NavigationTab>("home");
+  const [isModelViewer, setIsModelViewer] = useState<boolean>(false);
 
   const navigateTo = (tab: NavigationTab) => {
     if (activeTab !== tab) {
@@ -25,6 +28,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
       value={{
         activeTab,
         navigateTo,
+        isModelViewer,
+        setIsModelViewer,
       }}
     >
       {children}

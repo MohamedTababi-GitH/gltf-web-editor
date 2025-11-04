@@ -15,6 +15,7 @@ interface HistoryContextState {
   undo: () => void;
   redo: () => void;
   clear: () => void;
+  resetStacks: () => void;
 }
 
 const HistoryContext = createContext<HistoryContextState | undefined>(
@@ -33,6 +34,11 @@ export const HistoryProvider = ({
     setUndoStack((prev) => [...prev, command]);
     setRedoStack([]);
   }, []);
+
+  const resetStacks = () => {
+    setUndoStack([]);
+    setRedoStack([]);
+  };
 
   const undo = useCallback(() => {
     if (undoStack.length === 0) return;
@@ -89,6 +95,7 @@ export const HistoryProvider = ({
       undo,
       redo,
       clear,
+      resetStacks,
     }),
     [undoStack, redoStack, addCommand, undo, redo, clear],
   );
