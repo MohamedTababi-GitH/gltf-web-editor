@@ -1,5 +1,6 @@
 import type { Category } from "@/types/Category.ts";
 import type { AdditionalFile } from "@/types/AdditionalFile.ts";
+import type { StateFile } from "@/types/StateFile.ts";
 
 export interface ModelItem {
   id: string;
@@ -11,6 +12,8 @@ export interface ModelItem {
   categories: Category[];
   description: string;
   additionalFiles: AdditionalFile[];
+  stateFiles: StateFile[];
+  assetId: string;
   isFavourite: boolean;
   isNew: boolean;
 }

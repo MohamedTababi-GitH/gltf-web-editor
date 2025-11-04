@@ -2,10 +2,8 @@ import ModelListItem from "@/components/ListView/ModelListItem.tsx";
 import { useCallback, useEffect, useState } from "react";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import type { ModelItem } from "@/types/ModelItem.ts";
-import ModelViewer from "../ModelViewer/ModelViewer";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useTheme } from "@/components/theme-provider.tsx";
-import { SidebarProvider } from "../ui/sidebar";
 import { ListFilter, Search, X } from "lucide-react";
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
@@ -23,6 +21,7 @@ import { useModel } from "@/contexts/ModelContext";
 import { type Category, ECADCategory } from "@/types/Category.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { ButtonGroup } from "../ui/button-group";
+import { useNavigation } from "@/contexts/NavigationContext.tsx";
 
 type ModelSearchParams = {
   categories?: Category[];
@@ -36,6 +35,7 @@ const API_LIMIT = 12;
 
 function ListView() {
   const { setUrl, setModel, model } = useModel();
+  const { setIsModelViewer, isModelViewer } = useNavigation();
   //const [sortBy, setSortBy] = useState<"Date" | "Name" | "Size">("Date");
   const [searchParams, setSearchParams] = useState<ModelSearchParams>({});
 
@@ -55,7 +55,6 @@ function ListView() {
 
   const models = pagesData[currentPage - 1] || [];
 
-  const [showViewer, setShowViewer] = useState(false);
   const apiClient = useAxiosConfig();
   const theme = useTheme();
   const id = useId();
@@ -201,20 +200,10 @@ function ListView() {
   }, []);
 
   useEffect(() => {
-    if (showViewer && model) {
+    if (model) {
       setUrl(model.url);
     }
-  }, [showViewer, model, setUrl]);
-
-  if (showViewer && model) {
-    return (
-      <SidebarProvider>
-        <div className="h-[calc(100vh-4rem)] w-screen">
-          <ModelViewer model={model} setShowViewer={setShowViewer} />
-        </div>
-      </SidebarProvider>
-    );
-  }
+  }, [isModelViewer, model, setUrl]);
 
   return (
     <div className="h-full flex flex-col p-4 md:p-8 lg:p-12 xl:p-16 gap-4">
@@ -432,7 +421,7 @@ function ListView() {
                 key={item.id}
                 onClick={() => {
                   setModel(item);
-                  setShowViewer(true);
+                  setIsModelViewer(true);
                 }}
               >
                 <ModelListItem
@@ -441,7 +430,7 @@ function ListView() {
                   refreshList={refreshCurrentPage}
                   onClick={() => {
                     setModel(item);
-                    setShowViewer(true);
+                    setIsModelViewer(true);
                   }}
                 />
               </div>
