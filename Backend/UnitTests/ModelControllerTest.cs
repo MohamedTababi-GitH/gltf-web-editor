@@ -59,7 +59,7 @@ public class ModelControllerTest
     }
 
     [TestMethod]
-    public async Task Upload_ReturnsOk_WhenUploadSucceeds()
+    public async Task Upload_ReturnsOk_WithUploadResult()
     {
         // Arrange
         var fileMocked = new Mock<IFormFile>();
@@ -78,7 +78,8 @@ public class ModelControllerTest
         
         fileMocked.Setup(f => f.FileName).Returns(fileName);
         fileMocked.Setup(f => f.OpenReadStream()).Returns(memoryStream);
-        _mockUploadService.Setup(s => s.UploadAsync(It.IsAny<UploadModelRequestDto>(), It.IsAny<CancellationToken>()))
+        _mockUploadService.Setup(s => s.UploadAsync(
+                It.IsAny<UploadModelRequestDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedUploadResult);
 
         // Act
@@ -106,6 +107,51 @@ public class ModelControllerTest
         var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
             await _controller.Upload(files, fileAlias, originalFileName, null, null, CancellationToken.None));
 
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task Upload_Throws_WhenNoAlias()
+    {
+        // Arrange
+        var expectedErrorMessage = "alias is required";
+        var fileMocked = new Mock<IFormFile>();
+        var files = new List<IFormFile> {fileMocked.Object };
+        string fileAlias = null!;
+        var originalFileName = "test.glb";
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+            await _controller.Upload(files, fileAlias, originalFileName, null, null, CancellationToken.None));
+
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task Upload_CatchAndThrows_WhenUploadServiceThrows()
+    {
+        // Arrange
+        var expectedErrorMessage = "upload service throws";
+        var fileMocked = new Mock<IFormFile>();
+        var files = new List<IFormFile> { fileMocked.Object };
+        var fileName = "test.glb";
+        var memoryStream = new MemoryStream([1]);
+        var fileAlias = "alias";
+        var originalFileName = "test.glb";
+        var serviceException = new BadRequestException("The upload service throws.");
+        
+        fileMocked.Setup(f => f.FileName).Returns(fileName);
+        fileMocked.Setup(f => f.OpenReadStream()).Returns(memoryStream);
+        _mockUploadService.Setup(s => s.UploadAsync(
+            It.IsAny<UploadModelRequestDto>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(serviceException);
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+            await _controller.Upload(files, fileAlias, originalFileName, null, null, CancellationToken.None));
+        
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -151,5 +197,103 @@ public class ModelControllerTest
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task PutDetails_ReturnsOk_WithUpdateDetailsResult()
+    {
+        // Arrange
+        var expectedMessage = "Updated successfully.";
+        var expectedUpdateDetailsResult = new UpdateDetailsResultDto {Message = expectedMessage};
+        var id = Guid.NewGuid();
+        var newAlias = "newAlias";
+        var description = "empty description";
+        var isFavourite = false;
+        var requestDto = new UpdateModelDetailsRequestDto
+            {NewAlias = newAlias, Description = description, IsFavourite = isFavourite};
+        _mockModelService.Setup(s => s.UpdateDetailsAsync
+            (It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<List<string>>(),
+            It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedUpdateDetailsResult);
+        
+        // Act
+        var result = await _controller.PutDetails(id, requestDto, CancellationToken.None);
+        var okResult = result as OkObjectResult;
+        var updateResult = okResult!.Value as UpdateDetailsResultDto;
+        
+        // Assert
+        Assert.IsNotNull(okResult);
+        Assert.AreEqual(expectedMessage, updateResult!.Message);
+    }
+
+    [TestMethod]
+    public async Task PutDetails_Throws_WhenEmptyID()
+    {
+        // Arrange
+        var expectedErrorMessage = "provided ID is invalid";
+        var emptyId = Guid.Empty;
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+            await _controller.PutDetails(emptyId, null!, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task PutIsNew_ReturnsOk_WithUpdateDetailsResult()
+    {
+        // Arrange
+        var expectedMessage = "Updated successfully.";
+        var expectedUpdateDetailsResult = new UpdateDetailsResultDto {Message = expectedMessage};
+        var id = Guid.NewGuid();
+        _mockModelService.Setup(s => s.UpdateIsNewAsync
+            (It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedUpdateDetailsResult);
+        
+        // Act
+        var result = await _controller.PutIsNew(id, CancellationToken.None);
+        var okResult = result as OkObjectResult;
+        var updateResult = okResult!.Value as UpdateDetailsResultDto;
+        
+        // Assert
+        Assert.IsNotNull(okResult);
+        Assert.AreEqual(expectedMessage, updateResult!.Message);
+    }
+
+    [TestMethod]
+    public async Task PutIsNew_Throws_WhenEmptyID()
+    {
+        // Arrange
+        var expectedErrorMessage = "provided ID is invalid";
+        var emptyId = Guid.Empty;
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.PutIsNew(emptyId, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task GetById_ReturnsOk_WithModelItem()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var name = "ModelName";
+        var format = "glb";
+        var url = new Uri("https://localhost");
+        var modelItemDto = new ModelItemDto {Name = name, Format = format, Id = id, Url = url};
+        _mockModelService.Setup(s => s.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(modelItemDto);
+        
+        // Act
+        var result = await _controller.GetById(id, CancellationToken.None);
+        var okResult = result as OkObjectResult;
+        var modelItemResult = okResult!.Value as ModelItemDto;
+        
+        // Assert
+        Assert.IsNotNull(okResult);
+        Assert.AreEqual(modelItemDto, modelItemResult);
     }
 }

@@ -363,7 +363,7 @@ public class AzureBlobModelStorage : IModelStorage
 
         return true;
     }
-    
+
     public async Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct)
     {
         await foreach (var blob in _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct))
@@ -381,6 +381,38 @@ public class AzureBlobModelStorage : IModelStorage
     }
 
     #endregion
+
+    public async Task<int> DeleteStateVersionAsync(string assetId, string version, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new ArgumentException("AssetId cannot be empty.", nameof(assetId));
+        if (string.IsNullOrWhiteSpace(version))
+            throw new ArgumentException("Version cannot be empty.", nameof(version));
+
+        // Guard against accidental "state" (the working-copy file lives at .../state/state.json, not a folder).
+        if (string.Equals(version, "state", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Deleting the working copy is not supported via this endpoint.", nameof(version));
+
+        var prefix = $"{assetId.TrimEnd('/')}/state/{version.TrimEnd('/')}/";
+        var deleted = 0;
+
+        await foreach (var blob in _container.GetBlobsAsync(
+                           traits: BlobTraits.None,
+                           states: BlobStates.None,
+                           prefix: prefix,
+                           cancellationToken: ct))
+        {
+            var client = _container.GetBlobClient(blob.Name);
+            var resp = await client.DeleteIfExistsAsync(
+                DeleteSnapshotsOption.IncludeSnapshots,
+                conditions: null,
+                cancellationToken: ct);
+
+            if (resp.Value) deleted++;
+        }
+
+        return deleted;
+    }
 
     #region Private Helpers
 
@@ -615,10 +647,10 @@ public class AzureBlobModelStorage : IModelStorage
 
         return count;
     }
-    
+
     private async Task<ModelFile> BuildModelFileAsync(
         BlobItem blob,
-        IDictionary<string,string> md,
+        IDictionary<string, string> md,
         CancellationToken ct)
     {
         var id = TryGetGuidMetadata(md, MetaId) ?? Guid.NewGuid();

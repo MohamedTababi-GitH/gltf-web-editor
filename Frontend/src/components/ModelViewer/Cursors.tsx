@@ -46,9 +46,9 @@ function Cursors({
                 onClick={() => setSelectedTool(tool.name)}
                 variant="default"
                 size="icon"
-                className={`rounded-sm md:rounded-md lg:rounded-lg w-6 h-6 md:w-9 md:h-9 lg:w-12 lg:h-12 ${tool.name === selectedTool ? "bg-primary text-background" : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"}`}
+                className={`rounded-sm md:rounded-md lg:rounded-lg w-7 h-7 md:w-9 md:h-9 lg:w-12 lg:h-12 ${tool.name === selectedTool ? "bg-primary text-background" : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"}`}
               >
-                <tool.icon className="size-3 md:size-4 lg:size-5" />
+                <tool.icon className="size-4 md:size-4 lg:size-5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right">

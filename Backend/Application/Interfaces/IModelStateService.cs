@@ -16,5 +16,10 @@ namespace ECAD_Backend.Application.Interfaces
         /// <returns>A task representing the asynchronous operation, containing the state update result.</returns>
         Task<UpdateStateResultDto> SaveStateAsync(UpdateStateRequestDto requestDto,
             CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Deletes a named state version (folder) by version label.
+        /// </summary>
+        Task<DeleteStateVersionResultDto> DeleteVersionAsync(string assetId, string version, CancellationToken cancellationToken);
     }
 }
