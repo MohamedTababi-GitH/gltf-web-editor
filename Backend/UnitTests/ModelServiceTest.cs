@@ -1,7 +1,7 @@
 ﻿using Moq;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
-using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
@@ -23,6 +23,61 @@ public class ModelServiceTest
         _mockStorage = new Mock<IModelStorage>();
         _mockMapper = new Mock<IModelMapper>();
         _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object);
+    }
+
+    [TestMethod]
+    public async Task GetByIdAsync_ReturnsModelItem()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        var name = "alias";
+        var format = "glb";
+        var url = new Uri("http://localhost");
+        var modelFile = new ModelFile{Name = name, Format = format, Url = url, Id = id};
+        var modelItemDto = new ModelItemDto {Id = id, Name = name, Format = format,  Url = url};
+        _mockStorage.Setup(s => s.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(modelFile);
+        _mockMapper.Setup(m => m.ToDto(It.IsAny<ModelFile>())).Returns(modelItemDto);
+
+        // Act
+        var result = await _modelService.GetByIdAsync(id,  CancellationToken.None);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(modelItemDto.Id, result.Id);
+        Assert.AreEqual(modelItemDto.Name, result.Name);
+
+    }
+
+    [TestMethod]
+    public async Task GetByIdAsync_Throws_WhenEmptyID()
+    {
+        // Arrange
+        var expectedErrorMessage = "The provided model ID is invalid.";
+        var emptyId = Guid.Empty;
+
+        // Act
+        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelService.GetByIdAsync(emptyId, CancellationToken.None));
+
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+
+    }
+    
+    [TestMethod]
+    public async Task GetByIdAsync_CallsStorageAndThrows_WhenModelFileIsNull()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockStorage.Setup(s => s.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(null as ModelFile);
+        
+        // Act
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.GetByIdAsync(id, CancellationToken.None));
+        
+        // Assert
+        var expectedErrorMessage = $"No model was found with ID '{id}'.";
+        Assert.Contains(expectedErrorMessage, result.Message);
+
     }
 
     [TestMethod]
@@ -53,7 +108,7 @@ public class ModelServiceTest
                 It.IsAny<string>(),
                 It.IsAny<ModelFilterDto>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((files, (string?)null));
+            .ReturnsAsync((files, null));
 
         // storage.CountAsync -> return some total (doesn't affect NRE but keeps service happy)
         _mockStorage
@@ -77,7 +132,7 @@ public class ModelServiceTest
         var result = await _modelService.ListAsync(limit, null, filter, CancellationToken.None);
 
         // Assert
-        Assert.AreEqual(1, result.Items.Count, "Expected one item in the page result.");
+        Assert.HasCount(1, result.Items, "Expected one item in the page result.");
         Assert.AreEqual(name, result.Items[0].Name, "Item Name should match mapped alias.");
         Assert.AreEqual(format, result.Items[0].Format);
         Assert.AreEqual(url, result.Items[0].Url);
@@ -162,7 +217,7 @@ public class ModelServiceTest
     }
 
     [TestMethod]
-    public async Task UpdateDetailsAsync_CallsStorageAndReturnsTrue()
+    public async Task UpdateDetailsAsync_CallsStorageAndReturnsUpdateDetailsResult()
     {
         // Arrange
         var id = Guid.NewGuid();
@@ -231,6 +286,50 @@ public class ModelServiceTest
         // Act
         var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
             await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task UpdateIsNewAsync_CallsStorageAndReturnsUpdateDetailsResult()
+    {
+        // Arrange
+        var emptyMessage = "";
+        var id = Guid.NewGuid();
+        _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        
+        // Act
+        var result = await _modelService.UpdateIsNewAsync(id, CancellationToken.None);
+        
+        // Assert
+        Assert.AreEqual(emptyMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task UpdateIsNewAsync_Throws_WhenEmptyID()
+    {
+        // Arrange
+        var expectedErrorMessage = "provided model ID is not valid";
+        var id = Guid.Empty;
+        
+        // Act
+        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task UpdateIsNewAsync_CallsStorageAndThrows_WhenInvalidId()
+    {
+        // Arrange
+        var expectedErrorMessage = "couldn't find a model with the ID";
+        var id = Guid.NewGuid();
+        _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        
+        // Act
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
