@@ -107,5 +107,10 @@ public interface IModelStorage
         IDictionary<string, string>? metadata = null,
         CancellationToken ct = default);
     
+    /// <summary>
+    /// Deletes all blobs under {assetId}/state/{version}/.
+    /// Returns the number of deleted blobs (0 if the version folder was empty or missing).
+    /// </summary>
+    Task<int> DeleteStateVersionAsync(string assetId, string version, CancellationToken ct);
     Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct);
 }
