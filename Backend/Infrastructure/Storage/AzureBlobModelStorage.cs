@@ -223,90 +223,42 @@ public class AzureBlobModelStorage : IModelStorage
 
         return count;
     }
-
-    public async Task<bool> UpdateDetailsAsync(
-        Guid id,
-        string? newAlias,
-        List<string>? categories,
-        string? description,
-        bool? isFavourite,
-        CancellationToken ct = default)
-    {
-        var updated = false;
-
-        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
-        {
-            if (blob.Metadata == null) continue;
-            if (!TryMatchesId(blob.Metadata, id)) continue;
-
-            var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
-            if (ext != ".glb" && ext != ".gltf") continue;
-
-            var client = _container.GetBlobClient(blob.Name);
-            var metadata = new Dictionary<string, string>(blob.Metadata, StringComparer.OrdinalIgnoreCase);
-
-            // Helper local to set or remove
-            void SetOrRemove(string key, string? value)
-            {
-                if (value is null)
-                    metadata.Remove(key);
-                else
-                    metadata[key] = value;
-            }
-
-            SetOrRemove(MetaAlias, newAlias);
-            if (categories is { Count: > 0 })
-                metadata[MetaCategories] = string.Join(",", categories.Select(c => c.Trim()));
-            else
-                metadata.Remove(MetaCategories);
-            SetOrRemove(MetaDescription, description);
-
-            if (isFavourite.HasValue)
-                metadata[MetaIsFavourite] = isFavourite.Value ? "true" : "false";
-            else
-                metadata.Remove(MetaIsFavourite);
-
-            metadata[MetaIsNew] = "false";
-            // If you want to set the value for isNew:
-            // if(isNew.HasValue)
-            //     metadata[MetaIsNew] = isNew.Value ? "true" : "false";
-            // else
-            //     metadata.Remove(MetaIsNew);
-
-            await client.SetMetadataAsync(metadata, cancellationToken: ct);
-            updated = true;
-        }
-
-        return updated;
-    }
     
     public async Task<bool> UpdateDetailsAsync(
         Guid id,
-        Dictionary<string, string> newMetadata,
-        CancellationToken ct = default)
+        IDictionary<string, string> setMetadata,
+        IEnumerable<string> removeKeys,
+        CancellationToken ct)
     {
-        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
+        // Find the entry blob by Id metadata
+        await foreach (var blob in _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct))
         {
-            if (blob.Metadata == null) continue;
-            if (!TryMatchesId(blob.Metadata, id)) continue;
+            var md = blob.Metadata ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-            var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
-            if (ext != ".glb" && ext != ".gltf") continue;
+            if (!md.TryGetValue(MetaId, out var raw) || !Guid.TryParse(raw, out var foundId) || foundId != id)
+                continue;
 
-            var client = _container.GetBlobClient(blob.Name);
-            var properties = await client.GetPropertiesAsync(cancellationToken: ct);
-            var metadata = properties.Value.Metadata;
+            // We only allow editing metadata on the entry model blob (.glb/.gltf)
+            var name = blob.Name;
+            var isModel = name.EndsWith(".glb", StringComparison.OrdinalIgnoreCase) ||
+                          name.EndsWith(".gltf", StringComparison.OrdinalIgnoreCase);
+            if (!isModel) continue;
 
-            foreach (var key in newMetadata.Keys)
-            {
-                metadata[key] = newMetadata[key];
-            }
-            metadata[MetaIsNew] = "false";
+            // Merge metadata: remove first (if any), then upsert
+            foreach (var k in removeKeys)
+                md.Remove(k);
 
-            await client.SetMetadataAsync(metadata, cancellationToken: ct);
+            foreach (var kvp in setMetadata)
+                md[kvp.Key] = kvp.Value;
+
+            // Persist
+            var client = _container.GetBlobClient(name);
+            await client.SetMetadataAsync(md, cancellationToken: ct);
+
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     public async Task UploadOrOverwriteAsync(

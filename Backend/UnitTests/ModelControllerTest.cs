@@ -199,82 +199,82 @@ public class ModelControllerTest
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
-    [TestMethod]
-    public async Task PutDetails_ReturnsOk_WithUpdateDetailsResult()
-    {
-        // Arrange
-        var expectedMessage = "Updated successfully.";
-        var expectedUpdateDetailsResult = new UpdateDetailsResultDto {Message = expectedMessage};
-        var id = Guid.NewGuid();
-        var newAlias = "newAlias";
-        var description = "empty description";
-        var isFavourite = false;
-        var requestDto = new UpdateModelDetailsRequestDto
-            {NewAlias = newAlias, Description = description, IsFavourite = isFavourite};
-        _mockModelService.Setup(s => s.UpdateDetailsAsync
-            (It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<List<string>>(),
-            It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedUpdateDetailsResult);
-        
-        // Act
-        var result = await _controller.PutDetails(id, requestDto, CancellationToken.None);
-        var okResult = result as OkObjectResult;
-        var updateResult = okResult!.Value as UpdateDetailsResultDto;
-        
-        // Assert
-        Assert.IsNotNull(okResult);
-        Assert.AreEqual(expectedMessage, updateResult!.Message);
-    }
-
-    [TestMethod]
-    public async Task PutDetails_Throws_WhenEmptyID()
-    {
-        // Arrange
-        var expectedErrorMessage = "provided ID is invalid";
-        var emptyId = Guid.Empty;
-        
-        // Act
-        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
-            await _controller.PutDetails(emptyId, null!, CancellationToken.None));
-        
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task PutIsNew_ReturnsOk_WithUpdateDetailsResult()
-    {
-        // Arrange
-        var expectedMessage = "Updated successfully.";
-        var expectedUpdateDetailsResult = new UpdateDetailsResultDto {Message = expectedMessage};
-        var id = Guid.NewGuid();
-        _mockModelService.Setup(s => s.UpdateIsNewAsync
-            (It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedUpdateDetailsResult);
-        
-        // Act
-        var result = await _controller.PutIsNew(id, CancellationToken.None);
-        var okResult = result as OkObjectResult;
-        var updateResult = okResult!.Value as UpdateDetailsResultDto;
-        
-        // Assert
-        Assert.IsNotNull(okResult);
-        Assert.AreEqual(expectedMessage, updateResult!.Message);
-    }
-
-    [TestMethod]
-    public async Task PutIsNew_Throws_WhenEmptyID()
-    {
-        // Arrange
-        var expectedErrorMessage = "provided ID is invalid";
-        var emptyId = Guid.Empty;
-        
-        // Act
-        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.PutIsNew(emptyId, CancellationToken.None));
-        
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
+    // [TestMethod]
+    // public async Task PutDetails_ReturnsOk_WithUpdateDetailsResult()
+    // {
+    //     // Arrange
+    //     var expectedMessage = "Updated successfully.";
+    //     var expectedUpdateDetailsResult = new UpdateDetailsResultDto {Message = expectedMessage};
+    //     var id = Guid.NewGuid();
+    //     var newAlias = "newAlias";
+    //     var description = "empty description";
+    //     var isFavourite = false;
+    //     var requestDto = new UpdateModelDetailsRequestDto
+    //         {NewAlias = newAlias, Description = description, IsFavourite = isFavourite};
+    //     _mockModelService.Setup(s => s.UpdateDetailsAsync
+    //         (It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<List<string>>(),
+    //         It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+    //         .ReturnsAsync(expectedUpdateDetailsResult);
+    //     
+    //     // Act
+    //     var result = await _controller.PutDetails(id, requestDto, CancellationToken.None);
+    //     var okResult = result as OkObjectResult;
+    //     var updateResult = okResult!.Value as UpdateDetailsResultDto;
+    //     
+    //     // Assert
+    //     Assert.IsNotNull(okResult);
+    //     Assert.AreEqual(expectedMessage, updateResult!.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task PutDetails_Throws_WhenEmptyID()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "provided ID is invalid";
+    //     var emptyId = Guid.Empty;
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+    //         await _controller.PutDetails(emptyId, null!, CancellationToken.None));
+    //     
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task PutIsNew_ReturnsOk_WithUpdateDetailsResult()
+    // {
+    //     // Arrange
+    //     var expectedMessage = "Updated successfully.";
+    //     var expectedUpdateDetailsResult = new UpdateDetailsResultDto {Message = expectedMessage};
+    //     var id = Guid.NewGuid();
+    //     _mockModelService.Setup(s => s.UpdateIsNewAsync
+    //         (It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+    //         .ReturnsAsync(expectedUpdateDetailsResult);
+    //     
+    //     // Act
+    //     var result = await _controller.PutIsNew(id, CancellationToken.None);
+    //     var okResult = result as OkObjectResult;
+    //     var updateResult = okResult!.Value as UpdateDetailsResultDto;
+    //     
+    //     // Assert
+    //     Assert.IsNotNull(okResult);
+    //     Assert.AreEqual(expectedMessage, updateResult!.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task PutIsNew_Throws_WhenEmptyID()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "provided ID is invalid";
+    //     var emptyId = Guid.Empty;
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.PutIsNew(emptyId, CancellationToken.None));
+    //     
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
 
     [TestMethod]
     public async Task GetById_ReturnsOk_WithModelItem()

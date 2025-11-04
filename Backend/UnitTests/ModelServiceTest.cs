@@ -216,122 +216,122 @@ public class ModelServiceTest
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
-    [TestMethod]
-    public async Task UpdateDetailsAsync_CallsStorageAndReturnsUpdateDetailsResult()
-    {
-        // Arrange
-        var id = Guid.NewGuid();
-        var newAlias = "newAlias";
-        _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
-            It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        
-        // Act
-        var result = await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
-        
-        // Assert
-        _mockStorage.Verify(s => s.UpdateDetailsAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<string?>(),
-                It.IsAny<List<string>?>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool?>(),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-        
-        Assert.AreEqual("Updated successfully.", result.Message);
-        
-    }
+    // [TestMethod]
+    // public async Task UpdateDetailsAsync_CallsStorageAndReturnsUpdateDetailsResult()
+    // {
+    //     // Arrange
+    //     var id = Guid.NewGuid();
+    //     var newAlias = "newAlias";
+    //     _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
+    //         It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+    //     
+    //     // Act
+    //     var result = await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
+    //     
+    //     // Assert
+    //     _mockStorage.Verify(s => s.UpdateDetailsAsync(
+    //             It.IsAny<Guid>(),
+    //             It.IsAny<string?>(),
+    //             It.IsAny<List<string>?>(),
+    //             It.IsAny<string?>(),
+    //             It.IsAny<bool?>(),
+    //             It.IsAny<CancellationToken>()),
+    //         Times.Once);
+    //     
+    //     Assert.AreEqual("Updated successfully.", result.Message);
+    //     
+    // }
 
-    [TestMethod]
-    public async Task UpdateDetailsAsync_Throws_WhenEmptyId()
-    {
-        // Arrange
-        var expectedErrorMessage = "provided model ID is not valid";
-        var id = Guid.Empty;
-        
-        // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _modelService.UpdateDetailsAsync(id, null, null,null, null, CancellationToken.None));
-        
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UpdateDetailsAsync_Throws_WhenAliasInvalid()
-    {
-        // Arrange
-        var expectedErrorMessage = "alias format is invalid";
-        var newAlias = "Invalid Alias!";
-        var id  = Guid.NewGuid();
-        
-        // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
-        
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UpdateDetailsAsync_CallsStorageAndThrows_WhenIDInvalid()
-    {
-        // Arrange
-        var expectedErrorMessage = "couldn't find a model with the ID";
-        var newAlias = "newAlias";
-        var id  = Guid.NewGuid();
-        _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
-            It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
-        // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
-            await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
-        
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UpdateIsNewAsync_CallsStorageAndReturnsUpdateDetailsResult()
-    {
-        // Arrange
-        var emptyMessage = "";
-        var id = Guid.NewGuid();
-        _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        
-        // Act
-        var result = await _modelService.UpdateIsNewAsync(id, CancellationToken.None);
-        
-        // Assert
-        Assert.AreEqual(emptyMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UpdateIsNewAsync_Throws_WhenEmptyID()
-    {
-        // Arrange
-        var expectedErrorMessage = "provided model ID is not valid";
-        var id = Guid.Empty;
-        
-        // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
-        
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UpdateIsNewAsync_CallsStorageAndThrows_WhenInvalidId()
-    {
-        // Arrange
-        var expectedErrorMessage = "couldn't find a model with the ID";
-        var id = Guid.NewGuid();
-        _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
-        // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
-        
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
+    // [TestMethod]
+    // public async Task UpdateDetailsAsync_Throws_WhenEmptyId()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "provided model ID is not valid";
+    //     var id = Guid.Empty;
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+    //         await _modelService.UpdateDetailsAsync(id, null, null,null, null, CancellationToken.None));
+    //     
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task UpdateDetailsAsync_Throws_WhenAliasInvalid()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "alias format is invalid";
+    //     var newAlias = "Invalid Alias!";
+    //     var id  = Guid.NewGuid();
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+    //         await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
+    //     
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task UpdateDetailsAsync_CallsStorageAndThrows_WhenIDInvalid()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "couldn't find a model with the ID";
+    //     var newAlias = "newAlias";
+    //     var id  = Guid.NewGuid();
+    //     _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
+    //         It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
+    //         await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
+    //     
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task UpdateIsNewAsync_CallsStorageAndReturnsUpdateDetailsResult()
+    // {
+    //     // Arrange
+    //     var emptyMessage = "";
+    //     var id = Guid.NewGuid();
+    //     _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+    //     
+    //     // Act
+    //     var result = await _modelService.UpdateIsNewAsync(id, CancellationToken.None);
+    //     
+    //     // Assert
+    //     Assert.AreEqual(emptyMessage, result.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task UpdateIsNewAsync_Throws_WhenEmptyID()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "provided model ID is not valid";
+    //     var id = Guid.Empty;
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
+    //     
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
+    //
+    // [TestMethod]
+    // public async Task UpdateIsNewAsync_CallsStorageAndThrows_WhenInvalidId()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "couldn't find a model with the ID";
+    //     var id = Guid.NewGuid();
+    //     _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
+    //     
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
 }

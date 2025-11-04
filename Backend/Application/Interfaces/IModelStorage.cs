@@ -57,38 +57,15 @@ public interface IModelStorage
     Task<int> DeleteByAssetIdAsync(string assetId, CancellationToken ct = default);
 
     /// <summary>
-    /// Updates the metadata details for the model with the specified ID.
+    /// Updates metadata for the entry blob of a model identified by <paramref name="id"/>.
+    /// Applies <paramref name="setMetadata"/> (upserts keys) and removes any keys in <paramref name="removeKeys"/>.
+    /// Returns true if the model was found and updated.
     /// </summary>
-    /// <param name="id">The unique identifier of the model to update.</param>
-    /// <param name="newAlias">The new alias for the model. If null, the existing alias is retained.</param>
-    /// <param name="categories">The updated list of categories. If null, existing categories are retained.</param>
-    /// <param name="description">The new description for the model. If null, the existing description is retained.</param>
-    /// <param name="isFavourite">The new favourite status for the model. If null, the existing status is retained.</param>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <returns>True if the update was successful; otherwise, false.</returns>
     Task<bool> UpdateDetailsAsync(
         Guid id,
-        string? newAlias,
-        List<string>? categories,
-        string? description,
-        bool? isFavourite,
-        CancellationToken ct = default
-    );
-
-    Task<bool> UpdateDetailsAsync
-    (
-        Guid id,
-        Dictionary<string, string> newMetadata,
-        CancellationToken ct = default
-    );
-
-    /// <summary>
-    /// Updates the 'IsNew' status for the model with the specified ID.
-    /// </summary>
-    /// <param name="id">The unique identifier of the model to update.</param>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <returns>True if the update was successful; otherwise, false.</returns>
-    Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default);
+        IDictionary<string, string> setMetadata,
+        IEnumerable<string> removeKeys,
+        CancellationToken ct);
 
     /// <summary>
     /// Counts the total number of models matching the specified filter criteria.
@@ -113,11 +90,12 @@ public interface IModelStorage
         string contentType,
         IDictionary<string, string>? metadata = null,
         CancellationToken ct = default);
-    
+
     /// <summary>
     /// Deletes all blobs under {assetId}/state/{version}/.
     /// Returns the number of deleted blobs (0 if the version folder was empty or missing).
     /// </summary>
     Task<int> DeleteStateVersionAsync(string assetId, string version, CancellationToken ct);
+
     Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct);
 }

@@ -21,6 +21,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
     #region CRUD Operations
+
     public async Task<ModelItemDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
@@ -144,126 +145,58 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
     /// </exception>
     public async Task<UpdateDetailsResultDto> UpdateDetailsAsync(
         Guid id,
-        string? newAlias,
-        List<string>? categories,
-        string? description,
-        bool? isFavourite,
-        CancellationToken cancellationToken)
-    {
-        if (id == Guid.Empty)
-            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
-
-        // Normalize whitespace-only strings to null (treat as deletion)
-        string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-
-        List<string>? NormalizeList(List<string>? list) =>
-            list?.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
-
-        var normalizedCategories = NormalizeList(categories);
-        Normalize(description);
-        var alias = Normalize(newAlias);
-
-        // Validate alias only if it's being set (not deleted)
-        if (alias is not null && !AliasRegex.IsMatch(alias))
-            throw new ValidationException(
-                "The alias format is invalid. It can only contain letters, numbers, and underscores.");
-
-        var updated = await storage.UpdateDetailsAsync(
-            id, alias, normalizedCategories, Normalize(description), isFavourite, cancellationToken);
-
-        if (!updated)
-            throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
-
-        return new UpdateDetailsResultDto
-        {
-            Message = "Updated successfully."
-        };
-    }
-
-    public async Task<UpdateDetailsResultDto> UpdateDetailsAsync(
-        Guid id,
         UpdateModelDetailsRequestDto requestDto,
         CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
-            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
-        
-        var metadata = new Dictionary<string, string>();
-        
+            throw new ValidationException("The provided model ID is invalid.");
+        if (requestDto is null)
+            throw new BadRequestException("The request is empty.");
+
+        // Normalize inputs (treat whitespace-only as null => delete)
+        static string? NormalizeString(string? s) =>
+            string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        static List<string>? NormalizeList(List<string>? list) =>
+            list is null
+                ? null
+                : list.Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .ToList();
+
+        var alias = NormalizeString(requestDto.NewAlias);
+        var description = NormalizeString(requestDto.Description);
         var categories = NormalizeList(requestDto.Categories);
-        var description = Normalize(requestDto.Description);
-        var alias = Normalize(requestDto.NewAlias);
-        
+
         if (alias is not null && !AliasRegex.IsMatch(alias))
-            throw new ValidationException
-                ("The alias format is invalid. It can only contain letters, numbers, and underscores.");
+            throw new ValidationException(
+                "The alias format is invalid. It can only contain letters, numbers, and underscores.");
         
-        if (alias is not null)
-            metadata.Add("alias", alias);
-        if (description is not null)
-            metadata.Add("description", description);
-        if (categories is not null)
-            metadata.Add("categories", string.Join(",", categories.Select(c => c.Trim())));
+        var setMd = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var removeMd = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (alias is null) removeMd.Add("alias");
+        else setMd["alias"] = alias;
+        if (description is null) removeMd.Add("description");
+        else setMd["description"] = description;
+        if (categories is null || categories.Count == 0) removeMd.Add("categories");
+        else setMd["categories"] = string.Join(",", categories);
+
         if (requestDto.IsFavourite.HasValue)
-            metadata.Add("isFavourite", requestDto.IsFavourite.Value.ToString());
-        
-        if (metadata.Count == 0)
+            setMd["isFavourite"] = requestDto.IsFavourite.Value ? "true" : "false";
+
+        // Always clear "isNew" when details are updated
+        setMd["isNew"] = "false";
+
+        if (setMd.Count == 1 && setMd.ContainsKey("isNew") && removeMd.Count == 0)
             throw new ValidationException("You have to change something to update a model.");
 
-        var updated = await storage.UpdateDetailsAsync(id, metadata, cancellationToken);
-
-        if (!updated)
-            throw new NotFoundException
-                ($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
-
-        return new UpdateDetailsResultDto
-        {
-            Message = "Updated successfully."
-        };
-        
-        string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-
-        List<string>? NormalizeList(List<string>? list) =>
-            list?.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
-    }
-
-    /// <summary>
-    /// Clears or updates the <c>isNew</c> flag for a model so that it no longer appears as "new" in the UI.
-    /// </summary>
-    /// <param name="id">The logical model ID to update.</param>
-    /// <param name="cancellationToken">Token to cancel the request.</param>
-    /// <returns>
-    /// An <see cref="UpdateDetailsResultDto"/> indicating success.
-    /// </returns>
-    /// <remarks>
-    /// This is typically called after the model has been surfaced to the user,
-    /// to stop highlighting it as a newly uploaded asset.
-    /// </remarks>
-    /// <exception cref="ValidationException">
-    /// Thrown if <paramref name="id"/> is invalid.
-    /// </exception>
-    /// <exception cref="NotFoundException">
-    /// Thrown if no model with that ID exists.
-    /// </exception>
-    public async Task<UpdateDetailsResultDto> UpdateIsNewAsync(
-        Guid id,
-        CancellationToken cancellationToken
-    )
-    {
-        if (id == Guid.Empty)
-            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
-
-        var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
-
+        var updated = await storage.UpdateDetailsAsync(id, setMd, removeMd, cancellationToken);
         if (!updated)
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-        return new UpdateDetailsResultDto
-        {
-            Message = ""
-        };
+        return new UpdateDetailsResultDto { Message = "Updated successfully." };
     }
 
     #endregion

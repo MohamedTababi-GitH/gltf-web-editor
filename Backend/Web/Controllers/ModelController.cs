@@ -167,66 +167,24 @@ public class ModelController : ControllerBase
 
         return NoContent();
     }
-
-    /// <summary>
-    /// Updates details (alias, category, description, etc.) for a model.
-    /// </summary>
-    /// <param name="id">The model ID.</param>
-    /// <param name="requestDto">The update requestDto data.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <response code="204">Update succeeded.</response>
-    /// <response code="400">Invalid ID or requestDto data.</response>
-    /// <response code="404">Model not found.</response>
-    [HttpPut("{id:guid}/details")]
-    public async Task<IActionResult> PutDetails(
-        Guid id,
-        [FromBody] UpdateModelDetailsRequestDto requestDto,
-        CancellationToken cancellationToken)
-    {
-        // Validate input
-        if (id == Guid.Empty)
-            throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
-
-        // Ask the service to update model details
-        var update = await _modelService.UpdateDetailsAsync(
-            id,
-            requestDto.NewAlias,
-            requestDto.Categories,
-            requestDto.Description,
-            requestDto.IsFavourite,
-            cancellationToken);
-
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
-    }
-
+    
     [HttpPatch("{id:guid}/details")]
+    [ProducesResponseType(typeof(UpdateDetailsResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> PatchDetails(
         Guid id,
         [FromBody] UpdateModelDetailsRequestDto requestDto,
         CancellationToken cancellationToken)
     {
-        // Validate input
-        if (id == Guid.Empty)
-            throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
-        
-        // Ask the service to update model details
-        var update = await _modelService.UpdateDetailsAsync(id, requestDto, cancellationToken);
-        
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
-    }
-
-    [HttpPatch("{id:guid}/isNew")]
-    public async Task<IActionResult> PutIsNew(
-        Guid id,
-        CancellationToken cancellationToken)
-    {
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var update = await _modelService.UpdateIsNewAsync(id, cancellationToken);
-        
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+        var result = await _modelService.UpdateDetailsAsync(id, requestDto, cancellationToken);
+        return Ok(result);
     }
+    
     
     [HttpPost("{assetId}/state")]
     [Consumes("multipart/form-data")]

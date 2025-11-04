@@ -41,29 +41,11 @@ public interface IModelService
     /// <param name="isFavourite">The new favourite status for the model. If null, the existing status is retained.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing the update result.</returns>
-    Task<UpdateDetailsResultDto> UpdateDetailsAsync(
-        Guid id,
-        string? newAlias,
-        List<string>? categories,
-        string? description,
-        bool? isFavourite,
-        CancellationToken cancellationToken);
 
     Task<UpdateDetailsResultDto> UpdateDetailsAsync(
         Guid id,
         UpdateModelDetailsRequestDto requestDto,
         CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Updates the 'IsNew' status of a model by its unique identifier.
-    /// </summary>
-    /// <param name="id">The unique identifier of the model to update.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation, containing the update result.</returns>
-    Task<UpdateDetailsResultDto> UpdateIsNewAsync(
-        Guid id,
-        CancellationToken cancellationToken
-    );
     
     /// <summary>
     /// Retrieves a specific model by its unique identifier.
