@@ -75,6 +75,13 @@ public interface IModelStorage
         CancellationToken ct = default
     );
 
+    Task<bool> UpdateDetailsAsync
+    (
+        Guid id,
+        Dictionary<string, string> newMetadata,
+        CancellationToken ct = default
+    );
+
     /// <summary>
     /// Updates the 'IsNew' status for the model with the specified ID.
     /// </summary>
