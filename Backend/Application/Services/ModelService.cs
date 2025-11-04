@@ -21,11 +21,22 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
     //Authour: Zou
+    /// <summary>
+    /// Locks a model in memory to prevent other operations (such as delete or update) 
+    /// from being executed concurrently on the same model.
+    /// </summary>
+    /// <param name="id">The unique model identifier.</param>
+    /// <exception cref="ModelLockedException">
+    /// Thrown if the model is already locked by another user or process.
+    /// </exception>
     public void LockModel(Guid id)
     {
         _mutex.AcquireLock(id);
     }
-
+    /// <summary>
+    /// Releases the lock for a model, allowing other operations to access or modify it again.
+    /// </summary>
+    /// <param name="id">The unique model identifier.</param>
     public void UnlockModel(Guid id)
     {
         _mutex.ReleaseLock(id);
@@ -113,17 +124,9 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     /// </exception>
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
-        if (!_mutex.IsLocked(id))
-        {
-            Console.WriteLine(
-                $"Model {id} is NOT locked, cannot delete.********************************************************************************************************************************");
-        }
-
         if (_mutex.IsLocked(id))
         {
-            Console.WriteLine(
-                $"Model {id} is locked, cannot delete.*********************************************************************************************************************************");
-            throw new ModelLockedException($"Model {id} is currently locked.");
+            throw new ModelLockedException($"This Model is currently being used.");
         }
 
         if (id == Guid.Empty)
@@ -178,7 +181,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
         CancellationToken cancellationToken)
     {
         if (_mutex.IsLocked(id))
-            throw new ModelLockedException($"Model {id} is currently locked.");
+            throw new ModelLockedException($"Tis Model {id} is currently being used.");
 
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");

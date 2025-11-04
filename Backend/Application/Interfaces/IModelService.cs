@@ -10,9 +10,22 @@ namespace ECAD_Backend.Application.Interfaces;
 /// </summary>
 public interface IModelService
 {
-    
+    /// <summary>
+    /// Locks a model in memory to prevent other operations (such as delete or update) 
+    /// from being executed concurrently on the same model.
+    /// </summary>
+    /// <param name="id">The unique model identifier.</param>
+    /// <exception cref="ModelLockedException">
+    /// Thrown if the model is already locked by another user or process.
+    /// </exception>
     void LockModel(Guid id);
+    
+    /// <summary>
+    /// Releases the lock for a model, allowing other operations to access or modify it again.
+    /// </summary>
+    /// <param name="id">The unique model identifier.</param>
     void UnlockModel(Guid id);
+    
     /// <summary>
     /// Retrieves a read-only list of model items asynchronously.
     /// </summary>
