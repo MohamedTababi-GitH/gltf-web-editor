@@ -49,6 +49,11 @@ public interface IModelService
         bool? isFavourite,
         CancellationToken cancellationToken);
 
+    Task<UpdateDetailsResultDto> UpdateDetailsAsync(
+        Guid id,
+        UpdateModelDetailsRequestDto requestDto,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Updates the 'IsNew' status of a model by its unique identifier.
     /// </summary>

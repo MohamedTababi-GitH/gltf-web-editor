@@ -199,6 +199,22 @@ public class ModelController : ControllerBase
         return Ok( new UpdateDetailsResultDto{Message = update.Message} );
     }
 
+    [HttpPatch("{id:guid}/details")]
+    public async Task<IActionResult> PatchDetails(
+        Guid id,
+        [FromBody] UpdateModelDetailsRequestDto requestDto,
+        CancellationToken cancellationToken)
+    {
+        // Validate input
+        if (id == Guid.Empty)
+            throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
+        
+        // Ask the service to update model details
+        var update = await _modelService.UpdateDetailsAsync(id, requestDto, cancellationToken);
+        
+        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+    }
+
     [HttpPatch("{id:guid}/isNew")]
     public async Task<IActionResult> PutIsNew(
         Guid id,

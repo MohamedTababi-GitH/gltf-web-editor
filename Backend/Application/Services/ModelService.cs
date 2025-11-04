@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
+using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Interfaces;
@@ -178,6 +179,53 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper) : I
         {
             Message = "Updated successfully."
         };
+    }
+
+    public async Task<UpdateDetailsResultDto> UpdateDetailsAsync(
+        Guid id,
+        UpdateModelDetailsRequestDto requestDto,
+        CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+        
+        var metadata = new Dictionary<string, string>();
+        
+        var categories = NormalizeList(requestDto.Categories);
+        var description = Normalize(requestDto.Description);
+        var alias = Normalize(requestDto.NewAlias);
+        
+        if (alias is not null && !AliasRegex.IsMatch(alias))
+            throw new ValidationException
+                ("The alias format is invalid. It can only contain letters, numbers, and underscores.");
+        
+        if (alias is not null)
+            metadata.Add("alias", alias);
+        if (description is not null)
+            metadata.Add("description", description);
+        if (categories is not null)
+            metadata.Add("categories", string.Join(",", categories.Select(c => c.Trim())));
+        if (requestDto.IsFavourite.HasValue)
+            metadata.Add("isFavourite", requestDto.IsFavourite.Value.ToString());
+        
+        if (metadata.Count == 0)
+            throw new ValidationException("You have to change something to update a model.");
+
+        var updated = await storage.UpdateDetailsAsync(id, metadata, cancellationToken);
+
+        if (!updated)
+            throw new NotFoundException
+                ($"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+
+        return new UpdateDetailsResultDto
+        {
+            Message = "Updated successfully."
+        };
+        
+        string? Normalize(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        List<string>? NormalizeList(List<string>? list) =>
+            list?.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).ToList();
     }
 
     /// <summary>
