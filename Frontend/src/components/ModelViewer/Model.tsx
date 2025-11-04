@@ -15,7 +15,7 @@ import {
   type TransformState,
 } from "@/services/MultiTransformCommand.ts";
 import { useHistory } from "@/contexts/HistoryContext.tsx";
-import type { SavedComponentState } from "@/utils/StateSaver.ts";
+import { type SavedComponentState } from "@/utils/StateSaver.ts";
 import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
 import type { StateFile } from "@/types/StateFile.ts";
 

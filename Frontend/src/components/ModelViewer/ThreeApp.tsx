@@ -371,7 +371,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
             <Tooltip>
               <TooltipTrigger asChild={true}>
                 <Button
-                  disabled={!groupRef}
+                  disabled={!groupRef || !canUndo}
                   onClick={() => {
                     if (selectedVersion?.version !== "Default") {
                       saveModel(selectedVersion?.version);
@@ -392,7 +392,7 @@ export default function ThreeApp({ setShowViewer }: ThreeAppProps) {
             <Tooltip>
               <TooltipTrigger asChild={true}>
                 <Button
-                  disabled={!groupRef}
+                  disabled={!groupRef || !canUndo}
                   onClick={() => {
                     setVersionModalOpen(true);
                   }}
