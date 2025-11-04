@@ -154,7 +154,7 @@ export default function ThreeApp() {
 
       try {
         const mainFileName = url
-          .substring(url.lastIndexOf("%2F") + 1)
+          .substring(url.lastIndexOf("/") + 1)
           .split("?")[0];
         const mainFileResponse = await fetch(url);
         const mainFileBlob = await mainFileResponse.blob();
@@ -236,6 +236,18 @@ export default function ThreeApp() {
     },
     [apiClient, groupRef, model?.assetId, refetchModel, resetStacks],
   );
+
+  const handleDeleteVersion = async (file: StateFile) => {
+    if (!model?.assetId || !file?.version) return;
+    try {
+      await apiClient.delete(
+        `/api/model/${model?.assetId}/state/${file?.version}`,
+      );
+      await refetchModel();
+    } catch (error) {
+      console.error("Error deleting model version:", error);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -429,7 +441,7 @@ export default function ThreeApp() {
           <Tooltip>
             <TooltipTrigger asChild={true}>
               <Button
-                disabled={!groupRef || !canUndo}
+                disabled={!groupRef}
                 onClick={() => {
                   setVersionModalOpen(true);
                 }}
@@ -448,18 +460,18 @@ export default function ThreeApp() {
             <PopoverTrigger asChild>
               <Button
                 variant="default"
-                className="flex items-center p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
+                className="flex items-center justify-start p-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70"
               >
                 <Layers />
                 {selectedVersion?.version}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80">
+            <PopoverContent className="w-96 select-none">
               <div className="grid gap-4">
                 <h4 className="font-medium leading-none">Versions</h4>
                 <ul className="grid gap-2">
                   {sortedFiles.map((file) => (
-                    <li className="list-none" key={file.createdOn}>
+                    <li className="list-none flex gap-2" key={file.createdOn}>
                       <button
                         type="button"
                         onClick={() => {
@@ -482,6 +494,29 @@ export default function ThreeApp() {
                           Last Saved: {formatDateTime(file.createdOn).fullStr}
                         </p>
                       </button>
+                      {sortedFiles.length > 1 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild={true}>
+                            <Button
+                              onClick={() => {
+                                handleDeleteVersion(file);
+                              }}
+                              className="flex items-center px-2 py-2 rounded-md bg-muted transition h-full border hover:bg-destructive/60 text-sidebar-foreground/70"
+                            >
+                              <X className="size-4 lg:size-5 text-foreground" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p>
+                              Delete{" "}
+                              <b>
+                                <i>{file.version}</i>
+                              </b>{" "}
+                              Version
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </li>
                   ))}
                 </ul>
