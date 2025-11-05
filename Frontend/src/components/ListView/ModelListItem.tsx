@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/popover.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Checkbox } from "@/components/ui/checkbox.tsx";
+import { useMutexApi } from "@/api/mutex";
 
 function ModelListItem({
   item,
@@ -106,6 +107,19 @@ function ModelListItem({
   const [isFavorite, setIsFavorite] = useState(item.isFavourite);
   const [isNew, setIsNew] = useState(item.isNew);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const { lockModel } = useMutexApi();
+
+  const handleOpenModel = async (e?: React.MouseEvent) => {
+    e?.stopPropagation(); // safe access (won’t throw if e is undefined)
+
+    try {
+      const result = await lockModel(item.id);
+      if (!result.success) return;
+      onClick();
+    } catch (error) {
+      console.error("Failed to open model:", error);
+    }
+  };
 
   const handleFavoriteToggle = async (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
@@ -212,11 +226,12 @@ function ModelListItem({
 
         <Card
           className="flex flex-col max-w-md hover:bg-muted/65 transition-colors cursor-pointer overflow-hidden pb-0 gap-2"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
+
             if (isEditOpen || isDeleteDialogOpen || isActionMenuOpen) return;
-            onClick();
-            // Mark model as opened (no longer new)
-            if (isNew) handleIsNewToggle({ stopPropagation: () => {} });
+            handleOpenModel(e);
+            if (isNew) handleIsNewToggle(e);
           }}
         >
           <CardHeader className="pb-0 mt-2">
@@ -314,7 +329,7 @@ function ModelListItem({
                       <span>Download</span>
                     </a>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={onClick}>
+                  <DropdownMenuItem onClick={handleOpenModel}>
                     <ExternalLink className="mr-2 h-4 w-4" />
                     <span>Open</span>
                   </DropdownMenuItem>

@@ -53,6 +53,7 @@ import {
 import { Input } from "@/components/ui/input.tsx";
 import type { StateFile } from "@/types/StateFile.ts";
 import { useNavigation } from "@/contexts/NavigationContext.tsx";
+import { useMutexApi } from "@/api/mutex";
 
 function Loading({ progress }: { progress: number }) {
   return (
@@ -80,10 +81,18 @@ export default function ThreeApp() {
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
-  const closeModel = () => {
+  // ** New (05-11) **
+  const { unlockModel } = useMutexApi();
+
+  const closeModel = async () => {
     if (canUndo) {
       setShowCloseWarning(true);
       return;
+    }
+    // ** NEW (05-11) **
+    // release lock when closing!
+    if (model?.id) {
+      await unlockModel(model.id);
     }
     setIsModelViewer(false);
   };

@@ -417,13 +417,7 @@ function ListView() {
         ) : models.length > 0 ? (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,24rem))] justify-center gap-4 w-full items-center p-4">
             {models.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => {
-                  setModel(item);
-                  setIsModelViewer(true);
-                }}
-              >
+              <div key={item.id}>
                 <ModelListItem
                   key={item.id}
                   item={item}

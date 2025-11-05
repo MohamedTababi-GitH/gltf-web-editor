@@ -308,7 +308,7 @@ public class ModelController : ControllerBase
             throw new BadRequestException("Invalid model ID.");
 
         _modelService.LockModel(id); 
-        return Ok(new { Message = $"Model {id} is now locked." });
+        return Ok();
     }
 
     /// <summary>
@@ -324,8 +324,6 @@ public class ModelController : ControllerBase
             throw new BadRequestException("Invalid model ID.");
 
         _modelService.UnlockModel(id);
-        return Ok(new { Message = $"Model {id} has been unlocked." });
+        return Ok();
     }
-
-    
 }
