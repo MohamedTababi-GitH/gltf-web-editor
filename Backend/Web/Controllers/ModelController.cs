@@ -308,7 +308,7 @@ public class ModelController : ControllerBase
             throw new BadRequestException("Invalid model ID.");
 
         _modelService.LockModel(id); 
-        return Ok(new { Message = $"Model {id} is now locked." });
+        return Ok(new {});
     }
 
     /// <summary>
@@ -324,8 +324,23 @@ public class ModelController : ControllerBase
             throw new BadRequestException("Invalid model ID.");
 
         _modelService.UnlockModel(id);
-        return Ok(new { Message = $"Model {id} has been unlocked." });
+        return Ok(new {});
+    }
+    
+    /// <summary>
+    /// Checks whether a specific model is currently locked.
+    /// </summary>
+    /// <param name="id">The unique identifier of the model.</param>
+    /// <response code="200">Returns lock status of the model.</response>
+    /// <response code="400">Invalid model ID provided.</response>
+    [HttpGet("{id:guid}/lock-status")]
+    public IActionResult GetLockStatus(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+
+        var isLocked = _modelService.IsLocked(id);
+        return Ok(new { IsLocked = isLocked });
     }
 
-    
 }
