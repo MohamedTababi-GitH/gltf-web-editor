@@ -424,15 +424,17 @@ function ListView() {
                   setIsModelViewer(true);
                 }}
               >
-                <ModelListItem
-                  key={item.id}
-                  item={item}
-                  refreshList={refreshCurrentPage}
-                  onClick={() => {
-                    setModel(item);
-                    setIsModelViewer(true);
-                  }}
-                />
+                <div key={item.id}>
+                  <ModelListItem
+                    key={item.id}
+                    item={item}
+                    refreshList={refreshCurrentPage}
+                    onClick={() => {
+                      setModel(item);
+                      setIsModelViewer(true);
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>

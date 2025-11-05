@@ -84,14 +84,6 @@ export default function ThreeApp() {
   );
   // ** New (05-11) **
   const { unlockModel } = useMutexApi();
-  // This is needed to automatically release the lock if user closes or reloads the page!! ***
-  useEffect(() => {
-    return () => {
-      if (model?.id) {
-        unlockModel(model.id);
-      }
-    };
-  }, [model?.id, unlockModel]);
 
   const closeModel = async () => {
     if (canUndo) {

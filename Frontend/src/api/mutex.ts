@@ -1,5 +1,4 @@
 import { useAxiosConfig } from "@/services/AxiosConfig";
-import axios from "axios";
 
 export const useMutexApi = () => {
   const apiClient = useAxiosConfig();
@@ -8,16 +7,9 @@ export const useMutexApi = () => {
     try {
       await apiClient.post(`/api/model/${modelId}/lock`);
       return { success: true };
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 409) {
-          return { success: false, message: error.response.data.message };
-        }
-      }
-      console.error("Lock request failed:", error);
+    } catch {
       return {
         success: false,
-        message: "Unexpected error while locking model.",
       };
     }
   };
@@ -25,8 +17,9 @@ export const useMutexApi = () => {
   const unlockModel = async (modelId: string) => {
     try {
       await apiClient.post(`/api/model/${modelId}/unlock`);
-    } catch (error) {
-      console.warn("Unlock failed:", error);
+      return { success: true };
+    } catch {
+      return { success: false };
     }
   };
 
