@@ -54,6 +54,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog.tsx";
 import { useNavigation } from "@/contexts/NavigationContext.tsx";
+import { useMutexApi } from "@/api/mutex";
 
 function Loading({ progress }: { progress: number }) {
   return (
@@ -81,10 +82,26 @@ export default function ThreeApp() {
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
-  const closeModel = () => {
+  // ** New (05-11) **
+  const { unlockModel } = useMutexApi();
+  // This is needed to automatically release the lock if user closes or reloads the page!! ***
+  useEffect(() => {
+    return () => {
+      if (model?.id) {
+        unlockModel(model.id);
+      }
+    };
+  }, [model?.id, unlockModel]);
+
+  const closeModel = async () => {
     if (canUndo) {
       setShowCloseWarning(true);
       return;
+    }
+    // ** NEW (05-11) **
+    // release lock when closing!
+    if (model?.id) {
+      await unlockModel(model.id);
     }
     setIsModelViewer(false);
   };

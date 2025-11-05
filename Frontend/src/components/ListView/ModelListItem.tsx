@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/popover.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Checkbox } from "@/components/ui/checkbox.tsx";
+import { useMutexApi } from "@/api/mutex";
 
 function ModelListItem({
   item,
@@ -106,6 +107,25 @@ function ModelListItem({
   const [isFavorite, setIsFavorite] = useState(item.isFavourite);
   const [isNew, setIsNew] = useState(item.isNew);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const { lockModel } = useMutexApi();
+
+  const handleOpenModel = async () => {
+    try {
+      const result = await lockModel(item.id);
+
+      if (!result.success) {
+        console.error(
+          "This model is currently in use by another user.",
+          result.message,
+        );
+        return;
+      }
+
+      onClick();
+    } catch (error) {
+      console.error("Failed to open model:", error);
+    }
+  };
 
   const handleFavoriteToggle = async (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
@@ -214,7 +234,7 @@ function ModelListItem({
           className="flex flex-col max-w-md hover:bg-muted/65 transition-colors cursor-pointer overflow-hidden pb-0 gap-2"
           onClick={() => {
             if (isEditOpen || isDeleteDialogOpen || isActionMenuOpen) return;
-            onClick();
+            handleOpenModel();
             // Mark model as opened (no longer new)
             if (isNew) handleIsNewToggle({ stopPropagation: () => {} });
           }}
