@@ -1,7 +1,7 @@
 ﻿using Moq;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
-using ECAD_Backend.Application.DTOs.ResultDTO;
+using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
@@ -16,13 +16,14 @@ public class ModelServiceTest
     private Mock<IModelStorage> _mockStorage = null!;
     private Mock<IModelMapper> _mockMapper = null!;
     private ModelService _modelService = null!;
+    private ModelUploadService _modelUploadService = null!;
 
     [TestInitialize]
     public void SetUp()
     {
         _mockStorage = new Mock<IModelStorage>();
         _mockMapper = new Mock<IModelMapper>();
-        _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object);
+        _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object,null);
     }
 
     [TestMethod]
@@ -108,7 +109,7 @@ public class ModelServiceTest
                 It.IsAny<string>(),
                 It.IsAny<ModelFilterDto>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((files, null));
+            .ReturnsAsync((files, (string?)null));
 
         // storage.CountAsync -> return some total (doesn't affect NRE but keeps service happy)
         _mockStorage
@@ -132,7 +133,7 @@ public class ModelServiceTest
         var result = await _modelService.ListAsync(limit, null, filter, CancellationToken.None);
 
         // Assert
-        Assert.HasCount(1, result.Items, "Expected one item in the page result.");
+        Assert.AreEqual(1, result.Items.Count, "Expected one item in the page result.");
         Assert.AreEqual(name, result.Items[0].Name, "Item Name should match mapped alias.");
         Assert.AreEqual(format, result.Items[0].Format);
         Assert.AreEqual(url, result.Items[0].Url);
@@ -217,7 +218,7 @@ public class ModelServiceTest
     }
 
     [TestMethod]
-    public async Task UpdateDetailsAsync_CallsStorageAndReturnsUpdateDetailsResult()
+    public async Task UpdateDetailsAsync_CallsStorageAndReturnsTrue()
     {
         // Arrange
         var id = Guid.NewGuid();
