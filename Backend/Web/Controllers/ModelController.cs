@@ -294,4 +294,38 @@ public class ModelController : ControllerBase
         return Ok(result);
     }
     
+    
+    /// <summary>
+    /// Locks a specific model to prevent concurrent edits or deletions.
+    /// </summary>
+    /// <param name="id">The unique identifier of the model to lock.</param>
+    /// <response code="200">Model successfully locked.</response>
+    /// <response code="400">Invalid model ID was provided.</response>
+    [HttpPost("{id:guid}/lock")]
+    public IActionResult LockModel(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+
+        _modelService.LockModel(id); 
+        return Ok(new { Message = $"Model {id} is now locked." });
+    }
+
+    /// <summary>
+    /// Unlocks a specific model, allowing other users or services to edit or delete it again.
+    /// </summary>
+    /// <param name="id">The unique identifier of the model to unlock.</param>
+    /// <response code="200">Model successfully unlocked.</response>
+    /// <response code="400">Invalid model ID was provided.</response>
+    [HttpPost("{id:guid}/unlock")]
+    public IActionResult UnlockModel(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+
+        _modelService.UnlockModel(id);
+        return Ok(new { Message = $"Model {id} has been unlocked." });
+    }
+
+    
 }
