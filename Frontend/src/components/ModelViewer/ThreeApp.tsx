@@ -14,7 +14,16 @@ import { Spinner } from "@/components/ui/spinner.tsx";
 import Cursors from "@/components/ModelViewer/Cursors.tsx";
 import type { Cursor } from "@/types/Cursor.ts";
 import * as THREE from "three";
-import { Redo2, Undo2, X, Keyboard, Save, SaveAll, Layers } from "lucide-react";
+import {
+  Redo2,
+  Undo2,
+  X,
+  Keyboard,
+  Save,
+  SaveAll,
+  Layers,
+  Trash,
+} from "lucide-react";
 import { useHistory } from "@/contexts/HistoryContext.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -43,16 +52,6 @@ import {
 } from "../ui/dialog";
 import { Input } from "@/components/ui/input.tsx";
 import type { StateFile } from "@/types/StateFile.ts";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog.tsx";
 import { useNavigation } from "@/contexts/NavigationContext.tsx";
 
 function Loading({ progress }: { progress: number }) {
@@ -109,8 +108,10 @@ export default function ThreeApp() {
     try {
       const res = await apiClient.get(`api/model/${model?.id}`);
       setModel(res.data);
+      return res.data;
     } catch (e) {
       console.error("Error fetching model:", e);
+      return null;
     }
   }, [apiClient, model?.id, setModel]);
 
@@ -125,6 +126,24 @@ export default function ThreeApp() {
   ];
 
   useEffect(() => {
+    const handleBeforeUnload = (event: {
+      preventDefault: () => void;
+      returnValue: string;
+    }) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    if (canUndo) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [canUndo]);
+
+  useEffect(() => {
     const isMac = /Mac/i.test(navigator.userAgent);
     setUndoShortcut(isMac ? "⌘+Z" : "Ctrl+Z");
     setRedoShortcut(isMac ? "⌘+Y" : "Ctrl+Y");
@@ -136,8 +155,8 @@ export default function ThreeApp() {
     if (!versionToSwitch) return;
     setSelectedVersion(versionToSwitch);
     resetStacks();
-    setVersionModalOpen(false);
     setVersionToSwitch(undefined);
+    setShowSwitchWarning(false);
   };
 
   const additionalFilesJson = JSON.stringify(model?.additionalFiles);
@@ -199,8 +218,11 @@ export default function ThreeApp() {
   }, [url, additionalFilesJson]);
 
   useEffect(() => {
-    setSelectedVersion(sortedFiles[0]);
-  }, [sortedFiles]);
+    if (sortedFiles.length > 0) {
+      setSelectedVersion(sortedFiles[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model?.id]);
 
   const handleVersionClick = (
     file: React.SetStateAction<StateFile | undefined>,
@@ -229,7 +251,17 @@ export default function ThreeApp() {
         setVersionName("");
         resetStacks();
 
-        await refetchModel();
+        const newModelData = await refetchModel();
+
+        if (newModelData) {
+          const newSortedFiles = [...newModelData.stateFiles].sort((a, b) =>
+            a.createdOn > b.createdOn ? -1 : 1,
+          );
+          const savedVersion = newSortedFiles.find(
+            (file) => file.version === (targetVersion || "Default"),
+          );
+          setSelectedVersion(savedVersion || newSortedFiles[0]);
+        }
       } catch (error) {
         console.error("Error saving model:", error);
       }
@@ -484,7 +516,7 @@ export default function ThreeApp() {
                           handleVersionClick(file);
                         }}
                         className={`w-full text-left py-2 px-4 rounded-md cursor-pointer ${
-                          file === selectedVersion
+                          file.version === selectedVersion?.version
                             ? "bg-primary/90 text-primary-foreground"
                             : "bg-muted"
                         }`}
@@ -492,7 +524,7 @@ export default function ThreeApp() {
                         <p className="text-sm">{file.version}</p>
                         <p
                           className={`text-sm ${
-                            file === selectedVersion
+                            file.version === selectedVersion?.version
                               ? "text-muted"
                               : "text-muted-foreground"
                           }`}
@@ -509,7 +541,7 @@ export default function ThreeApp() {
                               }}
                               className="flex items-center px-2 py-2 rounded-md bg-muted transition h-full border hover:bg-destructive/60 text-sidebar-foreground/70"
                             >
-                              <X className="size-4 lg:size-5 text-foreground" />
+                              <Trash className="size-4 lg:size-5 text-foreground" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side="right">
@@ -532,44 +564,60 @@ export default function ThreeApp() {
         )}
       </div>
 
-      <AlertDialog open={showSwitchWarning} onOpenChange={setShowSwitchWarning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>You have unsaved changes!</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={showSwitchWarning} onOpenChange={setShowSwitchWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>You have unsaved changes!</DialogTitle>
+            <DialogDescription>
               Switching to a different version will discard your unsaved
               changes.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleSwitch}
-              className="bg-destructive hover:bg-destructive/90"
-            >
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleSwitch}>
               Discard and Switch
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
 
-      <AlertDialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>You have unsaved changes!</AlertDialogTitle>
-            <AlertDialogDescription>
+            <Button
+              onClick={async () => {
+                try {
+                  if (selectedVersion?.version === "Default") {
+                    await saveModel();
+                  } else {
+                    await saveModel(selectedVersion?.version);
+                  }
+                  handleSwitch();
+                } catch (error) {
+                  console.error("Error during save and switch:", error);
+                }
+              }}
+              className="bg-chart-2 hover:bg-chart-2/90"
+            >
+              Save and Switch
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>You have unsaved changes!</DialogTitle>
+            <DialogDescription>
               Closing this view will discard your unsaved changes.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
               onClick={() => {
                 setIsModelViewer(false);
               }}
             >
               Discard and Close
-            </AlertDialogCancel>
-            <AlertDialogAction
+            </Button>
+
+            <Button
               onClick={() => {
                 if (selectedVersion?.version === "Default") {
                   saveModel();
@@ -581,10 +629,10 @@ export default function ThreeApp() {
               className="bg-chart-2 hover:bg-chart-2/90"
             >
               Save and Close
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={versionModalOpen} onOpenChange={setVersionModalOpen}>
         <DialogContent>
