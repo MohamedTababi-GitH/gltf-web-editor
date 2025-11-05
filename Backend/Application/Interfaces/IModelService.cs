@@ -43,7 +43,8 @@ public interface IModelService
     /// <param name="id">The unique identifier of the model to delete.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation, containing a boolean indicating whether the deletion was successful.</returns>
-    Task<DeleteResultDto> DeleteAsync(Guid id,
+    Task<bool> DeleteAsync(
+        Guid id,
         CancellationToken cancellationToken);
 
     /// <summary>
