@@ -170,50 +170,6 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
         };
     }
     
-     public async Task<UpdateBaselineResultDto> SaveBaselineAsync(
-        UpdateBaselineRequestDto request,
-        CancellationToken ct)
-    {
-        if (request is null)
-            throw new BadRequestException("The request is empty.");
-        if (string.IsNullOrWhiteSpace(request.AssetId))
-            throw new ValidationException("AssetId is required.");
-        if (string.IsNullOrWhiteSpace(request.BaselineJson))
-            throw new ValidationException("BaselineJson is required.");
-
-        // Validate JSON + size
-        try { System.Text.Json.JsonDocument.Parse(request.BaselineJson); }
-        catch (System.Text.Json.JsonException) { throw new ValidationException("BaselineJson must be valid JSON."); }
-
-        var bytes = System.Text.Encoding.UTF8.GetBytes(request.BaselineJson);
-        if (bytes.Length > 1_000_000) // 1 MB
-            throw new ValidationException("BaselineJson is too large.");
-
-        var blobName = $"{request.AssetId.Trim()}/baseline/baseline.json";
-
-        using var ms = new MemoryStream(bytes);
-        var metadata = new Dictionary<string, string>
-        {
-            ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
-            ["assetId"] = request.AssetId,
-            ["isBaselineFile"] = "true"
-        };
-
-        await storage.UploadOrOverwriteAsync(
-            blobName: blobName,
-            content: ms,
-            contentType: "application/json",
-            metadata: metadata,
-            ct: ct);
-
-        return new UpdateBaselineResultDto
-        {
-            Message = "Baseline saved successfully.",
-            AssetId = request.AssetId,
-            BlobName = blobName
-        };
-    }
-
     public async Task<DeleteBaselineResultDto> DeleteBaselineAsync(
         string assetId,
         CancellationToken ct)

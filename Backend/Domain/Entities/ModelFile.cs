@@ -71,4 +71,6 @@ public class ModelFile
     /// Gets the collection of saved state files associated with this model.
     /// </summary>
     public List<StateFile>? StateFiles { get; init; }
+    
+    public StateFile? Baseline { get; init; }
 }

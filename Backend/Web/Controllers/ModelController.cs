@@ -99,54 +99,41 @@ public class ModelController : ControllerBase
     /// </remarks>
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(26214400)] // 25 MB
+    [RequestSizeLimit(26214400)]
     public async Task<IActionResult> Upload(
-        [FromForm] List<IFormFile> files,
-        [FromForm] string fileAlias,
-        [FromForm] string originalFileName,
-        [FromForm] List<string>? categories,
-        [FromForm] string? description,
+        [FromForm] UploadModelForm form,
         CancellationToken cancellationToken)
     {
-        // Validate uploaded files
-        if (files.Count == 0)
+        if (form.Files is null || form.Files.Count == 0)
             throw new BadRequestException("No files were uploaded. Please select a file to upload.");
-
-        if (string.IsNullOrWhiteSpace(fileAlias))
+        if (string.IsNullOrWhiteSpace(form.FileAlias))
             throw new BadRequestException("File alias is required.");
 
-        // Prepare to upload file streams
         var uploadFiles = new List<(string FileName, Stream Content)>();
-
         try
         {
-            foreach (var file in files)
-                uploadFiles.Add((file.FileName, file.OpenReadStream()));
+            foreach (var f in form.Files)
+                uploadFiles.Add((f.FileName, f.OpenReadStream()));
 
-            // Build the upload request DTO
             var request = new UploadModelRequestDto
             {
-                OriginalFileName = originalFileName,
+                OriginalFileName = form.OriginalFileName,
                 Files = uploadFiles,
-                Alias = fileAlias,
-                Categories = categories,
-                Description = description
+                Alias = form.FileAlias,
+                Categories = form.Categories,
+                Description = form.Description,
+
+                // ✅ baseline only as string
+                BaselineJson = string.IsNullOrWhiteSpace(form.BaselineJson) ? null : form.BaselineJson
             };
 
-            // Perform upload via the service layer
             var result = await _uploadService.UploadAsync(request, cancellationToken);
-            return Ok(new UploadResultDto
-                { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
-        }
-        catch (ArgumentException ex)
-        {
-            throw new BadRequestException(ex.Message);
+            return Ok(new UploadResultDto { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         finally
         {
-            // Ensure all streams are disposed
-            foreach (var (_, stream) in uploadFiles)
-                await stream.DisposeAsync();
+            foreach (var (_, s) in uploadFiles)
+                await s.DisposeAsync();
         }
     }
 
@@ -294,49 +281,7 @@ public class ModelController : ControllerBase
         var result = await _stateService.DeleteVersionAsync(assetId, version, cancellationToken);
         return Ok(result);
     }
-
-    // POST /api/model/{assetId}/baseline
-    [HttpPost("{assetId}/baseline")]
-    [Consumes("multipart/form-data")]
-    [RequestSizeLimit(1_048_576)] // ~1 MB
-    public async Task<IActionResult> SaveBaseline(
-        [FromRoute] string assetId,
-        [FromForm] SaveStateFormDto form, // reuse your form: either StateJson or StateFile
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(assetId))
-            throw new BadRequestException("AssetId is required.");
-
-        // normalize content (string or file)
-        string json = form.StateJson ?? string.Empty;
-        if (string.IsNullOrEmpty(json))
-        {
-            if (form.StateFile is null)
-                throw new BadRequestException("Either 'StateJson' or 'StateFile' must be provided.");
-
-            using var reader = new StreamReader(form.StateFile.OpenReadStream());
-            json = await reader.ReadToEndAsync(cancellationToken);
-        }
-
-        if (string.IsNullOrWhiteSpace(json))
-            throw new BadRequestException("Baseline content is empty.");
-
-        var req = new UpdateBaselineRequestDto
-        {
-            AssetId = assetId,
-            BaselineJson = json
-        };
-
-        var result = await _stateService.SaveBaselineAsync(req, cancellationToken);
-
-        return Ok(new UpdateBaselineResultDto
-        {
-            Message = result.Message,
-            AssetId = result.AssetId,
-            BlobName = result.BlobName
-        });
-    }
-
+    
     // DELETE /api/model/{assetId}/baseline
     [HttpDelete("{assetId}/baseline")]
     [ProducesResponseType(typeof(DeleteBaselineResultDto), StatusCodes.Status200OK)]

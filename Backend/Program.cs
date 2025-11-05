@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Implementation;
@@ -22,6 +23,9 @@ services.AddScoped<IModelService, ModelService>();
 services.AddScoped<IModelUploadService, ModelUploadService>();
 services.AddScoped<IModelStateService, ModelStateService>();
 
+// Json Ignore
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull);
 
 builder.Services.AddProblemDetails();
 

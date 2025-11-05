@@ -374,7 +374,7 @@ public class AzureBlobModelStorage : IModelStorage
                 DeleteSnapshotsOption.IncludeSnapshots,
                 conditions: null,
                 cancellationToken: ct);
-            
+
             return resp.Value ? 1 : 0;
         }
 
@@ -399,7 +399,7 @@ public class AzureBlobModelStorage : IModelStorage
 
         return deleted;
     }
-    
+
     public async Task<bool> DeleteBaselineAsync(string assetId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(assetId))
@@ -484,7 +484,6 @@ public class AzureBlobModelStorage : IModelStorage
 
         var prefix = assetId.TrimEnd('/') + "/";
 
-        // We need metadata here, not just properties, so use BlobTraits.Metadata
         await foreach (var sub in _container.GetBlobsAsync(
                            traits: BlobTraits.Metadata,
                            states: BlobStates.None,
@@ -495,7 +494,15 @@ public class AzureBlobModelStorage : IModelStorage
             if (string.Equals(sub.Name, entryBlobName, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var subUri = BuildBlobUri(sub.Name);
+            // 2) Baseline: exclude from additional — it’s handled separately via GetBaselineAsync
+            if (sub.Name.StartsWith($"{assetId}/baseline/", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // 3) State snapshots: collect only {assetId}/state/.../state.json
+            if (sub.Name.StartsWith($"{assetId}/state/", StringComparison.OrdinalIgnoreCase) &&
+                sub.Name.EndsWith("/state.json", StringComparison.OrdinalIgnoreCase))
+            {
+                var subUri = BuildBlobUri(sub.Name);
 
             // Extract timestamp:
             // Priority: custom metadata["UploadedAtUtc"] we wrote in SaveStateAsync
@@ -512,32 +519,36 @@ public class AzureBlobModelStorage : IModelStorage
                 createdAt = sub.Properties.CreatedOn;
             }
 
-            // Detect if this is a state snapshot
-            // State blobs always live under {assetId}/state/.../state.json
-            bool isStateBlob = sub.Name.Contains("/state/", StringComparison.OrdinalIgnoreCase)
-                               && sub.Name.EndsWith("state.json", StringComparison.OrdinalIgnoreCase);
-
-            if (isStateBlob)
-            {
-                // figure out the version name
-                // examples:
-                //   "{assetId}/state/state.json"           -> "latest"
-                //   "{assetId}/state/v2/state.json"        -> "v2"
-                //   "{assetId}/state/Whatever/state.json"  -> "Whatever"
-                var version = ExtractVersionFromStatePath(sub.Name);
-
                 stateFiles.Add(new StateFile
                 {
-                    Version = version,
-                    Name = Path.GetFileName(sub.Name), // probably "state.json"
+                    Version = ExtractVersionFromStatePath(assetId, sub.Name),
+                    Name = Path.GetFileName(sub.Name), // "state.json"
                     Url = subUri,
                     SizeBytes = sub.Properties.ContentLength,
                     CreatedOn = createdAt,
                     ContentType = sub.Properties.ContentType
                 });
+
+                continue;
             }
-            else
+
+            // 4) Everything else under {assetId}/... goes to Additional
             {
+                var subUri = BuildBlobUri(sub.Name);
+
+                // Timestamp preference: metadata["UploadedAtUtc"] > blob.Properties.CreatedOn
+                DateTimeOffset? createdAt = null;
+                if (sub.Metadata != null &&
+                    sub.Metadata.TryGetValue("UploadedAtUtc", out var uploadedAtRaw2) &&
+                    DateTimeOffset.TryParse(uploadedAtRaw2, out var dto2))
+                {
+                    createdAt = dto2;
+                }
+                else
+                {
+                    createdAt = sub.Properties.CreatedOn;
+                }
+
                 additionalFiles.Add(new AdditionalFile
                 {
                     Name = Path.GetFileName(sub.Name),
@@ -552,30 +563,41 @@ public class AzureBlobModelStorage : IModelStorage
         return (additionalFiles, stateFiles);
     }
 
-    private static string ExtractVersionFromStatePath(string blobName)
+    private static string ExtractVersionFromStatePath(string assetId, string fullBlobName)
     {
-        // blobName examples:
-        //   "0c00fb4d3f8f4ec7bf720e125ae91289/state/state.json"
-        //   "0c00fb4d3f8f4ec7bf720e125ae91289/state/v2/state.json"
-        //   "0c00fb4d3f8f4ec7bf720e125ae91289/state/WhateverName_I_Like/state.json"
+        // Example patterns:
+        //   "{assetId}/state/state.json"          → "Default"
+        //   "{assetId}/state/v2/state.json"       → "v2"
+        //   "{assetId}/state/test/state.json"     → "test"
+        //   "{assetId}/state/"                    → "Default"
+        //   anything else                         → "unknown"
 
-        var parts = blobName.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-        // find "state" in path
-        var idx = Array.IndexOf(parts, "state");
-        if (idx == -1)
+        var prefix = assetId.TrimEnd('/') + "/state/";
+        if (!fullBlobName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             return "unknown";
 
-        // case 1: .../state/state.json  → "latest"
-        // after "state", next is "state.json"? then it's latest
-        if (idx + 1 < parts.Length && parts[idx + 1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
+        var rest = fullBlobName.Substring(prefix.Length); // e.g. "state.json" or "v2/state.json"
+
+        // No subfolder → Default
+        if (string.IsNullOrWhiteSpace(rest) ||
+            rest.Equals("state.json", StringComparison.OrdinalIgnoreCase) ||
+            rest.Equals("/", StringComparison.OrdinalIgnoreCase))
+        {
             return "Default";
+        }
 
-        // case 2: .../state/v2/state.json → take parts[idx+1] ("v2")
-        if (idx + 2 < parts.Length && parts[^1].Equals("state.json", StringComparison.OrdinalIgnoreCase))
-            return parts[idx + 1];
+        // Foldered version case: "{version}/state.json"
+        var slashIdx = rest.IndexOf('/');
+        if (slashIdx > 0)
+        {
+            var version = rest[..slashIdx];
+            if (string.IsNullOrWhiteSpace(version))
+                return "Default";
 
-        // fallback
+            return version.Trim();
+        }
+
+        // Fallback — if somehow the structure is malformed
         return "Default";
     }
 
@@ -658,6 +680,7 @@ public class AzureBlobModelStorage : IModelStorage
         var fileUri = BuildBlobUri(blob.Name);
         var assetId = ReadStringMetadataOrNull(md, MetaAssetId) ?? blob.Name.Split('/', 2)[0];
         var (additional, stateFiles) = await EnumerateFilesAsync(assetId, blob.Name, ct);
+        var baseline = await GetBaselineAsync(assetId, ct);
 
         var format = GetFormatOrNull(blob.Name)!;
         var alias = ReadStringMetadataOrDefault(md, MetaAlias, "Model");
@@ -684,9 +707,36 @@ public class AzureBlobModelStorage : IModelStorage
             AssetId = assetId,
             AdditionalFiles = additional,
             StateFiles = stateFiles,
+            Baseline = baseline,
             IsFavourite = fav,
             IsNew = isNew
         };
+    }
+
+    private async Task<StateFile?> GetBaselineAsync(string assetId, CancellationToken ct)
+    {
+        var blobName = $"{assetId.TrimEnd('/')}/baseline/baseline.json";
+        var client = _container.GetBlobClient(blobName);
+
+        try
+        {
+            var props = await client.GetPropertiesAsync(cancellationToken: ct);
+            var uri = BuildBlobUri(blobName);
+
+            return new StateFile
+            {
+                Version = "baseline", // optional: helpful in logs/UI
+                Name = "baseline.json",
+                Url = uri,
+                SizeBytes = props.Value.ContentLength,
+                CreatedOn = props.Value.CreatedOn,
+                ContentType = props.Value.ContentType
+            };
+        }
+        catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null; // no baseline present
+        }
     }
 
     #endregion
