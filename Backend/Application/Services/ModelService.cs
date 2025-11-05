@@ -41,20 +41,6 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         _mutex.ReleaseLock(id);
     }
-    
-    /// <summary>
-    /// Checks whether the specified model is currently locked in memory.
-    /// </summary>
-    /// <param name="id">The unique model identifier.</param>
-    /// <returns><c>true</c> if the model is locked; otherwise, <c>false</c>.</returns>
-    public bool IsLocked(Guid id)
-    {
-        if (id == Guid.Empty)
-            throw new ValidationException("The provided model ID is invalid.");
-
-        return _mutex.IsLocked(id);
-    }
-    
     // -----
 
     #region CRUD Operations
@@ -194,7 +180,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
         CancellationToken cancellationToken)
     {
         if (_mutex.IsLocked(id))
-            throw new ModelLockedException($"Tis Model {id} is currently being used.");
+            throw new ModelLockedException($"This Model is currently being used.");
 
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");

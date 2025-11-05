@@ -27,13 +27,6 @@ public interface IModelService
     void UnlockModel(Guid id);
     
     /// <summary>
-    /// Checks if a specific model is currently locked.
-    /// </summary>
-    /// <param name="id">The unique identifier of the model.</param>
-    /// <returns><c>true</c> if the model is locked; otherwise, <c>false</c>.</returns>
-    bool IsLocked(Guid id);
-    
-    /// <summary>
     /// Retrieves a read-only list of model items asynchronously.
     /// </summary>
     /// <param name="limit">The maximum number of items to return.</param>
