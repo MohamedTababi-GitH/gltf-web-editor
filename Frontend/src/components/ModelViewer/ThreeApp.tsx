@@ -259,15 +259,19 @@ export default function ThreeApp() {
         event.key.toLowerCase() === "s"
       ) {
         event.preventDefault();
-        setVersionModalOpen(true);
+        if (groupRef) {
+          setVersionModalOpen(true);
+        }
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        if (selectedVersion?.version === "Default") {
-          saveModel();
-        } else {
-          saveModel(selectedVersion?.version);
+        if (canUndo && groupRef) {
+          if (selectedVersion?.version === "Default") {
+            saveModel();
+          } else {
+            saveModel(selectedVersion?.version);
+          }
         }
         return;
       }
@@ -292,7 +296,9 @@ export default function ThreeApp() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [
+    canUndo,
     cursorTools,
+    groupRef,
     saveModel,
     selectedVersion?.version,
     setSelectedTool,
