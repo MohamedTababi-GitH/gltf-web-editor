@@ -21,7 +21,7 @@ namespace ECAD_Backend.Application.Services
         public void AcquireLock(Guid modelId)
         {
             if (!_locks.TryAdd(modelId, true))
-                throw new ModelLockedException($"Model with ID {modelId} is currently locked.");
+                throw new ModelLockedException($"This Model is currently Being Used.");
         }
 
         /// <summary>
