@@ -2,6 +2,7 @@
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.DTOs.RequestDTO;
+using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
@@ -178,6 +179,7 @@ public class ModelServiceTest
     public async Task DeleteAsync_CallsStorageAndReturnsTrue()
     {
         // Arrange
+        var expectedMessage = "Deleted successfully.";
         var id = Guid.NewGuid();
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(false);
         _mockStorage.Setup(s => s.DeleteByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
@@ -186,7 +188,7 @@ public class ModelServiceTest
         var result = await _modelService.DeleteAsync(id, CancellationToken.None);
 
         // Assert
-        Assert.IsTrue(result);
+        Assert.Contains(expectedMessage, result.Message);
     }
 
     [TestMethod]
