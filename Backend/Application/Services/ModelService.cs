@@ -125,7 +125,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         if (_mutex.IsLocked(id))
         {
-            throw new ModelLockedException($"This Model is currently being used.");
+            throw new ModelLockedException($"This model is currently being used.");
         }
 
         if (id == Guid.Empty)
@@ -180,7 +180,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
         CancellationToken cancellationToken)
     {
         if (_mutex.IsLocked(id))
-            throw new ModelLockedException($"This Model is currently being used.");
+            throw new ModelLockedException($"This model is currently being used.");
 
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
