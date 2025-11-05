@@ -106,7 +106,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     /// Deletes an existing model (and all of its associated blobs) by logical model ID.
     /// </summary>
     /// <param name="id">
-    /// The model's <c>Id</c> (not the <c>assetId</c> / blob folder name).
+    ///     The model's <c>Id</c> (not the <c>assetId</c> / blob folder name).
     /// </param>
     /// <param name="cancellationToken">Token to cancel the request.</param>
     /// <returns>
@@ -122,7 +122,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     /// <exception cref="NotFoundException">
     /// Thrown if no model with that ID exists.
     /// </exception>
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<DeleteResultDto> DeleteAsync(Guid id, CancellationToken cancellationToken)
     {
         if (_mutex.IsLocked(id))
         {
@@ -137,7 +137,10 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
 
-        return true;
+        return new DeleteResultDto
+        {
+            Message = "Deleted successfully."
+        };
     }
 
     /// <summary>
