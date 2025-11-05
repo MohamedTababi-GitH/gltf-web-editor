@@ -28,7 +28,8 @@ public class ModelController : ControllerBase
     /// <param name="modelService"></param>
     /// <param name="uploadService"></param>
     /// <param name="stateService"></param>
-    public ModelController(IModelService modelService, IModelUploadService uploadService, IModelStateService stateService)
+    public ModelController(IModelService modelService, IModelUploadService uploadService,
+        IModelStateService stateService)
     {
         _modelService = modelService;
         _uploadService = uploadService;
@@ -196,7 +197,24 @@ public class ModelController : ControllerBase
             requestDto.IsFavourite,
             cancellationToken);
 
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+        return Ok(new UpdateDetailsResultDto { Message = update.Message });
+    }
+
+    /// <summary>
+    /// Retrieves a specific model by its unique identifier.
+    /// </summary>
+    /// <param name="id">The model's unique ID.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The model details as a <see cref="ModelItemDto"/>.</returns>
+    /// <response code="200">Returns the requested model.</response>
+    /// <response code="404">If no model was found with the given ID.</response>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(ModelItemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _modelService.GetByIdAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     [HttpPatch("{id:guid}/isNew")]
@@ -208,10 +226,10 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         var update = await _modelService.UpdateIsNewAsync(id, cancellationToken);
-        
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+
+        return Ok(new UpdateDetailsResultDto { Message = update.Message });
     }
-    
+
     [HttpPost("{assetId}/state")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(1048576)] // ~1 MB
@@ -255,24 +273,7 @@ public class ModelController : ControllerBase
             BlobName = result.BlobName
         });
     }
-    
-    /// <summary>
-    /// Retrieves a specific model by its unique identifier.
-    /// </summary>
-    /// <param name="id">The model's unique ID.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The model details as a <see cref="ModelItemDto"/>.</returns>
-    /// <response code="200">Returns the requested model.</response>
-    /// <response code="404">If no model was found with the given ID.</response>
-    [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(ModelItemDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
-    {
-        var result = await _modelService.GetByIdAsync(id, cancellationToken);
-        return Ok(result);
-    }
-    
+
     /// <summary>
     /// Deletes a named state version for the given asset.
     /// </summary>
@@ -293,8 +294,62 @@ public class ModelController : ControllerBase
         var result = await _stateService.DeleteVersionAsync(assetId, version, cancellationToken);
         return Ok(result);
     }
-    
-    
+
+    // POST /api/model/{assetId}/baseline
+    [HttpPost("{assetId}/baseline")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(1_048_576)] // ~1 MB
+    public async Task<IActionResult> SaveBaseline(
+        [FromRoute] string assetId,
+        [FromForm] SaveStateFormDto form, // reuse your form: either StateJson or StateFile
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new BadRequestException("AssetId is required.");
+
+        // normalize content (string or file)
+        string json = form.StateJson ?? string.Empty;
+        if (string.IsNullOrEmpty(json))
+        {
+            if (form.StateFile is null)
+                throw new BadRequestException("Either 'StateJson' or 'StateFile' must be provided.");
+
+            using var reader = new StreamReader(form.StateFile.OpenReadStream());
+            json = await reader.ReadToEndAsync(cancellationToken);
+        }
+
+        if (string.IsNullOrWhiteSpace(json))
+            throw new BadRequestException("Baseline content is empty.");
+
+        var req = new UpdateBaselineRequestDto
+        {
+            AssetId = assetId,
+            BaselineJson = json
+        };
+
+        var result = await _stateService.SaveBaselineAsync(req, cancellationToken);
+
+        return Ok(new UpdateBaselineResultDto
+        {
+            Message = result.Message,
+            AssetId = result.AssetId,
+            BlobName = result.BlobName
+        });
+    }
+
+    // DELETE /api/model/{assetId}/baseline
+    [HttpDelete("{assetId}/baseline")]
+    [ProducesResponseType(typeof(DeleteBaselineResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteBaseline(
+        string assetId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _stateService.DeleteBaselineAsync(assetId, cancellationToken);
+        return Ok(result);
+    }
+
+
     /// <summary>
     /// Locks a specific model to prevent concurrent edits or deletions.
     /// </summary>
@@ -307,7 +362,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
 
-        _modelService.LockModel(id); 
+        _modelService.LockModel(id);
         return Ok();
     }
 
