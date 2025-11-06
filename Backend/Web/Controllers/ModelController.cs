@@ -28,7 +28,8 @@ public class ModelController : ControllerBase
     /// <param name="modelService"></param>
     /// <param name="uploadService"></param>
     /// <param name="stateService"></param>
-    public ModelController(IModelService modelService, IModelUploadService uploadService, IModelStateService stateService)
+    public ModelController(IModelService modelService, IModelUploadService uploadService,
+        IModelStateService stateService)
     {
         _modelService = modelService;
         _uploadService = uploadService;
@@ -149,23 +150,46 @@ public class ModelController : ControllerBase
         }
     }
 
-    /// <summary>Deletes a model by its Id.</summary>
-    /// <param name="id">The GUID that was exposed as ModelItemDto.Id</param>
-    /// <param name="cancellationToken"></param>
-    /// <response code="204">Delete succeeded.</response>
-    /// <response code="404">No model with the given Id was found.</response>
+    /// <summary>
+    /// Deletes a model by its unique identifier.
+    /// </summary>
+    /// <param name="id">The GUID that uniquely identifies the model to be deleted.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
+    /// <returns>
+    /// An <see cref="ActionResult{T}"/> containing a <see cref="DeleteModelResultDto"/> message 
+    /// confirming successful deletion of the model.
+    /// </returns>
+    /// <response code="200">
+    /// Deletion succeeded. Returns a confirmation message in the response body.
+    /// </response>
+    /// <response code="400">
+    /// The provided <paramref name="id"/> is invalid. A valid GUID is required.
+    /// </response>
+    /// <response code="404">
+    /// No model with the given <paramref name="id"/> was found.
+    /// </response>
+    /// <response code="409">
+    /// The model is currently locked or in use and cannot be deleted.
+    /// </response>
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(DeleteModelResultDto))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<DeleteModelResultDto>> Delete(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var deleted = await _modelService.DeleteAsync(id, cancellationToken);
-        if (!deleted)
-            throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+        // DeleteAsync returns true or throws (NotFound / Validation / Locked)
+        await _modelService.DeleteAsync(id, cancellationToken);
 
-        return NoContent();
+        var dto = new DeleteModelResultDto
+        {
+            Message = $"Model '{id}' was deleted successfully."
+        };
+
+        return Ok(dto);
     }
 
     /// <summary>
@@ -196,7 +220,7 @@ public class ModelController : ControllerBase
             requestDto.IsFavourite,
             cancellationToken);
 
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+        return Ok(new UpdateDetailsResultDto { Message = update.Message });
     }
 
     [HttpPatch("{id:guid}/isNew")]
@@ -208,10 +232,10 @@ public class ModelController : ControllerBase
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
         var update = await _modelService.UpdateIsNewAsync(id, cancellationToken);
-        
-        return Ok( new UpdateDetailsResultDto{Message = update.Message} );
+
+        return Ok(new UpdateDetailsResultDto { Message = update.Message });
     }
-    
+
     [HttpPost("{assetId}/state")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(1048576)] // ~1 MB
@@ -255,7 +279,7 @@ public class ModelController : ControllerBase
             BlobName = result.BlobName
         });
     }
-    
+
     /// <summary>
     /// Retrieves a specific model by its unique identifier.
     /// </summary>
@@ -272,7 +296,7 @@ public class ModelController : ControllerBase
         var result = await _modelService.GetByIdAsync(id, cancellationToken);
         return Ok(result);
     }
-    
+
     /// <summary>
     /// Deletes a named state version for the given asset.
     /// </summary>
@@ -293,8 +317,8 @@ public class ModelController : ControllerBase
         var result = await _stateService.DeleteVersionAsync(assetId, version, cancellationToken);
         return Ok(result);
     }
-    
-    
+
+
     /// <summary>
     /// Locks a specific model to prevent concurrent edits or deletions.
     /// </summary>
@@ -307,7 +331,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
 
-        _modelService.LockModel(id); 
+        _modelService.LockModel(id);
         return Ok();
     }
 
