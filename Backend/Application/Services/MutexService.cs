@@ -91,7 +91,6 @@ namespace ECAD_Backend.Application.Services
             // Try to update the lease time, conditional on it still being the same one we read
             if (!_locks.TryUpdate(modelId, newExpiry, existingExpiry))
                 throw new ModelLockedException("Failed to renew lock due to contention. Please try again.");
-            Console.WriteLine("*********************"+newExpiry);
         }
     }
 }
