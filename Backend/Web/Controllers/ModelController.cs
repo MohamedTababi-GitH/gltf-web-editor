@@ -148,12 +148,15 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
 
-        var deleted = await _modelService.DeleteAsync(id, cancellationToken);
-        if (!deleted)
-            throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+        // DeleteAsync returns true or throws (NotFound / Validation / Locked)
+        await _modelService.DeleteAsync(id, cancellationToken);
 
-        return NoContent();
+        var dto = new DeleteModelResultDto
+        {
+            Message = $"Model '{id}' was deleted successfully."
+        };
+
+        return Ok(dto);
     }
 
     /// <summary>
