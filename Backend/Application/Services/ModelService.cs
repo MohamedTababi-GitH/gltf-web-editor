@@ -20,6 +20,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     private readonly IMutexService _mutex = mutexService;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
+    #region Locking and Unlocking
     //Authour: Zou
     /// <summary>
     /// Locks a model in memory to prevent other operations (such as delete or update) 
@@ -51,6 +52,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
         _mutex.Heartbeat(id);
     }
     // -----
+    #endregion
 
     #region CRUD Operations
 

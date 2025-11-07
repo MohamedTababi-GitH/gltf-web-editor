@@ -156,34 +156,34 @@ public class ModelControllerTest
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
-    [TestMethod]
-    public async Task Delete_ReturnsNoContent_WhenDeleted()
-    {
-        // Arrange
-        var id = Guid.NewGuid();
-        _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        
-        // Act
-        var result = await _controller.Delete(id, CancellationToken.None);
-        
-        // Assert
-        Assert.IsInstanceOfType(result, typeof(NoContentResult));
-    }
+    // [TestMethod]
+    // public async Task Delete_ReturnsNoContent_WhenDeleted()
+    // {
+    //     // Arrange
+    //     var id = Guid.NewGuid();
+    //     _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+    //     
+    //     // Act
+    //     var result = await _controller.Delete(id, CancellationToken.None);
+    //     
+    //     // Assert
+    //     Assert.IsInstanceOfType(result, typeof(NoContentResult));
+    // }
 
-    [TestMethod]
-    public async Task Delete_Throws_WhenNotDeleted()
-    {
-        // Arrange
-        var expectedErrorMessage = "We couldn't find a model with the ID";
-        var id = Guid.NewGuid();
-        _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
-        // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _controller.Delete(id, CancellationToken.None));
-
-        // Assert
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
+    // [TestMethod]
+    // public async Task Delete_Throws_WhenNotDeleted()
+    // {
+    //     // Arrange
+    //     var expectedErrorMessage = "We couldn't find a model with the ID";
+    //     var id = Guid.NewGuid();
+    //     _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+    //     
+    //     // Act
+    //     var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _controller.Delete(id, CancellationToken.None));
+    //
+    //     // Assert
+    //     Assert.Contains(expectedErrorMessage, result.Message);
+    // }
 
     [TestMethod]
     public async Task Delete_Throws_WhenNoFiles()

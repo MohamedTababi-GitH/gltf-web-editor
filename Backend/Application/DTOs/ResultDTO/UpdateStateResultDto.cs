@@ -3,7 +3,7 @@ namespace ECAD_Backend.Application.DTOs.ResultDTO;
 /// <summary>
 /// Represents the result of a state update operation for an asset.
 /// </summary>
-public class UpdateStateResultDto
+public sealed class UpdateStateResultDto
 {
     /// <summary>
     /// Gets or sets the status message describing the result of the state update operation.
