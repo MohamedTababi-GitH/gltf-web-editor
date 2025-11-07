@@ -23,5 +23,14 @@ export const useMutexApi = () => {
     }
   };
 
-  return { lockModel, unlockModel };
+  const heartbeat = async (modelId: string) => {
+    try {
+      await apiClient.post(`/api/model/${modelId}/heartbeat`);
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
+  };
+
+  return { lockModel, unlockModel, heartbeat };
 };
