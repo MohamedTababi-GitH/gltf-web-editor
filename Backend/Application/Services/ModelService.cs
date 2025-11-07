@@ -42,6 +42,15 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         _mutex.ReleaseLock(id);
     }
+    
+    /// <summary>
+    /// Extends the duration of an existing lock, proving the client is still active.
+    /// </summary>
+    /// <param name="id">The unique model identifier.</param>
+    public void Heartbeat(Guid id)
+    {
+        _mutex.Heartbeat(id);
+    }
     // -----
     #endregion
 
