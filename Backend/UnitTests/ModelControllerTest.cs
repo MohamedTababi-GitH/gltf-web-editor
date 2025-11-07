@@ -1,6 +1,7 @@
 ﻿using Moq;
 using Microsoft.AspNetCore.Mvc;
 using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.Forms;
 using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
@@ -275,6 +276,77 @@ public class ModelControllerTest
         
         // Act
         var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.PutIsNew(emptyId, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task SaveState_ReturnsOk_WithUpdateStateResult()
+    {
+        // Arrange
+        var expectedMessage = "Saved successfully.";
+        var assetId = "valid AssetId";
+        var version = "2.0";
+        var stateJson = "valid stateJSON";
+        var expectedUpdateStateResult = new UpdateStateResultDto {Message = expectedMessage, AssetId = assetId, Version = version};
+        var form = new SaveStateFormDto{TargetVersion = version, StateJson = stateJson};
+        _mockStateService.Setup(s => s.SaveStateAsync(It.IsAny<UpdateStateRequestDto>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedUpdateStateResult);
+        
+        // Act
+        var result = await _controller.SaveState(assetId, form, CancellationToken.None);
+        var okResult = result as OkObjectResult;
+        var updateStateResult = okResult!.Value as UpdateStateResultDto;
+        
+        // Assert
+        Assert.IsNotNull(okResult);
+        Assert.AreEqual(expectedUpdateStateResult.Message, updateStateResult!.Message);
+        Assert.AreEqual(expectedUpdateStateResult.AssetId, updateStateResult.AssetId);
+        Assert.AreEqual(expectedUpdateStateResult.Version, updateStateResult.Version);
+    }
+
+    [TestMethod]
+    public async Task SaveState_Throws_WhenAssetIdNull()
+    {
+        // Arrange
+        var expectedErrorMessage = "AssetId is required";
+        string assetId = null!;
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+            await _controller.SaveState(assetId, null!, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task SaveState_Throws_WhenNoStateProvided()
+    {
+        // Arrange
+        var expectedErrorMessage = "Either 'StateJson' or 'StateFile' must be provided";
+        var assetId = "valid AssetID";
+        var form = new SaveStateFormDto();
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.SaveState(assetId, form, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task SaveState_Throws_WhenEmptyState()
+    {
+        // Arrange
+        var expectedErrorMessage = "State content is empty";
+        var assetId = "valid AssetID";
+        var mockedFormFile = new Mock<IFormFile>();
+        mockedFormFile.Setup(f => f.OpenReadStream()).Returns(new MemoryStream());
+        var form = new SaveStateFormDto {StateFile = mockedFormFile.Object};
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.SaveState(assetId, form, CancellationToken.None));
         
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
