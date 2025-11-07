@@ -205,11 +205,11 @@ export default function ThreeApp() {
     // 1. browser triggers "mousemove" event
     // 2. resetTimer() function runs
     // 3. lastActivity = Date.now() (updates the timestamp)
-    window.addEventListener("mousemove", resetTimer);
-    window.addEventListener("keydown", resetTimer);
-    window.addEventListener("pointerdown", resetTimer);
-    window.addEventListener("wheel", resetTimer);
-    window.addEventListener("touchmove", resetTimer);
+    globalThis.addEventListener("mousemove", resetTimer);
+    globalThis.addEventListener("keydown", resetTimer);
+    globalThis.addEventListener("pointerdown", resetTimer);
+    globalThis.addEventListener("wheel", resetTimer);
+    globalThis.addEventListener("touchmove", resetTimer);
 
     const checkIdle = setInterval(async () => {
       const idleTime = Date.now() - lastActivity;
@@ -226,11 +226,11 @@ export default function ThreeApp() {
     }, 30000);
 
     return () => {
-      window.removeEventListener("mousemove", resetTimer);
-      window.removeEventListener("keydown", resetTimer);
-      window.removeEventListener("pointerdown", resetTimer);
-      window.removeEventListener("wheel", resetTimer);
-      window.removeEventListener("touchmove", resetTimer);
+      globalThis.removeEventListener("mousemove", resetTimer);
+      globalThis.removeEventListener("keydown", resetTimer);
+      globalThis.removeEventListener("pointerdown", resetTimer);
+      globalThis.removeEventListener("wheel", resetTimer);
+      globalThis.removeEventListener("touchmove", resetTimer);
       clearInterval(checkIdle);
     };
   }, [model?.id, unlockModel, setIsModelViewer, idleTimeout]);
@@ -243,9 +243,9 @@ export default function ThreeApp() {
     const handleUnload = async () => {
       await unlockModel(model.id);
     };
-    window.addEventListener("beforeunload", handleUnload);
+    globalThis.addEventListener("beforeunload", handleUnload);
     return () => {
-      window.removeEventListener("beforeunload", handleUnload);
+      globalThis.removeEventListener("beforeunload", handleUnload);
     };
   }, [model?.id, unlockModel]);
 
