@@ -170,6 +170,8 @@ export default function ThreeApp() {
 
   // ** NEW **
   const { heartbeat, unlockModel } = useMutexApi();
+  const heartbeatDuration = 90000;
+  const idleTimeout = 120000;
 
   // ** NEW **
   // This useEffect ensures that while the model viewer is open, the backend’s lock(lease) stays alive.
@@ -177,10 +179,10 @@ export default function ThreeApp() {
     // If there's no model.id, don't set up the interval in the first place, prevents unnecessary API calls!
     if (!model?.id) return;
 
-    // Creates an interval that runs every (60 seconds) by calling the API -> heartbeat(model.id).
+    // Creates an interval that runs every (90 seconds) by calling the API -> heartbeat(model.id).
     const interval = setInterval(async () => {
       await heartbeat(model.id); // "I'm still here! Renew my lease!"
-    }, 68_000); // 68 seconds ensures the lease gets renewed before it expires
+    }, heartbeatDuration); // 90 seconds ensures the lease gets renewed before it expires
     return () => clearInterval(interval);
   }, [model?.id, heartbeat]); // The effect re-runs when the one of the dependency array changes.
 
@@ -188,7 +190,7 @@ export default function ThreeApp() {
 
   // ** NEW **
   // This useEffect checks, if user interacts -> the timer resets.
-  // If idle for 5 mins -> it unlocks automatically and closes the model viewer.
+  // If idle for 2 mins -> it unlocks automatically and closes the model viewer.
   useEffect(() => {
     if (!model?.id) return;
 
@@ -207,6 +209,7 @@ export default function ThreeApp() {
     window.addEventListener("keydown", resetTimer);
     window.addEventListener("pointerdown", resetTimer);
     window.addEventListener("wheel", resetTimer);
+    window.addEventListener("touchmove", resetTimer);
 
     const checkIdle = setInterval(async () => {
       const idleTime = Date.now() - lastActivity;
@@ -214,22 +217,23 @@ export default function ThreeApp() {
         `Inactivity check: ${Math.round(idleTime / 1000)} seconds idle`,
       );
 
-      if (idleTime > 5 * 60 * 1000) {
-        console.log("Unlocking the model: user inactive for 5 mins");
+      if (idleTime > idleTimeout) {
+        console.log("Unlocking the model: user inactive for 2 mins");
         await unlockModel(model.id); // Releases the backend lock
         setIsModelViewer(false); // Automatically closes the model viewer
         clearInterval(checkIdle); // Stops further checking
       }
-    }, 30_000);
+    }, 30000);
 
     return () => {
       window.removeEventListener("mousemove", resetTimer);
       window.removeEventListener("keydown", resetTimer);
       window.removeEventListener("pointerdown", resetTimer);
       window.removeEventListener("wheel", resetTimer);
+      window.removeEventListener("touchmove", resetTimer);
       clearInterval(checkIdle);
     };
-  }, [model?.id, unlockModel, setIsModelViewer]);
+  }, [model?.id, unlockModel, setIsModelViewer, idleTimeout]);
 
   //
   // ** NEW **
