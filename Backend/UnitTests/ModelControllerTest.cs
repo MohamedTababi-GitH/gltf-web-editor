@@ -156,19 +156,23 @@ public class ModelControllerTest
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
-    // [TestMethod]
-    // public async Task Delete_ReturnsNoContent_WhenDeleted()
-    // {
-    //     // Arrange
-    //     var id = Guid.NewGuid();
-    //     _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-    //     
-    //     // Act
-    //     var result = await _controller.Delete(id, CancellationToken.None);
-    //     
-    //     // Assert
-    //     Assert.IsInstanceOfType(result, typeof(NoContentResult));
-    // }
+    [TestMethod]
+    public async Task Delete_ReturnsOk_WithDeleteModelResultDto()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        
+        // Act
+        var result = await _controller.Delete(id, CancellationToken.None);
+        var okResult = result.Result as OkObjectResult;
+        var deleteModelResult = okResult!.Value as DeleteModelResultDto;
+        
+        // Assert
+        var expectedMessage = $"Model '{id}' was deleted successfully.";
+        Assert.IsNotNull(result);
+        Assert.Contains(expectedMessage, deleteModelResult!.Message);
+    }
 
     // [TestMethod]
     // public async Task Delete_Throws_WhenNotDeleted()
