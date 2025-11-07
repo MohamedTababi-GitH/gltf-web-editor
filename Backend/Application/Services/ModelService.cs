@@ -20,6 +20,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     private readonly IMutexService _mutex = mutexService;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
+    #region Locking and Unlocking
     //Authour: Zou
     /// <summary>
     /// Locks a model in memory to prevent other operations (such as delete or update) 
@@ -42,7 +43,16 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
         _mutex.ReleaseLock(id);
     }
     
+    /// <summary>
+    /// Extends the duration of an existing lock, proving the client is still active.
+    /// </summary>
+    /// <param name="id">The unique model identifier.</param>
+    public void Heartbeat(Guid id)
+    {
+        _mutex.Heartbeat(id);
+    }
     // -----
+    #endregion
 
     #region CRUD Operations
 
@@ -126,7 +136,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         if (_mutex.IsLocked(id))
         {
-            throw new ModelLockedException($"This Model is currently being used.");
+            throw new ModelLockedException($"This model is currently being used.");
         }
 
         if (id == Guid.Empty)
@@ -181,7 +191,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
         CancellationToken cancellationToken)
     {
         if (_mutex.IsLocked(id))
-            throw new ModelLockedException($"Tis Model {id} is currently being used.");
+            throw new ModelLockedException($"This model is currently being used.");
 
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");

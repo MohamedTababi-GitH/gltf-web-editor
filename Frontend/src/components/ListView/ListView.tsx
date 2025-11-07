@@ -34,8 +34,8 @@ type ModelSearchParams = {
 const API_LIMIT = 12;
 
 function ListView() {
-  const { setUrl, setModel, model } = useModel();
-  const { setIsModelViewer, isModelViewer } = useNavigation();
+  const { setUrl, setModel } = useModel();
+  const { setIsModelViewer } = useNavigation();
   //const [sortBy, setSortBy] = useState<"Date" | "Name" | "Size">("Date");
   const [searchParams, setSearchParams] = useState<ModelSearchParams>({});
 
@@ -198,12 +198,6 @@ function ListView() {
     setTotalPages(0);
     setIsLoading(true);
   }, []);
-
-  useEffect(() => {
-    if (model) {
-      setUrl(model.url);
-    }
-  }, [isModelViewer, model, setUrl]);
 
   return (
     <div className="h-full flex flex-col p-4 md:p-8 lg:p-12 xl:p-16 gap-4">
@@ -417,19 +411,14 @@ function ListView() {
         ) : models.length > 0 ? (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,24rem))] justify-center gap-4 w-full items-center p-4">
             {models.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => {
-                  setModel(item);
-                  setIsModelViewer(true);
-                }}
-              >
+              <div key={item.id}>
                 <ModelListItem
                   key={item.id}
                   item={item}
                   refreshList={refreshCurrentPage}
                   onClick={() => {
                     setModel(item);
+                    setUrl(item.url);
                     setIsModelViewer(true);
                   }}
                 />
