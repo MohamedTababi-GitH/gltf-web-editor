@@ -193,7 +193,7 @@ public class ModelServiceTest
     public async Task DeleteAsync_Throws_WhenModelIsLocked()
     {
         // Arrange
-        var expectedErrorMessage = "This Model is currently being used";
+        var expectedErrorMessage = "This model is currently being used.";
         var id = Guid.NewGuid();
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(true);
         
@@ -274,7 +274,7 @@ public class ModelServiceTest
         var result = await Assert.ThrowsAsync<ModelLockedException>(async () => await _modelService.UpdateDetailsAsync(id, null, null, null, null, CancellationToken.None));
         
         // Assert
-        var expectedErrorMessage = $"Tis Model {id} is currently being used.";
+        var expectedErrorMessage = $"This model is currently being used.";
         Assert.Contains(expectedErrorMessage, result.Message);
         
     }

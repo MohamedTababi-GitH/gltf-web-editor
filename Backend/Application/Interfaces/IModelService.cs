@@ -27,6 +27,12 @@ public interface IModelService
     void UnlockModel(Guid id);
     
     /// <summary>
+    /// Extends the duration of an existing lock, proving the client is still active.
+    /// </summary>
+    /// <param name="id">The unique model identifier.</param>
+    void Heartbeat(Guid id);
+    
+    /// <summary>
     /// Retrieves a read-only list of model items asynchronously.
     /// </summary>
     /// <param name="limit">The maximum number of items to return.</param>
