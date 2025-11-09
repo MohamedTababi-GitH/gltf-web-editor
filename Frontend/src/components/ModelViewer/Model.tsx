@@ -41,6 +41,7 @@ export function Model({
     setMeshes,
     setToggleComponentVisibility,
     setToggleComponentOpacity,
+    setUpdateMeshPosition,
   } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
@@ -56,7 +57,7 @@ export function Model({
     THREE.Object3D[]
   >([]);
   const originalMaterials = useRef(
-    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>()
   );
 
   const highlightMaterial = useMemo(
@@ -70,7 +71,7 @@ export function Model({
         roughness: 0.5,
         metalness: 0.5,
       }),
-    [],
+    []
   );
 
   function isSavedStateArray(data: unknown): data is SavedComponentState[] {
@@ -131,7 +132,7 @@ export function Model({
           } else {
             console.error(
               "Loaded file is not a valid scene state:",
-              parsedData,
+              parsedData
             );
           }
         } catch (parseError) {
@@ -253,10 +254,10 @@ export function Model({
             isVisible: component.visible,
             opacity: opacity,
           };
-        }),
+        })
       );
     },
-    [setMeshes],
+    [setMeshes]
   );
 
   useEffect(() => {
@@ -322,7 +323,7 @@ export function Model({
         selectedComponents,
         oldStates,
         newStates,
-        updateSidebarMeshes,
+        updateSidebarMeshes
       );
       addCommand(command);
     }
@@ -333,7 +334,7 @@ export function Model({
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
       const componentToToggle = selectedComponents.find(
-        (comp) => comp.id === componentId,
+        (comp) => comp.id === componentId
       );
 
       if (componentToToggle) {
@@ -342,19 +343,61 @@ export function Model({
 
       setMeshes((prevMeshes) =>
         prevMeshes.map((mesh) =>
-          mesh.id === componentId
-            ? { ...mesh, isVisible: newVisibility }
-            : mesh,
-        ),
+          mesh.id === componentId ? { ...mesh, isVisible: newVisibility } : mesh
+        )
       );
     },
-    [selectedComponents, setMeshes],
+    [selectedComponents, setMeshes]
+  );
+  const updateMeshPosition = useCallback(
+    (componentId: number, position: { x: number; y: number; z: number }) => {
+      const object = selectedComponents.find((comp) => comp.id === componentId);
+      if (!object) return;
+
+      const oldState: TransformState = {
+        position: object.position.clone(),
+        rotation: object.quaternion.clone(),
+        scale: object.scale.clone(),
+      };
+
+      // apply new position
+      object.position.set(position.x, position.y, position.z);
+
+      const newState: TransformState = {
+        position: object.position.clone(),
+        rotation: object.quaternion.clone(),
+        scale: object.scale.clone(),
+      };
+
+      const command = new MultiTransformCommand(
+        [object],
+        [oldState],
+        [newState],
+        updateSidebarMeshes
+      );
+      addCommand(command);
+
+      // update sidebar
+      setMeshes((prevMeshes) =>
+        prevMeshes.map((mesh) =>
+          mesh.id === componentId
+            ? {
+                ...mesh,
+                X: position.x.toFixed(3),
+                Y: position.y.toFixed(3),
+                Z: position.z.toFixed(3),
+              }
+            : mesh
+        )
+      );
+    },
+    [selectedComponents, setMeshes, updateSidebarMeshes, addCommand]
   );
 
   const toggleComponentOpacity = useCallback(
     (componentId: number, newOpacity: number) => {
       const componentToChange = selectedComponents.find(
-        (comp) => comp.id === componentId,
+        (comp) => comp.id === componentId
       );
 
       if (componentToChange) {
@@ -390,21 +433,24 @@ export function Model({
 
       setMeshes((prevMeshes) =>
         prevMeshes.map((mesh) =>
-          mesh.id === componentId ? { ...mesh, opacity: newOpacity } : mesh,
-        ),
+          mesh.id === componentId ? { ...mesh, opacity: newOpacity } : mesh
+        )
       );
     },
-    [selectedComponents, setMeshes],
+    [selectedComponents, setMeshes]
   );
 
   useEffect(() => {
     setToggleComponentVisibility(() => toggleComponentVisibility);
     setToggleComponentOpacity(() => toggleComponentOpacity);
+    setUpdateMeshPosition(() => updateMeshPosition);
   }, [
     setToggleComponentVisibility,
     setToggleComponentOpacity,
     toggleComponentVisibility,
     toggleComponentOpacity,
+    setUpdateMeshPosition,
+    updateMeshPosition,
   ]);
 
   useEffect(() => {
@@ -429,11 +475,11 @@ export function Model({
         initialOffsets.current.set(follower, offset);
 
         const followerWorldRot = follower.getWorldQuaternion(
-          new THREE.Quaternion(),
+          new THREE.Quaternion()
         );
         const rotationDelta = new THREE.Quaternion().copy(followerWorldRot);
         rotationDelta.premultiply(
-          new THREE.Quaternion().copy(leaderWorldRot).invert(),
+          new THREE.Quaternion().copy(leaderWorldRot).invert()
         );
         initialRotations.current.set(follower, rotationDelta);
 
@@ -521,7 +567,7 @@ export function Model({
         }
       });
     },
-    [highlightMaterial],
+    [highlightMaterial]
   );
 
   const removeHighlight = useCallback((component: THREE.Object3D) => {
@@ -554,13 +600,13 @@ export function Model({
       if (!componentParent) return;
 
       const isSelected = selectedComponents.some(
-        (comp) => comp.id === componentParent.id,
+        (comp) => comp.id === componentParent.id
       );
 
       if (selectedTool === "Multi-Select") {
         if (isSelected) {
           const newSelection = selectedComponents.filter(
-            (comp) => comp.id !== componentParent.id,
+            (comp) => comp.id !== componentParent.id
           );
           setSelectedComponents(newSelection);
           removeHighlight(componentParent);
@@ -591,7 +637,7 @@ export function Model({
       applyHighlight,
       removeHighlight,
       restoreOriginalMaterials,
-    ],
+    ]
   );
 
   const handleMiss = useCallback(() => {
