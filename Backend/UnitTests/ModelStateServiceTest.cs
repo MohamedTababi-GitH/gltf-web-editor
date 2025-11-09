@@ -23,15 +23,15 @@ public class ModelStateServiceTest
     }
 
     [TestMethod]
-    public async Task SaveStateAsync_ReturnsUpdateStateResult()
+    public async Task SaveStateAsync_ReturnsUpdateStateResult_WithoutVersion()
     {
         // Arrange
         var message = "Saved successfully.";
         var assetId = "assetId";
-        var stateJson = "validStateJson";
+        var stateJson = "{\"ok\":true}";
         var requestDto = new UpdateStateRequestDto { AssetId = assetId, StateJson = stateJson };
         _mockStorage.Setup(s => s.UploadOrOverwriteAsync(It.IsAny<string>(), It.IsAny<MemoryStream>(),
-            It.IsAny<string>(), It.IsAny<Dictionary<string, string>?>(), It.IsAny<CancellationToken>()));
+            "application/json", It.IsAny<Dictionary<string, string>?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
         var result = await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None);
@@ -40,6 +40,26 @@ public class ModelStateServiceTest
         Assert.IsNotNull(result);
         Assert.AreEqual(assetId, result.AssetId);
         Assert.AreEqual(message, result.Message);
+    }[TestMethod]
+    public async Task SaveStateAsync_ReturnsUpdateStateResult_WithVersion()
+    {
+        // Arrange
+        var message = "Saved successfully.";
+        var assetId = "assetId";
+        var stateJson = "{\"ok\":true}";
+        var version = "2.0";
+        var requestDto = new UpdateStateRequestDto { AssetId = assetId, StateJson = stateJson,  TargetVersion = version };
+        _mockStorage.Setup(s => s.UploadOrOverwriteAsync(It.IsAny<string>(), It.IsAny<MemoryStream>(),
+            "application/json", It.IsAny<Dictionary<string, string>?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None);
+
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(assetId, result.AssetId);
+        Assert.AreEqual(message, result.Message);
+        Assert.AreEqual(version, result.Version);
     }
 
     [TestMethod]
@@ -114,11 +134,10 @@ public class ModelStateServiceTest
     {
         // Arrange
         var expectedErrorMessage = "StateJson is too large";
+        var largeJson = new string('x', 1_000_001);
+        var stateJson = $"\"{largeJson}\"";
         var assetId = "assetId";
-        var stateJson = "validStateJson";
         var requestDto = new UpdateStateRequestDto { AssetId = assetId, StateJson = stateJson };
-        var mockEncoder = new Mock<Encoding>();
-        mockEncoder.Setup(e => e.GetBytes(It.IsAny<string>())).Returns(new byte[1_000_001]);
         
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
