@@ -1,9 +1,9 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import ListView from "./ListView.tsx";
+import ListView from "./components/ListView.tsx";
 //import React from "react"
 
 // We first have to mock all external hooks & components
-vi.mock("@/services/AxiosConfig.tsx", () => ({
+vi.mock("@/services/AxiosConfig.ts", () => ({
   useAxiosConfig: () => ({
     get: vi.fn(() =>
       Promise.resolve({

@@ -1,56 +1,42 @@
 import { File as FileIcon, UploadCloud, X } from "lucide-react";
-import { useFileUpload } from "@/hooks/use-file-upload.ts";
 import { cn } from "@/lib/utils.ts";
-import { Button } from "../../components/button.tsx";
-import { useEffect } from "react";
+import { Button } from "@/components/button.tsx";
 import { formatBytes } from "@/utils/BytesConverter.ts";
+import type { DropzoneInputProps, DropzoneRootProps } from "react-dropzone";
 
 type UploaderProps = {
-  resetFields: () => void;
-  onFileSelect: (file: File | null) => void;
-  setIsUploadDisabled: (disabled: boolean) => void;
-  setRequiredFiles: (files: File[]) => void;
+  file: File | null;
+  error: string | null;
+  isDragActive: boolean;
+  getRootProps: (props?: DropzoneRootProps) => DropzoneRootProps;
+  getInputProps: (props?: DropzoneInputProps) => DropzoneInputProps;
+  removeFile: () => void;
+  hasRequiredFiles: boolean;
+  requiredFiles: string[];
+  additionalFiles: Map<string, File>;
+  isAdditionalDragActive: boolean;
+  getAdditionalRootProps: (props?: DropzoneRootProps) => DropzoneRootProps;
+  getAdditionalInputProps: (props?: DropzoneInputProps) => DropzoneInputProps;
+  removeAdditionalFile: (fileName: string) => void;
+  allRequiredFilesUploaded: () => boolean;
 };
 
 export function Uploader({
-  resetFields,
-  onFileSelect,
-  setIsUploadDisabled,
-  setRequiredFiles,
+  file,
+  error,
+  getRootProps,
+  getInputProps,
+  isDragActive,
+  removeFile,
+  hasRequiredFiles,
+  requiredFiles,
+  additionalFiles,
+  getAdditionalRootProps,
+  getAdditionalInputProps,
+  isAdditionalDragActive,
+  removeAdditionalFile,
+  allRequiredFilesUploaded,
 }: UploaderProps) {
-  const {
-    file,
-    error,
-    getRootProps,
-    getInputProps,
-    isDragActive,
-    removeFile,
-    hasRequiredFiles,
-    requiredFiles,
-    additionalFiles,
-    getAdditionalRootProps,
-    getAdditionalInputProps,
-    isAdditionalDragActive,
-    removeAdditionalFile,
-    allRequiredFilesUploaded,
-  } = useFileUpload({});
-
-  useEffect(() => {
-    onFileSelect(file);
-  }, [file, onFileSelect, resetFields]);
-
-  useEffect(() => {
-    setIsUploadDisabled(!allRequiredFilesUploaded());
-    if (allRequiredFilesUploaded()) {
-      setRequiredFiles(Array.from(additionalFiles.values()));
-    }
-  }, [
-    additionalFiles,
-    allRequiredFilesUploaded,
-    setIsUploadDisabled,
-    setRequiredFiles,
-  ]);
-
   return (
     <div className="w-full space-y-4">
       {file ? (

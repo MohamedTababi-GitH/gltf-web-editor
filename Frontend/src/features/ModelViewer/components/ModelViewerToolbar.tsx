@@ -26,7 +26,7 @@ import { useModel } from "@/contexts/ModelContext";
 import type { StateFile } from "@/types/StateFile.ts";
 import React from "react";
 import * as THREE from "three";
-import { useMutexApi } from "@/api/mutex";
+import { useMutex } from "@/hooks/useMutex.ts";
 import { useNavigation } from "@/contexts/NavigationContext";
 
 interface ModelViewerToolbarProps {
@@ -69,7 +69,7 @@ export function ModelViewerToolbar({
   cursorTools,
 }: ModelViewerToolbarProps) {
   const { model } = useModel();
-  const { unlockModel } = useMutexApi();
+  const { unlockModel } = useMutex();
   const { setIsModelViewer } = useNavigation();
   const closeModel = async () => {
     if (canUndo) {

@@ -1,9 +1,9 @@
-import { useMutexApi } from "@/api/mutex.ts";
+import { useMutex } from "@/hooks/useMutex.ts";
 import { useEffect } from "react";
 import { useNavigation } from "@/contexts/NavigationContext.tsx";
 
 export const useModelLock = (id: string) => {
-  const { heartbeat, unlockModel } = useMutexApi();
+  const { heartbeat, unlockModel } = useMutex();
   const { setIsModelViewer } = useNavigation();
   const heartbeatDuration = 90000;
   const idleTimeout = 120000;

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import * as React from "react";
+import { DarkAnimation, LightAnimation } from "@/configs/Animation.tsx";
 
 type Theme = "dark" | "light" | "system";
 
@@ -12,11 +13,13 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  animationSrc: string;
 };
 
 const initialState: ThemeProviderState = {
-  theme: "system",
+  theme: "dark",
   setTheme: () => null,
+  animationSrc: DarkAnimation,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -55,6 +58,12 @@ export function ThemeProvider({
       localStorage.setItem(storageKey, theme);
       setTheme(theme);
     },
+    animationSrc:
+      theme === "dark" ||
+      (theme === "system" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches)
+        ? DarkAnimation
+        : LightAnimation,
   };
 
   return (

@@ -13,7 +13,6 @@ export const loadModel = async ({
   setProcessedModelUrl,
   isMounted,
 }: LoadModelProps) => {
-  console.log("Loading Model:", file.name);
   if (file.name.toLowerCase().endsWith(".glb")) {
     const url = URL.createObjectURL(file);
     objectUrlsToRevoke.push(url);

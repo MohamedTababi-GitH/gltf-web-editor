@@ -55,7 +55,7 @@ import {
 import { Input } from "@/components/input.tsx";
 import { Label } from "@/components/label.tsx";
 import { formatBytes } from "@/utils/BytesConverter.ts";
-import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import { useAxiosConfig } from "@/services/AxiosConfig.ts";
 import { Spinner } from "@/components/spinner.tsx";
 import { Textarea } from "@/components/textarea.tsx";
 import { type Category, ECADCategory } from "@/types/Category.ts";
@@ -66,7 +66,7 @@ import {
 } from "@/components/popover.tsx";
 import { Badge } from "@/components/badge.tsx";
 import { Checkbox } from "@/components/checkbox.tsx";
-import { useMutexApi } from "@/api/mutex.ts";
+import { useMutex } from "@/hooks/useMutex.ts";
 
 function ModelListItem({
   item,
@@ -107,7 +107,7 @@ function ModelListItem({
   const [isFavorite, setIsFavorite] = useState(item.isFavourite);
   const [isNew, setIsNew] = useState(item.isNew);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const { lockModel } = useMutexApi();
+  const { lockModel } = useMutex();
 
   const handleOpenModel = async (e?: React.MouseEvent) => {
     e?.stopPropagation(); // safe access (won’t throw if e is undefined)
@@ -319,22 +319,28 @@ function ModelListItem({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={stopPropagation}>
-                  <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
+                  <DropdownMenuItem
+                    onClick={() => setIsEditOpen(true)}
+                    className={`cursor-pointer`}
+                  >
                     <FilePenLine className="mr-2 h-4 w-4" />
                     <span>Edit Info</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild className={`cursor-pointer`}>
                     <a href={item.url} download>
                       <Download className="mr-2 h-4 w-4" />
                       <span>Download</span>
                     </a>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleOpenModel}>
+                  <DropdownMenuItem
+                    onClick={handleOpenModel}
+                    className={`cursor-pointer`}
+                  >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     <span>Open</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    className="text-destructive"
+                    className="text-destructive cursor-pointer"
                     onClick={() => setIsDeleteDialogOpen(true)}
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
@@ -433,7 +439,13 @@ function ModelListItem({
             />
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteConfirmation("");
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting || deleteConfirmation !== "delete"}

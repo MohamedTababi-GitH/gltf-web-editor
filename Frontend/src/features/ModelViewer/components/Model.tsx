@@ -16,7 +16,7 @@ import {
 } from "@/features/ModelViewer/services/MultiTransformCommand.ts";
 import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
 import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSaver.ts";
-import { useAxiosConfig } from "@/services/AxiosConfig.tsx";
+import { useAxiosConfig } from "@/services/AxiosConfig.ts";
 import type { StateFile } from "@/types/StateFile.ts";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {

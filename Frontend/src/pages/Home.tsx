@@ -1,6 +1,6 @@
 import Navbar from "@/layout/Navbar.tsx";
-import HomeView from "@/features/HomeView/HomeView";
-import ListView from "@/features/ListView/ListView";
+import HomeView from "@/features/HomeView/components/HomeView.tsx";
+import ListView from "@/features/ListView/components/ListView.tsx";
 import { useNavigation } from "../contexts/NavigationContext.tsx";
 import ModelViewer from "@/features/ModelViewer/components/ModelViewer.tsx";
 import { SidebarProvider } from "@/features/ModelViewer/contexts/SidebarContext.tsx";

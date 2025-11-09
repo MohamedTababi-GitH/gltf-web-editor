@@ -1,10 +1,10 @@
 import { Canvas, useLoader } from "@react-three/fiber";
-import { Suspense, useRef, useState, memo, useEffect } from "react";
+import { Suspense, useRef, useState, memo } from "react";
 import { Environment, Center, OrbitControls, Resize } from "@react-three/drei";
 import { Button } from "@/components/button.tsx";
 import { Camera, Check } from "lucide-react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { loadModel } from "@/utils/ModelLoader.ts";
+import { useLocalProcessedModel } from "@/features/HomeView/hooks/useLocalProcessedModel.ts";
 
 type ModelThumbnailProps = {
   gltfFile: File;
@@ -21,42 +21,6 @@ const LoadedModel = memo(({ url }: { url: string }) => {
   );
 });
 
-const Model = memo(
-  ({
-    gltfFile,
-    dependentFiles,
-  }: {
-    gltfFile: File;
-    dependentFiles: File[];
-  }) => {
-    const [processedModelUrl, setProcessedModelUrl] = useState<string | null>(
-      null,
-    );
-
-    useEffect(() => {
-      const objectUrlsToRevoke: string[] = [];
-      let isMounted = true;
-
-      loadModel({
-        file: gltfFile,
-        dependentFiles,
-        objectUrlsToRevoke,
-        setProcessedModelUrl,
-        isMounted,
-      });
-
-      return () => {
-        isMounted = false;
-        for (const url of objectUrlsToRevoke) {
-          URL.revokeObjectURL(url);
-        }
-      };
-    }, [gltfFile, dependentFiles]);
-
-    return processedModelUrl ? <LoadedModel url={processedModelUrl} /> : null;
-  },
-);
-
 function ModelThumbnail({
   gltfFile,
   dependentFiles,
@@ -64,7 +28,7 @@ function ModelThumbnail({
 }: ModelThumbnailProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [thumbnailCaptured, setThumbnailCaptured] = useState(false);
-
+  const processedModelUrl = useLocalProcessedModel(gltfFile, dependentFiles);
   const takeSnapshot = () => {
     if (!canvasRef.current) return;
     const image = canvasRef.current.toDataURL("image/png");
@@ -88,7 +52,7 @@ function ModelThumbnail({
           <directionalLight position={[10, 10, 5]} intensity={1} />
           <Center>
             <Resize scale={10}>
-              <Model gltfFile={gltfFile} dependentFiles={dependentFiles} />
+              {processedModelUrl && <LoadedModel url={processedModelUrl} />}
             </Resize>
           </Center>
           <OrbitControls makeDefault />

@@ -1,6 +1,6 @@
-import { useAxiosConfig } from "@/services/AxiosConfig";
+import { useAxiosConfig } from "@/services/AxiosConfig.ts";
 
-export const useMutexApi = () => {
+export const useMutex = () => {
   const apiClient = useAxiosConfig();
 
   const lockModel = async (modelId: string) => {
