@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   SidebarHeader,
   SidebarContent,
@@ -55,68 +55,66 @@ const ExpandableSidebarGroup = ({
   );
 };
 
+// AppSidebar.tsx
+
 const PositionInput = ({
   label,
   value,
   onCommit,
 }: {
   label: string;
-  value: string;
-  onCommit: (newValue: string) => void;
+  value: string; // string from mesh
+  onCommit: (newValue: number) => void; // commit as number
 }) => {
   const [localValue, setLocalValue] = useState(value);
+  const committedByEnter = useRef(false); // <--- Add this ref
 
-  // Sync local state when external 'value' prop changes
   useEffect(() => {
     setLocalValue(value);
   }, [value]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    setLocalValue(inputValue);
-
-    const parsedInput = parseFloat(inputValue);
-    const parsedValue = parseFloat(value);
-
-    // Check if a valid number and it's different from the committed value
-    if (
-      !isNaN(parsedInput) &&
-      parsedInput.toString() === inputValue &&
-      parsedInput !== parsedValue
-    ) {
-      onCommit(parsedInput.toString());
+  const commitValue = () => {
+    if (committedByEnter.current) {
+      committedByEnter.current = false;
+      return;
     }
-  };
-
-  const handleBlur = () => {
-    // commit on blur if the local value is different from the committed prop value
-    if (localValue !== value) {
-      const parsed = parseFloat(localValue);
-      if (!isNaN(parsed)) {
-        onCommit(parsed.toString());
-      } else {
-        setLocalValue(value);
+    const parsed = parseFloat(localValue);
+    if (!isNaN(parsed)) {
+      if (parsed.toFixed(3) !== parseFloat(value).toFixed(3)) {
+        onCommit(parsed); // commit numeric value
       }
+    } else {
+      setLocalValue(value); // reset if invalid
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      (e.target as HTMLInputElement).blur(); // trigger handleBlur logic
+  const commitOnEnter = () => {
+    const parsed = parseFloat(localValue);
+    if (!isNaN(parsed)) {
+      if (parsed.toFixed(3) !== parseFloat(value).toFixed(3)) {
+        committedByEnter.current = true; // Set flag before commit
+        onCommit(parsed);
+      }
+    } else {
+      setLocalValue(value);
     }
   };
 
   return (
-    <div className="flex justify-between w-full text-left cursor-default  pl-2">
+    <div className="flex justify-between w-full text-left cursor-default pl-2">
       <span className="font-medium text-sidebar-foreground/70">{label}</span>
       <input
-        type="number"
+        type="text"
         value={localValue}
-        step={10}
         className="w-25 text-left border rounded px-1"
-        onChange={handleChange}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={commitValue}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commitOnEnter();
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
       />
     </div>
   );
@@ -131,7 +129,7 @@ const AppSidebar = () => {
     updateMeshPosition,
   } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
-    "metadata",
+    "metadata"
   );
 
   if (!model) return null;
@@ -226,7 +224,7 @@ const AppSidebar = () => {
                         value={mesh.X}
                         onCommit={(newX) =>
                           updateMeshPosition(mesh.id, {
-                            x: parseFloat(newX),
+                            x: newX,
                             y: parseFloat(mesh.Y),
                             z: parseFloat(mesh.Z),
                           })
@@ -243,7 +241,7 @@ const AppSidebar = () => {
                         onCommit={(newY) =>
                           updateMeshPosition(mesh.id, {
                             x: parseFloat(mesh.X),
-                            y: parseFloat(newY),
+                            y: newY,
                             z: parseFloat(mesh.Z),
                           })
                         }
@@ -260,7 +258,7 @@ const AppSidebar = () => {
                           updateMeshPosition(mesh.id, {
                             x: parseFloat(mesh.X),
                             y: parseFloat(mesh.Y),
-                            z: parseFloat(newZ),
+                            z: newZ,
                           })
                         }
                       />
