@@ -1,8 +1,8 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ListView from "./ListView";
-//import React from "react"
+import { act } from "react";
+import * as AxiosConfig from "@/services/AxiosConfig.tsx";
 
-// We first have to mock all external hooks & components
 vi.mock("@/services/AxiosConfig.tsx", () => ({
   useAxiosConfig: () => ({
     get: vi.fn(() =>
@@ -16,7 +16,7 @@ vi.mock("@/services/AxiosConfig.tsx", () => ({
           hasMore: false,
           totalCount: 2,
         },
-      }),
+      })
     ),
   }),
 }));
@@ -29,13 +29,22 @@ vi.mock("@/contexts/ModelContext", () => ({
   }),
 }));
 
+vi.mock("@/contexts/NavigationContext.tsx", () => ({
+  useNavigation: () => ({
+    setIsModelViewer: vi.fn(),
+  }),
+}));
+
 vi.mock("@/components/theme-provider.tsx", () => ({
   useTheme: () => ({ theme: "light" }),
 }));
 
-// Then we mock UI subcomponents
 vi.mock("@/components/ListView/ModelListItem.tsx", () => ({
-  default: ({ item }: any) => <div data-testid="model-item">{item.name}</div>,
+  default: ({ item }: any) => (
+    <div data-testid="model-item" onClick={() => {}}>
+      {item.name}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/ui/input", () => ({
@@ -57,25 +66,27 @@ vi.mock("@/components/ui/button.tsx", () => ({
 }));
 
 vi.mock("@/components/ui/button-group", () => ({
-  ButtonGroup: ({ children }: never) => (
+  ButtonGroup: ({ children }: any) => (
     <div data-testid="button-group">{children}</div>
   ),
 }));
 
 vi.mock("@/components/ui/dropdown-menu.tsx", () => ({
-  DropdownMenu: ({ children }: never) => <div>{children}</div>,
-  DropdownMenuTrigger: ({ children }: never) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: never) => <div>{children}</div>,
-  DropdownMenuSub: ({ children }: never) => <div>{children}</div>,
-  DropdownMenuSubContent: ({ children }: never) => <div>{children}</div>,
-  DropdownMenuSubTrigger: ({ children }: never) => <div>{children}</div>,
-  DropdownMenuCheckboxItem: ({ children, onCheckedChange }: never) => (
-    <div onClick={onCheckedChange}>{children}</div>
+  DropdownMenu: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuSub: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuSubContent: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuSubTrigger: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuCheckboxItem: ({ children, onCheckedChange }: any) => (
+    <div data-testid="dropdown-item" onClick={onCheckedChange}>
+      {children}
+    </div>
   ),
 }));
 
 vi.mock("@/components/ui/scroll-area", () => ({
-  ScrollArea: ({ children }: never) => <div>{children}</div>,
+  ScrollArea: ({ children }: any) => <div>{children}</div>,
   ScrollBar: () => null,
 }));
 
@@ -83,36 +94,95 @@ vi.mock("@lottiefiles/dotlottie-react", () => ({
   DotLottieReact: () => <div data-testid="loading-animation">Loading...</div>,
 }));
 
-// Testing part
-
-describe("ListView", () => {
+describe("ListView Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders loading state initially", async () => {
-    render(<ListView />);
-    expect(screen.getByTestId("loading-animation")).toBeInTheDocument();
-  });
+  // Test 1: Pagination buttons
+  it("renders pagination buttons when multiple pages", async () => {
+    const mockGet = vi.fn(() =>
+      Promise.resolve({
+        data: {
+          items: [
+            { id: "1", name: "Model X", url: "/x.glb" },
+            { id: "2", name: "Model Y", url: "/y.glb" },
+          ],
+          nextCursor: "cursor2",
+          hasMore: true,
+          totalCount: 24,
+        },
+      })
+    );
+    vi.spyOn(AxiosConfig, "useAxiosConfig").mockReturnValue({ get: mockGet });
 
-  it("renders fetched model list after loading", async () => {
-    render(<ListView />);
+    await act(async () => {
+      render(<ListView />);
+    });
+
     await waitFor(() => {
       expect(screen.getAllByTestId("model-item")).toHaveLength(2);
     });
-    expect(screen.getByText("Model A")).toBeInTheDocument();
-    expect(screen.getByText("Model B")).toBeInTheDocument();
+
+    const buttons = screen.getAllByTestId("button");
+    const prevBtn = buttons.find((b) =>
+      (b.textContent || "").toLowerCase().includes("previous")
+    );
+    const nextBtn = buttons.find((b) =>
+      (b.textContent || "").toLowerCase().includes("next")
+    );
+
+    expect(prevBtn).toBeDefined();
+    expect(nextBtn).toBeDefined();
+    expect(prevBtn).toHaveAttribute("disabled");
   });
 
-  it("handles search input and button click", async () => {
-    render(<ListView />);
-    const input = screen.getByTestId("search-input");
-    fireEvent.change(input, { target: { value: "Test model" } });
-    const buttons = await screen.findAllByTestId("button");
-    expect(buttons.length).toBeGreaterThan(0);
-    fireEvent.click(buttons[buttons.length - 1]);
+  // Test 2: No results state (Simulates empty API and checks “No models found” text)
+  it("shows 'No models found' when API returns empty items", async () => {
+    const mockGet = vi.fn(() =>
+      Promise.resolve({
+        data: {
+          items: [],
+          nextCursor: null,
+          hasMore: false,
+          totalCount: 0,
+        },
+      })
+    );
+    vi.spyOn(AxiosConfig, "useAxiosConfig").mockReturnValue({ get: mockGet });
+
+    await act(async () => {
+      render(<ListView />);
+    });
+
     await waitFor(() => {
-      expect(input).toHaveValue("Test model");
+      expect(screen.getByText(/no models found/i)).toBeInTheDocument();
+    });
+  });
+
+  // Test 3: Favorites filter toggle
+  it("toggles favorites filter and shows chip", async () => {
+    const mockGet = vi.fn(() =>
+      Promise.resolve({
+        data: {
+          items: [{ id: "1", name: "FavModel", url: "/fav.glb" }],
+          nextCursor: null,
+          hasMore: false,
+          totalCount: 1,
+        },
+      })
+    );
+    vi.spyOn(AxiosConfig, "useAxiosConfig").mockReturnValue({ get: mockGet });
+
+    await act(async () => {
+      render(<ListView />);
+    });
+
+    const dropdownItems = await screen.findAllByTestId("dropdown-item");
+    fireEvent.click(dropdownItems[0]); // click "Favourites only"
+
+    await waitFor(() => {
+      expect(screen.getByText(/favorites only/i)).toBeInTheDocument();
     });
   });
 });
