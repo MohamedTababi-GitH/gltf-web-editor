@@ -135,7 +135,7 @@ public class ModelUploadServiceTest
     }
     
     [TestMethod]
-    public async Task UploadAsync_CallsStorageUpload_WhenValid()
+    public async Task UploadAsync_CallsStorageUpload_WithValidGlb()
     {
         // Arrange
         var stream = new MemoryStream([1]);
@@ -162,6 +162,37 @@ public class ModelUploadServiceTest
 
         Assert.AreEqual("Uploaded successfully.", result.Message);
         Assert.AreEqual(alias, result.Alias);
+    }
+    
+    [TestMethod]
+    public async Task UploadAsync_CallsStorageUpload_WithValidGltf()
+    {
+        // Arrange
+        var gltfJson = """
+                      {
+                          "buffers": [
+                              { "uri": "model.bin" }
+                          ]
+                      }
+                      """;
+        var alias = "alias";
+        var originalFile = "model.gltf";
+        var stream1 = new MemoryStream(Encoding.UTF8.GetBytes(gltfJson));
+        var externalFile = "model.bin";
+        var stream2 = new MemoryStream([1]);
+        var files = new List<(string, Stream)> {(originalFile, stream1), (externalFile, stream2)}; 
+        var dto = new UploadModelRequestDto { Alias = alias, OriginalFileName = originalFile, Files = files };
+
+        // Act
+        var result = await _modelUploadService.UploadAsync(dto, CancellationToken.None);
+
+        // Assert
+        Assert.AreEqual(alias, result.Alias);
+        Assert.EndsWith(".gltf", result.BlobName);
+        _mockStorage.Verify(s => s.UploadAsync(
+                It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>(),
+                It.IsAny<IDictionary<string,string>>(), It.IsAny<CancellationToken>()),
+            Times.AtLeast(2));
     }
     
     [TestMethod]
@@ -341,7 +372,30 @@ public class ModelUploadServiceTest
         Assert.Contains(expectedErrorMessage, result.Message);
     }
     
-    //TODO required external files
+    [TestMethod]
+    public async Task UploadAsync_Throws_BadRequest_WhenGltfReferencesMissing()
+    {
+        // Arrange
+        var expectedErrorMessage = "The uploaded .gltf file references external resources that were not provided";
+        var gltfJson = """
+                          {
+                              "buffers": [
+                                  { "uri": "model.bin" }
+                              ]
+                          }
+                          """;
+        var alias = "alias";
+        var originalFile = "model.gltf";
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes(gltfJson));
+        var files = new List<(string, Stream)> {(originalFile, stream)};
+        var dto = new UploadModelRequestDto { Alias = alias, OriginalFileName = originalFile, Files = files };
+
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(() => _modelUploadService.UploadAsync(dto, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
 
     [TestMethod]
     public async Task UploadAsync_Throws_WhenFirstFileEmpty()
