@@ -2,8 +2,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/tooltip.tsx";
-import { Button } from "@/components/button.tsx";
+} from "@/shared/components/tooltip.tsx";
+import { Button } from "@/shared/components/button.tsx";
 import {
   type LucideProps,
   MousePointer,

@@ -5,9 +5,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/dialog.tsx";
-import { Input } from "@/components/input.tsx";
-import { Button } from "@/components/button.tsx";
+} from "@/shared/components/dialog.tsx";
+import { Input } from "@/shared/components/input.tsx";
+import { Button } from "@/shared/components/button.tsx";
 
 interface SaveVersionDialogProps {
   versionModalOpen: boolean;

@@ -1,9 +1,9 @@
 import "./App.css";
-import { ThemeProvider } from "@/contexts/ThemeContext.tsx";
+import { ThemeProvider } from "@/shared/contexts/ThemeContext.tsx";
 import Home from "@/pages/Home.tsx";
-import { NotificationProvider } from "@/contexts/NotificationContext.tsx";
-import { NavigationProvider } from "@/contexts/NavigationContext.tsx";
-import { ModelProvider } from "./contexts/ModelContext.tsx";
+import { NotificationProvider } from "@/shared/contexts/NotificationContext.tsx";
+import { NavigationProvider } from "@/shared/contexts/NavigationContext.tsx";
+import { ModelProvider } from "@/shared/contexts/ModelContext.tsx";
 
 function App() {
   return (

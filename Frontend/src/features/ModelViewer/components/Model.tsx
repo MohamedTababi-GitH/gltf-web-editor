@@ -6,7 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { TransformControls } from "@react-three/drei";
-import { useModel } from "@/contexts/ModelContext.tsx";
+import { useModel } from "@/shared/contexts/ModelContext.tsx";
 import * as THREE from "three";
 import { useLoader } from "@react-three/fiber";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -16,8 +16,8 @@ import {
 } from "@/features/ModelViewer/services/MultiTransformCommand.ts";
 import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
 import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSaver.ts";
-import { useAxiosConfig } from "@/services/AxiosConfig.ts";
-import type { StateFile } from "@/types/StateFile.ts";
+import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
+import type { StateFile } from "@/shared/types/StateFile.ts";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;

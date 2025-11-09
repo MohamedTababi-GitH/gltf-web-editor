@@ -2,8 +2,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/tooltip.tsx";
-import { Button } from "@/components/button.tsx";
+} from "@/shared/components/tooltip.tsx";
+import { Button } from "@/shared/components/button.tsx";
 import {
   Keyboard,
   Layers,
@@ -18,16 +18,16 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/popover.tsx";
-import { ButtonGroup } from "@/components/button-group.tsx";
-import { Separator } from "@/components/separator.tsx";
-import { formatDateTime } from "@/utils/DateTime.ts";
-import { useModel } from "@/contexts/ModelContext";
-import type { StateFile } from "@/types/StateFile.ts";
+} from "@/shared/components/popover.tsx";
+import { ButtonGroup } from "@/shared/components/button-group.tsx";
+import { Separator } from "@/shared/components/separator.tsx";
+import { formatDateTime } from "@/shared/utils/DateTime.ts";
+import { useModel } from "@/shared/contexts/ModelContext";
+import type { StateFile } from "@/shared/types/StateFile.ts";
 import React from "react";
 import * as THREE from "three";
-import { useMutex } from "@/hooks/useMutex.ts";
-import { useNavigation } from "@/contexts/NavigationContext";
+import { useMutex } from "@/shared/hooks/useMutex.ts";
+import { useNavigation } from "@/shared/contexts/NavigationContext";
 
 interface ModelViewerToolbarProps {
   setVersionModalOpen: (open: boolean) => void;

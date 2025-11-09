@@ -10,12 +10,12 @@ import {
   Sidebar,
   SidebarGroupLabel,
 } from "../contexts/SidebarContext.tsx";
-import { Slider } from "@/components/slider.tsx";
+import { Slider } from "@/shared/components/slider.tsx";
 
-import { formatDateTime } from "@/utils/DateTime.ts";
-import { formatBytes } from "@/utils/BytesConverter.ts";
-import { useModel } from "@/contexts/ModelContext.tsx";
-import { Checkbox } from "@/components/checkbox.tsx";
+import { formatDateTime } from "@/shared/utils/DateTime.ts";
+import { formatBytes } from "@/shared/utils/BytesConverter.ts";
+import { useModel } from "@/shared/contexts/ModelContext.tsx";
+import { Checkbox } from "@/shared/components/checkbox.tsx";
 import { ExpandableSidebarGroup } from "@/features/ModelViewer/components/ExpandableSidebarGroup.tsx";
 import { PositionInput } from "./PositionInput.tsx";
 

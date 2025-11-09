@@ -1,6 +1,6 @@
-import { useMutex } from "@/hooks/useMutex.ts";
+import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useEffect } from "react";
-import { useNavigation } from "@/contexts/NavigationContext.tsx";
+import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
 
 export const useModelLock = (id: string) => {
   const { heartbeat, unlockModel } = useMutex();

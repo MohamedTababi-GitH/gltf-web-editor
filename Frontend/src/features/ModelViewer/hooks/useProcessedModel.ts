@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { loadModel } from "@/utils/ModelLoader.ts";
-import { useModel } from "@/contexts/ModelContext.tsx";
+import { loadModel } from "@/shared/utils/ModelLoader.ts";
+import { useModel } from "@/shared/contexts/ModelContext.tsx";
 
 export const useProcessedModel = () => {
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(

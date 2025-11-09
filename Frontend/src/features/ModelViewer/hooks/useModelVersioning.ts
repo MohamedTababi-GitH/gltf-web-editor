@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import type { StateFile } from "@/types/StateFile.ts";
-import { useModel } from "@/contexts/ModelContext.tsx";
-import { useAxiosConfig } from "@/services/AxiosConfig.ts";
+import type { StateFile } from "@/shared/types/StateFile.ts";
+import { useModel } from "@/shared/contexts/ModelContext.tsx";
+import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import { handleSaveScene } from "@/features/ModelViewer/utils/StateSaver.ts";
 import { useHistory } from "../contexts/HistoryContext";
 import * as THREE from "three";

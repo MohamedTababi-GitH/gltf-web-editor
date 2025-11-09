@@ -2,7 +2,7 @@ import { Center, OrbitControls, Environment, Resize } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Model } from "./Model.tsx";
 import React, { Suspense, useState } from "react";
-import { useModel } from "@/contexts/ModelContext.tsx";
+import { useModel } from "@/shared/contexts/ModelContext.tsx";
 import Cursors, { tools } from "@/features/ModelViewer/components/Cursors.tsx";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import * as THREE from "three";

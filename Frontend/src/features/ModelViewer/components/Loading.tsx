@@ -1,4 +1,4 @@
-import { Spinner } from "@/components/spinner.tsx";
+import { Spinner } from "@/shared/components/spinner.tsx";
 
 export function Loading({ progress }: { progress: number }) {
   return (

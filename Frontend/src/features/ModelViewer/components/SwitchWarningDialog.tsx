@@ -5,9 +5,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/dialog.tsx";
-import { Button } from "@/components/button.tsx";
-import type { StateFile } from "@/types/StateFile.ts";
+} from "@/shared/components/dialog.tsx";
+import { Button } from "@/shared/components/button.tsx";
+import type { StateFile } from "@/shared/types/StateFile.ts";
 
 interface SwitchWarningDialogProps {
   showSwitchWarning: boolean;

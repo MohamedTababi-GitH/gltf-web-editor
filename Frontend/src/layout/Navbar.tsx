@@ -1,5 +1,5 @@
-import AppToggle from "@/components/app-toggle.tsx";
-import { ModeToggle } from "../components/mode-toggle.tsx";
+import AppToggle from "@/shared/components/app-toggle.tsx";
+import { ModeToggle } from "@/shared/components/mode-toggle.tsx";
 
 export default function Navbar() {
   return (
