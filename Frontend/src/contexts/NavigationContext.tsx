@@ -2,12 +2,12 @@ import { createContext, useContext, type ReactNode, useState } from "react";
 
 type NavigationTab = "home" | "model";
 
-interface NavigationContextType {
+type NavigationContextType = {
   activeTab: NavigationTab;
   navigateTo: (tab: NavigationTab) => void;
   isModelViewer: boolean;
   setIsModelViewer: (isModelViewer: boolean) => void;
-}
+};
 
 const NavigationContext = createContext<NavigationContextType | undefined>(
   undefined,

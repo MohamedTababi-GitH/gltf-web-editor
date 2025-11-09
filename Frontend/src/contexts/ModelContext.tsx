@@ -1,4 +1,4 @@
-import type { MeshData, ModelItem } from "@/types/ModelItem";
+import type { ModelItem } from "@/types/ModelItem.ts";
 import {
   createContext,
   useContext,
@@ -8,8 +8,9 @@ import {
   type SetStateAction,
 } from "react";
 import type { CheckedState } from "@radix-ui/react-checkbox";
+import type { MeshData } from "@/features/ModelViewer/types/MeshData.ts";
 
-interface ModelContextType {
+type ModelContextType = {
   url: string | undefined;
   setUrl: Dispatch<SetStateAction<string | undefined>>;
   model: ModelItem | undefined;
@@ -42,7 +43,7 @@ interface ModelContextType {
       (id: number, position: { x: number; y: number; z: number }) => void
     >
   >;
-}
+};
 
 const ModelContext = createContext<ModelContextType | undefined>(undefined);
 

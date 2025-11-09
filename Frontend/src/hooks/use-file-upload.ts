@@ -18,7 +18,6 @@ const parseGLTF = (file: File): Promise<string[]> => {
           return;
         }
 
-        // Make sure we have the result as a string
         const text =
           typeof event.target.result === "string"
             ? event.target.result
@@ -29,7 +28,6 @@ const parseGLTF = (file: File): Promise<string[]> => {
         const gltf = JSON.parse(text);
         const uris: string[] = [];
 
-        // Extract URIs from buffers
         if (gltf.buffers && Array.isArray(gltf.buffers)) {
           gltf.buffers.forEach((buffer: { uri?: string }) => {
             if (buffer.uri) {
@@ -38,7 +36,6 @@ const parseGLTF = (file: File): Promise<string[]> => {
           });
         }
 
-        // Extract URIs from images
         if (gltf.images && Array.isArray(gltf.images)) {
           gltf.images.forEach((image: { uri?: string }) => {
             if (image.uri) {
@@ -58,7 +55,7 @@ const parseGLTF = (file: File): Promise<string[]> => {
       reject(new Error("Error reading file"));
     };
 
-    reader.readAsText(file); // Use readAsText for JSON files
+    reader.readAsText(file);
   });
 };
 
@@ -81,7 +78,7 @@ export const useFileUpload = ({
 
   const onDrop = useCallback(
     async (acceptedFiles: File[], fileRejections: FileRejection[]) => {
-      setError(null); // Clear previous errors
+      setError(null);
 
       if (fileRejections.length > 0) {
         const firstRejection = fileRejections[0];
@@ -96,7 +93,7 @@ export const useFileUpload = ({
         } else {
           setError("An unknown error occurred.");
         }
-        setFile(null); // Clear the file state on rejection
+        setFile(null);
         return;
       }
 
@@ -110,7 +107,6 @@ export const useFileUpload = ({
             if (fileNames.length > 0) {
               setRequiredFiles(fileNames);
               setHasRequiredFiles(true);
-              // Reset additional files when a new main file is uploaded
               setAdditionalFiles(new Map());
             } else {
               setHasRequiredFiles(false);
@@ -124,7 +120,6 @@ export const useFileUpload = ({
             setAdditionalFiles(new Map());
           }
         } else {
-          // For GLB files or other types, no required files needed
           setHasRequiredFiles(false);
           setRequiredFiles([]);
           setAdditionalFiles(new Map());
@@ -146,7 +141,6 @@ export const useFileUpload = ({
 
       if (acceptedFiles.length > 0) {
         const newFile = acceptedFiles[0];
-        // Check if this file name matches one of the required files
         const isRequiredFile = requiredFiles.some(
           (requiredFile) => requiredFile === newFile.name,
         );

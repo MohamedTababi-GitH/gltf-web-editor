@@ -6,15 +6,15 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence } from "framer-motion";
-import Notification from "../components/Notification";
+import Notification from "../layout/Notification.tsx";
 import { NotificationManager } from "../services/NotificationManager";
 
-interface NotificationContextType {
+type NotificationContextType = {
   showNotification: (
     message: string,
     type?: "success" | "error" | "info" | "warn",
   ) => void;
-}
+};
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined,

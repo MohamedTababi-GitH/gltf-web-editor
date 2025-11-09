@@ -2,7 +2,7 @@ import type { Category } from "@/types/Category.ts";
 import type { AdditionalFile } from "@/types/AdditionalFile.ts";
 import type { StateFile } from "@/types/StateFile.ts";
 
-export interface ModelItem {
+export type ModelItem = {
   id: string;
   name: string;
   sizeBytes: number;
@@ -16,14 +16,4 @@ export interface ModelItem {
   assetId: string;
   isFavourite: boolean;
   isNew: boolean;
-}
-
-export type MeshData = {
-  name: string;
-  id: number;
-  X: string;
-  Y: string;
-  Z: string;
-  isVisible: boolean;
-  opacity: number;
 };

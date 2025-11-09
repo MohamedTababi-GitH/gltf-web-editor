@@ -1,9 +1,9 @@
-import Navbar from "@/components/Navbar";
-import HomeView from "@/components/HomeView/HomeView";
-import ListView from "@/components/ListView/ListView";
+import Navbar from "@/layout/Navbar.tsx";
+import HomeView from "@/features/HomeView/HomeView";
+import ListView from "@/features/ListView/ListView";
 import { useNavigation } from "../contexts/NavigationContext.tsx";
-import ModelViewer from "@/components/ModelViewer/ModelViewer.tsx";
-import { SidebarProvider } from "@/components/ui/sidebar.tsx";
+import ModelViewer from "@/features/ModelViewer/components/ModelViewer.tsx";
+import { SidebarProvider } from "@/features/ModelViewer/contexts/SidebarContext.tsx";
 
 function Home() {
   const { activeTab, isModelViewer } = useNavigation();

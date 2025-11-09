@@ -5,12 +5,12 @@
 
 type NotificationType = "success" | "error" | "info" | "warn";
 
-interface NotificationEvent {
+type NotificationEvent = {
   message: string;
   type: NotificationType;
   id: string;
   timestamp: number;
-}
+};
 
 type NotificationSubscriber = (notifications: NotificationEvent[]) => void;
 
