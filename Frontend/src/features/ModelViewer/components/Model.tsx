@@ -41,6 +41,7 @@ export function Model({
     setMeshes,
     setToggleComponentVisibility,
     setToggleComponentOpacity,
+    setUpdateMeshPosition,
   } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
@@ -351,6 +352,51 @@ export function Model({
     [selectedComponents, setMeshes],
   );
 
+  const updateMeshPosition = useCallback(
+    (componentId: number, position: { x: number; y: number; z: number }) => {
+      const object = selectedComponents.find((comp) => comp.id === componentId);
+      if (!object) return;
+
+      const oldState: TransformState = {
+        position: object.position.clone(),
+        rotation: object.quaternion.clone(),
+        scale: object.scale.clone(),
+      };
+
+      // apply new position
+      object.position.set(position.x, position.y, position.z);
+
+      const newState: TransformState = {
+        position: object.position.clone(),
+        rotation: object.quaternion.clone(),
+        scale: object.scale.clone(),
+      };
+
+      const command = new MultiTransformCommand(
+        [object],
+        [oldState],
+        [newState],
+        updateSidebarMeshes,
+      );
+      addCommand(command);
+
+      // update sidebar
+      setMeshes((prevMeshes) =>
+        prevMeshes.map((mesh) =>
+          mesh.id === componentId
+            ? {
+                ...mesh,
+                X: position.x.toFixed(3),
+                Y: position.y.toFixed(3),
+                Z: position.z.toFixed(3),
+              }
+            : mesh,
+        ),
+      );
+    },
+    [selectedComponents, setMeshes, updateSidebarMeshes, addCommand],
+  );
+
   const toggleComponentOpacity = useCallback(
     (componentId: number, newOpacity: number) => {
       const componentToChange = selectedComponents.find(
@@ -400,11 +446,14 @@ export function Model({
   useEffect(() => {
     setToggleComponentVisibility(() => toggleComponentVisibility);
     setToggleComponentOpacity(() => toggleComponentOpacity);
+    setUpdateMeshPosition(() => updateMeshPosition);
   }, [
     setToggleComponentVisibility,
     setToggleComponentOpacity,
     toggleComponentVisibility,
     toggleComponentOpacity,
+    setUpdateMeshPosition,
+    updateMeshPosition,
   ]);
 
   useEffect(() => {
