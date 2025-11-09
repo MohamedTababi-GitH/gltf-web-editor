@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Text;
 using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Services;
@@ -19,8 +19,120 @@ public class ModelUploadServiceTest
         _mockStorage = new Mock<IModelStorage>();
         _modelUploadService = new ModelUploadService(_mockStorage.Object);
     }
-    
-    
+
+    [TestMethod]
+    public async Task ValidateFileStreams_Throws_WhenStreamInFilesNull()
+    {
+        // Arrange
+        var file1 = "file.glb";
+        var stream1 = new MemoryStream([1]);
+        var file2 = "file2.glb";
+        MemoryStream stream2 = null!;
+        var alias = "model";
+        var files = new List<(string, Stream)>{
+            (file1, stream1), (file2, stream2)
+        };
+        var requestDto = new UploadModelRequestDto
+        {
+            Files = files,
+            OriginalFileName = file1,
+            Alias = alias
+        };
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
+        
+        // Assert
+        var expectedErrorMessage = $"The content of the file '{file2}' is empty or unreadable";
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task ValidateFileStreams_Throws_WhenStreamInFilesUnreadable()
+    {
+        // Arrange
+        var mockStream = new Mock<MemoryStream>();
+        var file1 = "file.glb";
+        var stream1 = new MemoryStream([1]);
+        var file2 = "file2.glb";
+        var alias = "model";
+        var files = new List<(string, Stream)>{
+            (file1, stream1), (file2, mockStream.Object)
+        };
+        var requestDto = new UploadModelRequestDto
+        {
+            Files = files,
+            OriginalFileName = file1,
+            Alias = alias
+        };
+        mockStream.Setup(s => s.CanRead).Returns(false);
+
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
+
+        // Assert
+        var expectedErrorMessage = $"The content of the file '{file2}' is empty or unreadable";
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task ValidateFileStreams_Throws_WhenMemoryStreamInFilesEmpty()
+    {
+        // Arrange
+        var file1 = "file.glb";
+        var stream1 = new MemoryStream([1]);
+        var file2 = "file2.glb";
+        var stream2 = new MemoryStream([]);
+        var alias = "model";
+        var files = new List<(string, Stream)>{
+            (file1, stream1), (file2, stream2)
+        };
+        var requestDto = new UploadModelRequestDto
+        {
+            Files = files,
+            OriginalFileName = file1,
+            Alias = alias
+        };
+
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
+
+        // Assert
+        var expectedErrorMessage = $"The content of the file '{file2}' is empty.";
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task ValidateFileStreams_Throws_WhenNotMemoryStreamInFilesEmpty()
+    {
+        // Arrange
+        var file1 = "file.glb";
+        var stream1 = new MemoryStream([1]);
+        var file2 = "file2.glb";
+        var mockedStream = new Mock<Stream>();
+        var alias = "model";
+        var files = new List<(string, Stream)>{
+            (file1, stream1), (file2, mockedStream.Object)
+        };
+        var requestDto = new UploadModelRequestDto
+        {
+            Files = files,
+            OriginalFileName = file1,
+            Alias = alias
+        };
+        mockedStream.Setup(s => s.CanSeek).Returns(true);
+        mockedStream.Setup(s => s.ReadByte()).Returns(-1);
+        mockedStream.Setup(s => s.CanRead).Returns(true);
+
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
+
+        // Assert
+        mockedStream.Verify(s => s.CanSeek, Times.Once);
+        mockedStream.Verify(s => s.ReadByte(), Times.Once);
+        var expectedErrorMessage = $"The content of the file '{file2}' is empty.";
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
     
     [TestMethod]
     public async Task UploadAsync_CallsStorageUpload_WhenValid()
@@ -68,7 +180,7 @@ public class ModelUploadServiceTest
     }
 
     [TestMethod]
-    public async Task UploadAsync_Throws_WhenFileIsNull()
+    public async Task UploadAsync_Throws_WhenFilesMissing()
     {
         // Arrange
         var expectedErrorMessage = "No files were provided in the upload request";
@@ -109,118 +221,7 @@ public class ModelUploadServiceTest
     }
 
     [TestMethod]
-    public async Task UploadAsync_Throws_WhenStreamInFileListIsNull()
-    {
-        // Arrange
-        var file1 = "file.glb";
-        var stream1 = new MemoryStream([1]);
-        var file2 = "file2.glb";
-        MemoryStream stream2 = null!;
-        var alias = "model";
-        var files = new List<(string, Stream)>{
-            (file1, stream1), (file2, stream2)
-        };
-        var requestDto = new UploadModelRequestDto
-        {
-            Files = files,
-            OriginalFileName = file1,
-            Alias = alias
-        };
-        
-        // Act
-        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
-        
-        // Assert
-        var expectedErrorMessage = $"The content of the file '{file2}' is empty or unreadable";
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UploadAsync_Throws_WhenStreamInFileListIsUnreadable()
-    {
-        // Arrange
-        var mockStream = new Mock<MemoryStream>();
-        var file1 = "file.glb";
-        var stream1 = new MemoryStream([1]);
-        var file2 = "file2.glb";
-        var alias = "model";
-        var files = new List<(string, Stream)>{
-            (file1, stream1), (file2, mockStream.Object)
-        };
-        var requestDto = new UploadModelRequestDto
-        {
-            Files = files,
-            OriginalFileName = file1,
-            Alias = alias
-        };
-        mockStream.Setup(s => s.CanRead).Returns(false);
-
-        // Act
-        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
-
-        // Assert
-        var expectedErrorMessage = $"The content of the file '{file2}' is empty or unreadable";
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UploadAsync_Throws_WhenStreamInFileListIsEmpty()
-    {
-        // Arrange
-        var file1 = "file.glb";
-        var stream1 = new MemoryStream([1]);
-        var file2 = "file2.glb";
-        var stream2 = new MemoryStream([]);
-        var alias = "model";
-        var files = new List<(string, Stream)>{
-            (file1, stream1), (file2, stream2)
-        };
-        var requestDto = new UploadModelRequestDto
-        {
-            Files = files,
-            OriginalFileName = file1,
-            Alias = alias
-        };
-
-        // Act
-        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
-
-        // Assert
-        var expectedErrorMessage = $"The content of the file '{file2}' is empty.";
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-
-    [TestMethod]
-    public async Task UploadAsync_Throws_WhenStreamInFileListIsEmptyMemoryStream()
-    {
-        // Arrange
-        var file1 = "file.glb";
-        var stream1 = new MemoryStream([1]);
-        var file2 = "file2.glb";
-        var stream2 = new MemoryStream([]);
-        var alias = "model";
-        var files = new List<(string, Stream)>{
-            (file1, stream1), (file2, stream2)
-        };
-        var requestDto = new UploadModelRequestDto
-        {
-            Files = files,
-            OriginalFileName = file1,
-            Alias = alias
-        };
-
-        // Act
-        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelUploadService.UploadAsync(requestDto, CancellationToken.None));
-
-        // Assert
-        var expectedErrorMessage = $"The content of the file '{file2}' is empty.";
-        Assert.Contains(expectedErrorMessage, result.Message);
-    }
-    
-    // TODO for non-MemoryStream
-
-    [TestMethod]
-    public async Task UploadAsync_Throws_WhenAliasIsNull()
+    public async Task UploadAsync_Throws_WhenAliasIsMissing()
     {
         // Arrange
         var expectedErrorMessage = "name for the model is required";
@@ -316,7 +317,7 @@ public class ModelUploadServiceTest
     }
 
     [TestMethod]
-    public async Task UploadAsync_Throws_WhenEntryFileNotPresent()
+    public async Task UploadAsync_Throws_WhenEntryFileMissing()
     {
         // Arrange
         var filename = "model.glb";
