@@ -70,4 +70,6 @@ public sealed class ModelItemDto
     /// Gets the list of state files associated with the model.
     /// </summary>
     public List<StateFileDto>? StateFiles { get; init; }
+    
+    public BaselineFileDto? Baseline { get; set; }
 }

@@ -99,84 +99,50 @@ public class ModelController : ControllerBase
     /// </remarks>
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(26214400)] // 25 MB
+    [RequestSizeLimit(26214400)]
     public async Task<IActionResult> Upload(
-        [FromForm] List<IFormFile> files,
-        [FromForm] string fileAlias,
-        [FromForm] string originalFileName,
-        [FromForm] List<string>? categories,
-        [FromForm] string? description,
+        [FromForm] UploadModelForm form,
         CancellationToken cancellationToken)
     {
-        // Validate uploaded files
-        if (files.Count == 0)
+        if (form.Files is null || form.Files.Count == 0)
             throw new BadRequestException("No files were uploaded. Please select a file to upload.");
-
-        if (string.IsNullOrWhiteSpace(fileAlias))
+        if (string.IsNullOrWhiteSpace(form.FileAlias))
             throw new BadRequestException("File alias is required.");
 
-        // Prepare to upload file streams
         var uploadFiles = new List<(string FileName, Stream Content)>();
-
         try
         {
-            foreach (var file in files)
-                uploadFiles.Add((file.FileName, file.OpenReadStream()));
+            foreach (var f in form.Files)
+                uploadFiles.Add((f.FileName, f.OpenReadStream()));
 
-            // Build the upload request DTO
             var request = new UploadModelRequestDto
             {
-                OriginalFileName = originalFileName,
+                OriginalFileName = form.OriginalFileName,
                 Files = uploadFiles,
-                Alias = fileAlias,
-                Categories = categories,
-                Description = description
+                Alias = form.FileAlias,
+                Categories = form.Categories,
+                Description = form.Description,
+                
+                BaselineJson = string.IsNullOrWhiteSpace(form.BaselineJson) ? null : form.BaselineJson
             };
 
-            // Perform upload via the service layer
             var result = await _uploadService.UploadAsync(request, cancellationToken);
-            return Ok(new UploadResultDto
-                { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
-        }
-        catch (ArgumentException ex)
-        {
-            throw new BadRequestException(ex.Message);
+            return Ok(new UploadResultDto { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         finally
         {
-            // Ensure all streams are disposed
-            foreach (var (_, stream) in uploadFiles)
-                await stream.DisposeAsync();
+            foreach (var (_, s) in uploadFiles)
+                await s.DisposeAsync();
         }
     }
 
-    /// <summary>
-    /// Deletes a model by its unique identifier.
-    /// </summary>
-    /// <param name="id">The GUID that uniquely identifies the model to be deleted.</param>
-    /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
-    /// <returns>
-    /// An <see cref="ActionResult{T}"/> containing a <see cref="DeleteModelResultDto"/> message 
-    /// confirming successful deletion of the model.
-    /// </returns>
-    /// <response code="200">
-    /// Deletion succeeded. Returns a confirmation message in the response body.
-    /// </response>
-    /// <response code="400">
-    /// The provided <paramref name="id"/> is invalid. A valid GUID is required.
-    /// </response>
-    /// <response code="404">
-    /// No model with the given <paramref name="id"/> was found.
-    /// </response>
-    /// <response code="409">
-    /// The model is currently locked or in use and cannot be deleted.
-    /// </response>
+    /// <summary>Deletes a model by its Id.</summary>
+    /// <param name="id">The GUID that was exposed as ModelItemDto.Id</param>
+    /// <param name="cancellationToken"></param>
+    /// <response code="204">Delete succeeded.</response>
+    /// <response code="404">No model with the given Id was found.</response>
     [HttpDelete("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(DeleteModelResultDto))]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<DeleteModelResultDto>> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
             throw new BadRequestException("The provided ID is invalid. Please check the ID and try again.");
@@ -221,6 +187,23 @@ public class ModelController : ControllerBase
             cancellationToken);
 
         return Ok(new UpdateDetailsResultDto { Message = update.Message });
+    }
+
+    /// <summary>
+    /// Retrieves a specific model by its unique identifier.
+    /// </summary>
+    /// <param name="id">The model's unique ID.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The model details as a <see cref="ModelItemDto"/>.</returns>
+    /// <response code="200">Returns the requested model.</response>
+    /// <response code="404">If no model was found with the given ID.</response>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(ModelItemDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _modelService.GetByIdAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     [HttpPatch("{id:guid}/isNew")]
@@ -278,23 +261,6 @@ public class ModelController : ControllerBase
             Version = result.Version,
             BlobName = result.BlobName
         });
-    }
-
-    /// <summary>
-    /// Retrieves a specific model by its unique identifier.
-    /// </summary>
-    /// <param name="id">The model's unique ID.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The model details as a <see cref="ModelItemDto"/>.</returns>
-    /// <response code="200">Returns the requested model.</response>
-    /// <response code="404">If no model was found with the given ID.</response>
-    [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(ModelItemDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
-    {
-        var result = await _modelService.GetByIdAsync(id, cancellationToken);
-        return Ok(result);
     }
 
     /// <summary>
