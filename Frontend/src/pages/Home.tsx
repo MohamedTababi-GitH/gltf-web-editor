@@ -1,9 +1,9 @@
-import Navbar from "@/components/Navbar";
-import HomeView from "@/components/HomeView/HomeView";
-import ListView from "@/components/ListView/ListView";
-import { useNavigation } from "../contexts/NavigationContext.tsx";
-import ModelViewer from "@/components/ModelViewer/ModelViewer.tsx";
-import { SidebarProvider } from "@/components/ui/sidebar.tsx";
+import Navbar from "@/layout/Navbar.tsx";
+import HomeTab from "@/features/HomeTab/components/HomeTab.tsx";
+import ModelsTab from "@/features/ModelsTab/components/ModelsTab.tsx";
+import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
+import ModelViewer from "@/features/ModelViewer/components/ModelViewer.tsx";
+import { SidebarProvider } from "@/features/ModelViewer/contexts/SidebarContext.tsx";
 
 function Home() {
   const { activeTab, isModelViewer } = useNavigation();
@@ -20,7 +20,7 @@ function Home() {
         <div>
           <Navbar />
           <main className="mt-16 flex-1 min-h-0">
-            {activeTab === "home" ? <HomeView /> : <ListView />}
+            {activeTab === "home" ? <HomeTab /> : <ModelsTab />}
           </main>
         </div>
       )}
