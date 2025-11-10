@@ -9,12 +9,14 @@ import {
 import { Button } from "@/shared/components/button.tsx";
 import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
 import type { StateFile } from "@/shared/types/StateFile.ts";
+import { useMutex } from "@/shared/hooks/useMutex.ts";
 
 interface CloseWarningDialogProps {
   showCloseWarning: boolean;
   setShowCloseWarning: (show: boolean) => void;
   saveModel: (version?: string) => void;
   selectedVersion?: StateFile;
+  id?: string;
 }
 
 export function CloseWarningDialog({
@@ -22,8 +24,10 @@ export function CloseWarningDialog({
   setShowCloseWarning,
   saveModel,
   selectedVersion,
+  id,
 }: Readonly<CloseWarningDialogProps>) {
   const { setIsModelViewer } = useNavigation();
+  const { unlockModel } = useMutex();
   return (
     <Dialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>
       <DialogContent>
@@ -36,7 +40,8 @@ export function CloseWarningDialog({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={() => {
+            onClick={async () => {
+              if (id) await unlockModel(id);
               setIsModelViewer(false);
             }}
           >
@@ -44,12 +49,13 @@ export function CloseWarningDialog({
           </Button>
 
           <Button
-            onClick={() => {
+            onClick={async () => {
               if (selectedVersion?.version === "Default") {
                 saveModel();
               } else {
                 saveModel(selectedVersion?.version);
               }
+              if (id) await unlockModel(id);
               setIsModelViewer(false);
             }}
             className="bg-chart-2 hover:bg-chart-2/90"

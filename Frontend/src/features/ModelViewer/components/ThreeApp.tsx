@@ -17,6 +17,7 @@ import { SwitchWarningDialog } from "@/features/ModelViewer/components/SwitchWar
 import { CloseWarningDialog } from "./CloseWarningDialog.tsx";
 import { SaveVersionDialog } from "@/features/ModelViewer/components/SaveVersionDialog.tsx";
 import { Loading } from "@/features/ModelViewer/components/Loading.tsx";
+import { DeleteVersionDialog } from "@/features/ModelViewer/components/DeleteVersionDialog.tsx";
 
 export default function ThreeApp() {
   const { model } = useModel();
@@ -67,8 +68,12 @@ export default function ThreeApp() {
       )}
 
       <SwitchWarningDialog {...versioning.switchWarningDialogProps} />
-      <CloseWarningDialog {...versioning.closeWarningDialogProps} />
+      <CloseWarningDialog
+        {...versioning.closeWarningDialogProps}
+        id={model?.id}
+      />
       <SaveVersionDialog {...versioning.saveVersionDialogProps} />
+      <DeleteVersionDialog {...versioning.deleteVersionDialogProps} />
 
       <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
       <Canvas>

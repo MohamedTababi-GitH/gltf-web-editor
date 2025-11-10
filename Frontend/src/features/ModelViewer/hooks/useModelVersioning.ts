@@ -13,8 +13,12 @@ export const useModelVersioning = (
   const [versionName, setVersionName] = useState("");
   const [selectedVersion, setSelectedVersion] = useState<StateFile>();
   const [versionToSwitch, setVersionToSwitch] = useState<StateFile>();
+  const [versionToDelete, setVersionToDelete] = useState<StateFile>();
   const [showSwitchWarning, setShowSwitchWarning] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [showDeleteVersionWarning, setShowDeleteVersionWarning] =
+    useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { model, setModel } = useModel();
   const apiClient = useAxiosConfig();
   const { resetStacks } = useHistory();
@@ -97,17 +101,27 @@ export const useModelVersioning = (
     resetStacks();
   };
 
-  const handleDeleteVersion = async (file: StateFile) => {
-    if (!model?.assetId || !file?.version) return;
+  const handleDeleteVersionClick = (
+    file: React.SetStateAction<StateFile | undefined>,
+  ) => {
+    setShowDeleteVersionWarning(true);
+    setVersionToDelete(file);
+  };
+
+  const handleDeleteVersion = useCallback(async () => {
+    if (!model?.assetId || !versionToDelete) return;
     try {
+      setIsDeleting(true);
       await apiClient.delete(
-        `/api/model/${model?.assetId}/state/${file?.version}`,
+        `/api/model/${model?.assetId}/state/${versionToDelete?.version}`,
       );
       await refetchModel();
     } catch (error) {
       console.error("Error deleting model version:", error);
+    } finally {
+      setIsDeleting(false);
     }
-  };
+  }, [apiClient, model?.assetId, refetchModel, versionToDelete]);
 
   return {
     versionModalOpen,
@@ -120,11 +134,14 @@ export const useModelVersioning = (
     setShowSwitchWarning,
     showCloseWarning,
     setShowCloseWarning,
+    showDeleteVersionWarning,
+    setShowDeleteVersionWarning,
     saveModel,
     handleSwitch,
     handleVersionClick,
     handleDeleteVersion,
     sortedFiles,
+    handleDeleteVersionClick,
     switchWarningDialogProps: {
       showSwitchWarning,
       setShowSwitchWarning,
@@ -144,6 +161,13 @@ export const useModelVersioning = (
       versionName,
       setVersionName,
       saveModel,
+    },
+    deleteVersionDialogProps: {
+      showDeleteVersionWarning,
+      setShowDeleteVersionWarning,
+      handleDeleteVersion,
+      isDeleting,
+      versionToDelete,
     },
   };
 };
