@@ -106,11 +106,33 @@ public interface IModelStorage
         string contentType,
         IDictionary<string, string>? metadata = null,
         CancellationToken ct = default);
-    
+
     /// <summary>
-    /// Deletes all blobs under {assetId}/state/{version}/.
-    /// Returns the number of deleted blobs (0 if the version folder was empty or missing).
+    /// Deletes all blobs belonging to a specific saved state version of a model.
     /// </summary>
+    /// <param name="assetId">
+    /// The identifier of the asset (folder) whose versioned state should be deleted.
+    /// </param>
+    /// <param name="version">
+    /// The version label corresponding to the state folder (for example, <c>"v1"</c> or <c>"test4"</c>).
+    /// </param>
+    /// <param name="ct">
+    /// A <see cref="CancellationToken"/> that can be used to cancel the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// The number of blobs that were successfully deleted.
+    /// Returns <c>0</c> if the specified version folder was empty or not found.
+    /// </returns>
     Task<int> DeleteStateVersionAsync(string assetId, string version, CancellationToken ct);
+
+    /// <summary>
+    /// Retrieves a single model file and its associated metadata by its unique identifier.
+    /// </summary>
+    /// <param name="id">The globally unique identifier (GUID) of the model to retrieve.</param>
+    /// <param name="ct">A <see cref="CancellationToken"/> that can be used to cancel the operation.</param>
+    /// <returns>
+    /// A <see cref="ModelFile"/> instance containing the model’s details and related files,
+    /// or <c>null</c> if no model with the specified identifier exists.
+    /// </returns>
     Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct);
 }

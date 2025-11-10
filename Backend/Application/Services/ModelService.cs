@@ -21,7 +21,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
 
     #region Locking and Unlocking
-    //Authour: Zou
+
     /// <summary>
     /// Locks a model in memory to prevent other operations (such as delete or update) 
     /// from being executed concurrently on the same model.
@@ -34,6 +34,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         _mutex.AcquireLock(id);
     }
+
     /// <summary>
     /// Releases the lock for a model, allowing other operations to access or modify it again.
     /// </summary>
@@ -42,7 +43,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         _mutex.ReleaseLock(id);
     }
-    
+
     /// <summary>
     /// Extends the duration of an existing lock, proving the client is still active.
     /// </summary>
@@ -51,11 +52,29 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         _mutex.Heartbeat(id);
     }
-    // -----
+
     #endregion
 
     #region CRUD Operations
 
+    /// <summary>
+    /// Retrieves a single model by its unique identifier and maps it to a <see cref="ModelItemDto"/>.
+    /// </summary>
+    /// <param name="id">The unique identifier (GUID) of the model to retrieve.</param>
+    /// <param name="cancellationToken">A token that can be used to cancel the asynchronous operation.</param>
+    /// <returns>
+    /// A <see cref="ModelItemDto"/> containing the model’s metadata, state files, baseline, and associated resources.
+    /// </returns>
+    /// <exception cref="ValidationException">
+    /// Thrown when the provided model ID is empty or invalid.
+    /// </exception>
+    /// <exception cref="NotFoundException">
+    /// Thrown when no model with the specified ID exists in storage.
+    /// </exception>
+    /// <remarks>
+    /// This method acts as the service-layer entry point for fetching a model by ID,
+    /// coordinating retrieval from the storage layer and mapping the result to a DTO for API response.
+    /// </remarks>
     public async Task<ModelItemDto> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
@@ -223,7 +242,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
             Message = "Updated successfully."
         };
     }
-    
+
     /// <summary>
     /// Clears or updates the <c>isNew</c> flag for a model so that it no longer appears as "new" in the UI.
     /// </summary>
@@ -249,9 +268,9 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     {
         if (id == Guid.Empty)
             throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
-        
+
         var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
-        
+
         if (!updated)
             throw new NotFoundException(
                 $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
@@ -261,6 +280,6 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
             Message = ""
         };
     }
-    
+
     #endregion
 }

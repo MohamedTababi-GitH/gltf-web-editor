@@ -67,9 +67,14 @@ public sealed class ModelItemDto
     public List<AdditionalFileDto>? AdditionalFiles { get; init; }
 
     /// <summary>
-    /// Gets the list of state files associated with the model.
+    /// Gets the collection of saved state snapshots for this model.
+    /// Each state represents a versioned configuration of the model.
     /// </summary>
     public List<StateFileDto>? StateFiles { get; init; }
-    
+
+    /// <summary>
+    /// Gets or sets the baseline file associated with this model.
+    /// The baseline represents the reference or default configuration used for comparison.
+    /// </summary>
     public BaselineFileDto? Baseline { get; set; }
 }

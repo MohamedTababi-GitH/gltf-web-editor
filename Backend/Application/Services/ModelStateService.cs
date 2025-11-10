@@ -93,7 +93,7 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
             throw new ValidationException("StateJson must be valid JSON.");
         }
 
-        // 2. Enforce size ceiling (defense-in-depth in case controller attr changes)
+        // Enforce size ceiling (defense-in-depth in case controller attr changes)
         var jsonBytes = System.Text.Encoding.UTF8.GetBytes(requestDto.StateJson);
         if (jsonBytes.Length > 1_000_000) // 1 MB
             throw new ValidationException("StateJson is too large.");
@@ -132,6 +132,34 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
         };
     }
 
+    /// <summary>
+    /// Deletes a specific saved state version (or the latest working copy) for a given asset.
+    /// </summary>
+    /// <param name="assetId">
+    /// The unique identifier of the asset whose state version should be deleted.
+    /// </param>
+    /// <param name="version">
+    /// The version label to delete (for example, <c>"v2"</c>, <c>"test4"</c>, or <c>"state"</c> for the working copy).
+    /// </param>
+    /// <param name="cancellationToken">
+    /// A <see cref="CancellationToken"/> that can be used to cancel the asynchronous operation.
+    /// </param>
+    /// <returns>
+    /// A <see cref="DeleteStateVersionResultDto"/> describing the result of the delete operation,
+    /// including the asset ID, deleted version name, and the number of blobs removed.
+    /// </returns>
+    /// <exception cref="ValidationException">
+    /// Thrown when <paramref name="assetId"/> or <paramref name="version"/> is null, empty, or whitespace.
+    /// </exception>
+    /// <exception cref="NotFoundException">
+    /// Thrown when the specified version or working copy could not be found for the given asset.
+    /// </exception>
+    /// <remarks>
+    /// This method delegates the actual blob deletion to the storage layer, ensuring that
+    /// only versioned or baseline state files under the asset’s folder are affected.
+    /// It supports both named versions (e.g., <c>/state/v1/state.json</c>) and the
+    /// unversioned working copy (e.g., <c>/state/state.json</c>).
+    /// </remarks>
     public async Task<DeleteStateVersionResultDto> DeleteVersionAsync(
         string assetId,
         string version,
@@ -169,5 +197,4 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
             DeletedBlobs = deletedCount
         };
     }
-    
 }
