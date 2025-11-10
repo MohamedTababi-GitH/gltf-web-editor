@@ -52,7 +52,16 @@ public sealed class ModelMapper : IModelMapper
                 SizeBytes = s.SizeBytes,
                 CreatedOn = s.CreatedOn,
                 ContentType = s.ContentType
-            }).ToList()
+            }).ToList(),
+            
+            Baseline = source.Baseline is null ? null : new BaselineFileDto
+            {
+            Name = source.Baseline.Name,
+            Url = source.Baseline.Url,
+            SizeBytes = source.Baseline.SizeBytes,
+            CreatedOn = source.Baseline.CreatedOn,
+            ContentType = source.Baseline.ContentType
+            }
         };
     }
 }

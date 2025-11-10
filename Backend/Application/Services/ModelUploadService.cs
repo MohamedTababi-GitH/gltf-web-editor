@@ -299,6 +299,43 @@ public class ModelUploadService(IModelStorage storage) : IModelUploadService
 
             await storage.UploadAsync(blobName, content, contentType, metadata, cancellationToken);
         }
+        
+        if (!string.IsNullOrWhiteSpace(requestDto.BaselineJson))
+        {
+            // Validate JSON
+            try
+            {
+                System.Text.Json.JsonDocument.Parse(requestDto.BaselineJson);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                throw new ValidationException("BaselineJson must be valid JSON.");
+            }
+
+            // Enforce size ceiling (1 MB)
+            var baselineBytes = System.Text.Encoding.UTF8.GetBytes(requestDto.BaselineJson);
+            if (baselineBytes.Length > 1_000_000)
+                throw new ValidationException("BaselineJson is too large.");
+
+            // Upload (overwrite if exists)
+            var baselineBlob = $"{assetId}/baseline/baseline.json";
+            using var ms = new MemoryStream(baselineBytes);
+
+            var baselineMetadata = new Dictionary<string, string>
+            {
+                ["UploadedAtUtc"] = DateTime.UtcNow.ToString("O"),
+                ["assetId"] = assetId,
+                ["isBaselineFile"] = "true"
+            };
+
+            await storage.UploadOrOverwriteAsync(
+                blobName: baselineBlob,
+                content: ms,
+                contentType: "application/json",
+                metadata: baselineMetadata,
+                ct: cancellationToken);
+        }
+
 
         return new UploadResultDto
         {

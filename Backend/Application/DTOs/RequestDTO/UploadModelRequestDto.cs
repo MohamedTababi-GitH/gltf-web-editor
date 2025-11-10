@@ -33,4 +33,6 @@ public sealed class UploadModelRequestDto
     /// Gets the description of the model.
     /// </summary>
     public string? Description { get; init; }
+    
+    public string? BaselineJson { get; init; }
 }
