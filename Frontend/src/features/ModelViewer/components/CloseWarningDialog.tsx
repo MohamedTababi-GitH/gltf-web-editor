@@ -16,9 +16,8 @@ type CloseWarningDialogProps = {
   setShowCloseWarning: (show: boolean) => void;
   saveModel: (version?: string) => void;
   selectedVersion?: StateFile;
-};
   id?: string;
-}
+};
 
 export function CloseWarningDialog({
   showCloseWarning,
