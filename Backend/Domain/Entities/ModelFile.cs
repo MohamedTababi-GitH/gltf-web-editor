@@ -71,6 +71,13 @@ public class ModelFile
     /// Gets the collection of saved state files associated with this model.
     /// </summary>
     public List<StateFile>? StateFiles { get; init; }
-    
+
+    /// <summary>
+    /// Gets the baseline state file associated with this model, if available.
+    /// </summary>
+    /// <remarks>
+    /// The baseline is stored as a single JSON file under the <c>/baseline/baseline.json</c> path
+    /// and serves as a reference or default state for the model.
+    /// </remarks>
     public StateFile? Baseline { get; init; }
 }
