@@ -1,6 +1,5 @@
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
-using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
 
 namespace ECAD_Backend.Application.Interfaces;
@@ -19,19 +18,19 @@ public interface IModelService
     /// Thrown if the model is already locked by another user or process.
     /// </exception>
     void LockModel(Guid id);
-    
+
     /// <summary>
     /// Releases the lock for a model, allowing other operations to access or modify it again.
     /// </summary>
     /// <param name="id">The unique model identifier.</param>
     void UnlockModel(Guid id);
-    
+
     /// <summary>
     /// Extends the duration of an existing lock, proving the client is still active.
     /// </summary>
     /// <param name="id">The unique model identifier.</param>
     void Heartbeat(Guid id);
-    
+
     /// <summary>
     /// Retrieves a read-only list of model items asynchronously.
     /// </summary>
@@ -81,7 +80,7 @@ public interface IModelService
         Guid id,
         CancellationToken cancellationToken
     );
-    
+
     /// <summary>
     /// Retrieves a specific model by its unique identifier.
     /// </summary>
