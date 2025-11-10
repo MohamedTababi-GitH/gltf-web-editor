@@ -23,25 +23,25 @@ export const PositionInput = ({
       committedByEnter.current = false;
       return;
     }
-    const parsed = parseFloat(localValue);
-    if (!isNaN(parsed)) {
-      if (parsed.toFixed(3) !== parseFloat(value).toFixed(3)) {
+    const parsed = Number.parseFloat(localValue);
+    if (Number.isNaN(parsed)) {
+      setLocalValue(value);
+    } else {
+      if (parsed.toFixed(3) !== Number.parseFloat(value).toFixed(3)) {
         onCommit(parsed);
       }
-    } else {
-      setLocalValue(value);
     }
   };
 
   const commitOnEnter = () => {
-    const parsed = parseFloat(localValue);
-    if (!isNaN(parsed)) {
-      if (parsed.toFixed(3) !== parseFloat(value).toFixed(3)) {
+    const parsed = Number.parseFloat(localValue);
+    if (Number.isNaN(parsed)) {
+      setLocalValue(value);
+    } else {
+      if (parsed.toFixed(3) !== Number.parseFloat(value).toFixed(3)) {
         committedByEnter.current = true;
         onCommit(parsed);
       }
-    } else {
-      setLocalValue(value);
     }
   };
 

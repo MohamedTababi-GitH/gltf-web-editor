@@ -101,7 +101,10 @@ class NotificationManagerService {
   }
 
   private generateId(): string {
-    return `notification-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    const crypto = window.crypto;
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return `notification-${Date.now()}-${crypto.getRandomValues(array).toString().substring(2, 11)}`;
   }
 
   private notifySubscribers(): void {
