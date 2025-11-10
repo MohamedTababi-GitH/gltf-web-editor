@@ -10,12 +10,12 @@ import { Button } from "@/shared/components/button.tsx";
 import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 
-interface CloseWarningDialogProps {
+type CloseWarningDialogProps = {
   showCloseWarning: boolean;
   setShowCloseWarning: (show: boolean) => void;
   saveModel: (version?: string) => void;
   selectedVersion?: StateFile;
-}
+};
 
 export function CloseWarningDialog({
   showCloseWarning,

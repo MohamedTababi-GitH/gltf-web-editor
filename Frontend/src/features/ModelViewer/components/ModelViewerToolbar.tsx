@@ -29,7 +29,7 @@ import * as THREE from "three";
 import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useNavigation } from "@/shared/contexts/NavigationContext";
 
-interface ModelViewerToolbarProps {
+type ModelViewerToolbarProps = {
   setVersionModalOpen: (open: boolean) => void;
   selectedVersion: StateFile | undefined;
   setShowCloseWarning: (show: boolean) => void;
@@ -47,7 +47,7 @@ interface ModelViewerToolbarProps {
   redo: () => void;
   groupRef: React.RefObject<THREE.Group | null>;
   cursorTools: { name: string; shortcut: string }[];
-}
+};
 
 export function ModelViewerToolbar({
   setVersionModalOpen,

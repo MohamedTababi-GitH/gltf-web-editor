@@ -195,7 +195,7 @@ const AppSidebar = () => {
                         className="w-40 cursor-pointer"
                       />
                       <span className="text-xs w-8 text-right">
-                        {Math.round(mesh.opacity ? mesh.opacity * 100 : 100)}%
+                        {Math.round((mesh.opacity ?? 1) * 100)}%
                       </span>
                     </div>
                   </SidebarMenuItem>
