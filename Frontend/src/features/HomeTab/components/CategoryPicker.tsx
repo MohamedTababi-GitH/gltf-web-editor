@@ -11,10 +11,10 @@ import { Checkbox } from "@/shared/components/checkbox.tsx";
 import { Badge } from "@/shared/components/badge.tsx";
 import React from "react";
 
-interface CategoryPickerProps {
+type CategoryPickerProps = {
   categories: Category[];
   setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
-}
+};
 
 export const CategoryPicker = ({
   categories,

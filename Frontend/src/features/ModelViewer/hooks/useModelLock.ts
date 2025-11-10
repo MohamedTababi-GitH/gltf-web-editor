@@ -1,8 +1,15 @@
 import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useEffect } from "react";
 import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
+import { formatDateTime } from "@/shared/utils/DateTime.ts";
 
-export const useModelLock = (id: string | undefined) => {
+type ModelLockProps = {
+  saveModel: (version?: string) => void;
+  id: string | undefined;
+  canUndo: boolean;
+};
+
+export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
   const { heartbeat, unlockModel } = useMutex();
   const { setIsModelViewer } = useNavigation();
   const heartbeatDuration = 90000;
@@ -34,11 +41,15 @@ export const useModelLock = (id: string | undefined) => {
       const idleTime = Date.now() - lastActivity;
 
       if (idleTime > idleTimeout) {
+        if (canUndo) {
+          const versionName = `AutoSave at ${formatDateTime(new Date().toISOString()).timeStr}`;
+          saveModel(versionName);
+        }
         await unlockModel(id);
         setIsModelViewer(false);
         clearInterval(checkIdle);
       }
-    }, 30000);
+    }, 10000);
 
     return () => {
       globalThis.removeEventListener("mousemove", resetTimer);
@@ -48,7 +59,7 @@ export const useModelLock = (id: string | undefined) => {
       globalThis.removeEventListener("touchmove", resetTimer);
       clearInterval(checkIdle);
     };
-  }, [id, unlockModel, setIsModelViewer, idleTimeout]);
+  }, [id, unlockModel, setIsModelViewer, idleTimeout, saveModel, canUndo]);
 
   useEffect(() => {
     if (!id) return;

@@ -46,8 +46,8 @@ export const useModelItem = ({
       await apiClient.put(`/api/model/${item.id}/details`, {
         isFavourite: newFavoriteStatus,
         newAlias: item.name,
-        description: item.description,
-        categories: item.categories,
+        description: item.description || null,
+        categories: item.categories?.length > 0 ? item.categories : null,
       });
       refreshList();
     } catch {

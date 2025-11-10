@@ -29,13 +29,13 @@ import * as THREE from "three";
 import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useNavigation } from "@/shared/contexts/NavigationContext";
 
-interface ModelViewerToolbarProps {
+type ModelViewerToolbarProps = {
   setVersionModalOpen: (open: boolean) => void;
   selectedVersion: StateFile | undefined;
   setShowCloseWarning: (show: boolean) => void;
+  handleDeleteVersionClick: (file: StateFile) => void;
   saveModel: (version?: string) => void;
   handleVersionClick: (version: StateFile, canUndo: boolean) => void;
-  handleDeleteVersion: (version: StateFile) => void;
   sortedFiles: StateFile[];
   undoShortcut: string;
   redoShortcut: string;
@@ -47,15 +47,15 @@ interface ModelViewerToolbarProps {
   redo: () => void;
   groupRef: React.RefObject<THREE.Group | null>;
   cursorTools: { name: string; shortcut: string }[];
-}
+};
 
 export function ModelViewerToolbar({
   setVersionModalOpen,
   selectedVersion,
   setShowCloseWarning,
+  handleDeleteVersionClick,
   saveModel,
   handleVersionClick,
-  handleDeleteVersion,
   sortedFiles,
   undoShortcut,
   redoShortcut,
@@ -276,7 +276,7 @@ export function ModelViewerToolbar({
                         <TooltipTrigger asChild={true}>
                           <Button
                             onClick={() => {
-                              handleDeleteVersion(file);
+                              handleDeleteVersionClick(file);
                             }}
                             className="flex items-center px-2 py-2 rounded-md bg-muted transition h-full border hover:bg-destructive/60 text-sidebar-foreground/70"
                           >

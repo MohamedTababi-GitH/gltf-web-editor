@@ -70,7 +70,16 @@ export default function ModelUploadDialog({
     setRequiredFiles,
   ]);
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          resetFields();
+          fileUpload.removeFile();
+        }
+        handleOpenChange(open);
+      }}
+    >
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Upload 3D Model</DialogTitle>
