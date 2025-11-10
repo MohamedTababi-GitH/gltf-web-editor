@@ -1,6 +1,7 @@
 import React, {
   type Dispatch,
   type SetStateAction,
+  useCallback,
   useEffect,
   useState,
 } from "react";
@@ -40,7 +41,7 @@ export const useKeyboardShortcuts = ({
     setSaveAsShortcut(isMac ? "⌘+Shift+S" : "Ctrl+Shift+S");
   }, []);
 
-  const handleSave = (): void => {
+  const handleSave = useCallback((): void => {
     if (canUndo && groupRef) {
       if (selectedVersion?.version === "Default") {
         saveModel();
@@ -48,19 +49,22 @@ export const useKeyboardShortcuts = ({
         saveModel(selectedVersion?.version);
       }
     }
-  };
+  }, [canUndo, groupRef, saveModel, selectedVersion?.version]);
 
-  const handleToolSelect = (key: string): boolean => {
-    const tool = tools?.find(
-      (t) => t.shortcut.toLowerCase() === key.toLowerCase(),
-    );
+  const handleToolSelect = useCallback(
+    (key: string): boolean => {
+      const tool = tools?.find(
+        (t) => t.shortcut.toLowerCase() === key.toLowerCase(),
+      );
 
-    if (tool) {
-      setSelectedTool(tool.name);
-      return true;
-    }
-    return false;
-  };
+      if (tool) {
+        setSelectedTool(tool.name);
+        return true;
+      }
+      return false;
+    },
+    [setSelectedTool],
+  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
