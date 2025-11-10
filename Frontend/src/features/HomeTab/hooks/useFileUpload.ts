@@ -8,6 +8,22 @@ type FileUploadProps = {
   maxFiles?: number;
 };
 
+const getUrisFromGltfList = (
+  resources: { uri?: string }[] | undefined,
+): string[] => {
+  if (!resources || !Array.isArray(resources)) {
+    return [];
+  }
+
+  const uris: string[] = [];
+  for (const resource of resources) {
+    if (resource.uri) {
+      uris.push(resource.uri);
+    }
+  }
+  return uris;
+};
+
 const parseGLTF = (file: File): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -24,25 +40,11 @@ const parseGLTF = (file: File): Promise<string[]> => {
             : new TextDecoder().decode(new Uint8Array(event.target.result));
 
         const gltf = JSON.parse(text);
-        const uris: string[] = [];
 
-        if (gltf.buffers && Array.isArray(gltf.buffers)) {
-          for (const buffer of gltf.buffers) {
-            if (buffer.uri) {
-              uris.push(buffer.uri);
-            }
-          }
-        }
+        const bufferUris = getUrisFromGltfList(gltf.buffers);
+        const imageUris = getUrisFromGltfList(gltf.images);
 
-        if (gltf.images && Array.isArray(gltf.images)) {
-          for (const image of gltf.images) {
-            if (image.uri) {
-              uris.push(image.uri);
-            }
-          }
-        }
-
-        resolve(uris);
+        resolve([...bufferUris, ...imageUris]);
       } catch (error) {
         console.error("Error parsing GLTF:", error);
         reject(error);

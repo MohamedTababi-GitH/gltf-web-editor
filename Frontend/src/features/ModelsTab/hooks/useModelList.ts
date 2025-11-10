@@ -109,7 +109,7 @@ export const useModelList = () => {
       isPreload: boolean,
       totalCount: number,
     ) => {
-      const data = (responseData.items as ModelItem[]) || [];
+      const data = responseData.items || [];
       const nextCursor = responseData.nextCursor || null;
       const newHasMore = responseData.hasMore;
 
