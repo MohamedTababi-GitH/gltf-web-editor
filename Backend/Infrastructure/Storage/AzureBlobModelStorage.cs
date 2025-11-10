@@ -2,7 +2,6 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using ECAD_Backend.Application.DTOs.Filter;
-using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Cursor;
@@ -13,9 +12,18 @@ using Microsoft.Extensions.Options;
 namespace ECAD_Backend.Infrastructure.Storage;
 
 /// <summary>
-/// Azure Blob Storage implementation of <see cref="IModelStorage"/>.
-/// Provides methods to upload and list model files stored in an Azure Blob Storage container.
+/// Provides a concrete implementation of <see cref="IModelStorage"/> backed by Azure Blob Storage.
 /// </summary>
+/// <remarks>
+/// This class encapsulates all data-access logic related to 3D model storage and retrieval
+/// using Azure Blob Storage.  
+/// It supports reading, writing, listing, and deleting model files, along with associated
+/// metadata, state files, and baselines.  
+/// <para>
+/// The class is initialized with a <see cref="BlobContainerClient"/> pointing to the configured container,
+/// created either from a full SAS URL or from a standard Azure Storage connection string.
+/// </para>
+/// </remarks>
 public class AzureBlobModelStorage : IModelStorage
 {
     private const string DefaultContentType = "application/octet-stream";
@@ -25,21 +33,34 @@ public class AzureBlobModelStorage : IModelStorage
     private const string MetaDescription = "description";
     private const string MetaIsFavourite = "isFavourite";
     private const string MetaIsNew = "isNew";
-
     private const string MetaAssetId = "assetId";
-    // private const string MetaUploadedAtUtc = "UploadedAtUtc";
-    // private const string MetaBasename = "basename";
 
     #region Initialisation & Constructor
 
-    // Represents a specific blob container within the Azure Storage account
+    /// <summary>
+    /// Represents the Azure Blob container client used to perform all blob operations.
+    /// </summary>
     private readonly BlobContainerClient _container;
+
+    /// <summary>
+    /// Provides utilities for serializing and deserializing opaque pagination cursors.
+    /// </summary>
     private readonly ICursorSerializer _cursor;
 
-    // Cached container URL parts for SAS-preserving links
-    // private readonly string? _baseUri; // https://.../container
-    // private readonly string? _sasQuery; // ?sp=...&sig=...
-
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureBlobModelStorage"/> class
+    /// using the provided storage configuration and cursor serializer.
+    /// </summary>
+    /// <param name="opts">The strongly typed blob storage configuration options.</param>
+    /// <param name="cursor">The service responsible for encoding and decoding pagination cursors.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the connection string is missing or invalid in the configuration.
+    /// </exception>
+    /// <remarks>
+    /// The constructor supports both SAS URLs (read/write access via shared access signatures)
+    /// and standard Azure Storage connection strings.
+    /// When a SAS URL is provided, it is used directly to instantiate the <see cref="BlobContainerClient"/>.
+    /// </remarks>
     public AzureBlobModelStorage(IOptions<BlobOptions> opts, ICursorSerializer cursor)
     {
         _cursor = cursor;
@@ -67,6 +88,19 @@ public class AzureBlobModelStorage : IModelStorage
 
     #region CRUD Methods
 
+    /// <summary>
+    /// Lists stored model entries with server-side pagination, applying the provided filter,
+    /// and returns an opaque cursor for subsequent pages.
+    /// </summary>
+    /// <param name="limit">Maximum number of items to return (1–500 recommended).</param>
+    /// <param name="cursorRaw">
+    /// Optional opaque cursor produced by a previous call; resumes scanning after the last emitted item.
+    /// </param>
+    /// <param name="filterDto">Filter criteria (format, categories, favourites, prefix, search, etc.).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A tuple containing the current page of <see cref="ModelFile"/> items and the next page cursor (or <c>null</c>).
+    /// </returns>
     public async Task<(IReadOnlyList<ModelFile> Items, string? NextCursor)> ListPageAsync(
         int limit, string? cursorRaw, ModelFilterDto filterDto, CancellationToken ct = default)
     {
@@ -141,6 +175,22 @@ public class AzureBlobModelStorage : IModelStorage
         return (items, null);
     }
 
+    /// <summary>
+    /// Uploads a blob to Azure Storage at the specified path with metadata and content type,
+    /// enforcing no-overwrite semantics.
+    /// </summary>
+    /// <param name="blobName">The destination blob name (e.g., <c>{assetId}/model.glb</c>).</param>
+    /// <param name="content">The content stream to upload (caller owns lifetime).</param>
+    /// <param name="contentType">The MIME type to set on the blob (falls back to <c>application/octet-stream</c>).</param>
+    /// <param name="metadata">
+    /// Optional metadata to associate with the blob. An internal <c>Id</c> will be stamped if missing.
+    /// </param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="blobName"/> is null or whitespace.</exception>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="content"/> is null.</exception>
+    /// <remarks>
+    /// Uses an <see cref="ETag"/> precondition (<c>If-None-Match: *</c>) to prevent overwriting existing blobs.
+    /// </remarks>
     public async Task UploadAsync(
         string blobName,
         Stream content,
@@ -173,6 +223,19 @@ public class AzureBlobModelStorage : IModelStorage
         await blobClient.UploadAsync(content, options, ct);
     }
 
+    /// <summary>
+    /// Deletes an entire model by its unique <c>Id</c>, removing the whole
+    /// <c>{assetId}/</c> folder when available, or the individual blob otherwise.
+    /// </summary>
+    /// <param name="id">The model GUID stored in metadata (<c>Id</c>).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> if any blob was deleted; otherwise <see langword="false"/> if no matching model was found.
+    /// </returns>
+    /// <remarks>
+    /// Scans blobs (including metadata) to locate a match. If the entry blob contains an <c>assetId</c>,
+    /// <see cref="DeleteByAssetIdAsync"/> is invoked to delete the entire virtual folder.
+    /// </remarks>
     public async Task<bool> DeleteByIdAsync(
         Guid id,
         CancellationToken ct = default)
@@ -203,6 +266,16 @@ public class AzureBlobModelStorage : IModelStorage
         return anyDeleted;
     }
 
+    /// <summary>
+    /// Deletes all blobs under the virtual folder <c>{assetId}/</c>.
+    /// </summary>
+    /// <param name="assetId">The asset folder key (prefix) to delete.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The number of blobs that were deleted.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="assetId"/> is null or whitespace.</exception>
+    /// <remarks>
+    /// This operation removes the model entry, baseline, state versions, and any additional files under the prefix.
+    /// </remarks>
     public async Task<int> DeleteByAssetIdAsync(
         string assetId,
         CancellationToken ct = default)
@@ -224,6 +297,22 @@ public class AzureBlobModelStorage : IModelStorage
         return count;
     }
 
+    /// <summary>
+    /// Updates entry-blob metadata (alias, categories, description, favourite flag) and marks the model as not new.
+    /// </summary>
+    /// <param name="id">The model GUID stored in blob metadata (<c>Id</c>).</param>
+    /// <param name="newAlias">New alias or <c>null</c> to remove.</param>
+    /// <param name="categories">New categories or <c>null</c> to remove.</param>
+    /// <param name="description">New description or <c>null</c> to remove.</param>
+    /// <param name="isFavourite">New favourite flag, or <c>null</c> to remove.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> if at least one matching entry blob was updated; otherwise <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// Only the entry model blob (<c>.glb</c> or <c>.gltf</c>) is updated.  
+    /// Sets <c>isNew=false</c> to indicate the model has been opened/edited.
+    /// </remarks>
     public async Task<bool> UpdateDetailsAsync(
         Guid id,
         string? newAlias,
@@ -267,11 +356,6 @@ public class AzureBlobModelStorage : IModelStorage
                 metadata.Remove(MetaIsFavourite);
 
             metadata[MetaIsNew] = "false";
-            // If you want to set the value for isNew:
-            // if(isNew.HasValue)
-            //     metadata[MetaIsNew] = isNew.Value ? "true" : "false";
-            // else
-            //     metadata.Remove(MetaIsNew);
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
             updated = true;
@@ -280,6 +364,105 @@ public class AzureBlobModelStorage : IModelStorage
         return updated;
     }
 
+    /// <summary>
+    /// Retrieves a single model by its unique identifier, including related files (states, baseline, additional).
+    /// </summary>
+    /// <param name="id">The model GUID stored in metadata (<c>Id</c>).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A populated <see cref="ModelFile"/> if found; otherwise <c>null</c>.
+    /// </returns>
+    /// <remarks>
+    /// Scans blobs with metadata to locate the entry, then builds a full <see cref="ModelFile"/> using helpers
+    /// (e.g., <c>BuildModelFileAsync</c> which augments with state files and baseline).
+    /// </remarks>
+    public async Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct)
+    {
+        await foreach (var blob in _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct))
+        {
+            var md = blob.Metadata ?? new Dictionary<string, string>();
+
+            var metaId = TryGetGuidMetadata(md, MetaId);
+            if (metaId.HasValue && metaId.Value == id)
+            {
+                return await BuildModelFileAsync(blob, md, ct);
+            }
+        }
+
+        return null;
+    }
+
+    #endregion
+
+    #region Metadata Operations
+
+    /// <summary>
+    /// Marks a model as no longer new (<c>isNew = false</c>) in its blob metadata.
+    /// </summary>
+    /// <param name="id">The unique identifier (<c>Id</c>) of the model to update.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// Always returns <see langword="true"/> once the update operation completes successfully.
+    /// </returns>
+    /// <remarks>
+    /// This method scans all blobs in the container for one matching the specified model ID
+    /// (from blob metadata).  
+    /// When a matching model entry file (<c>.glb</c> or <c>.gltf</c>) is found, it updates its metadata
+    /// to set <c>isNew</c> to <c>false</c>.  
+    /// This is typically called when a model is first opened or modified, ensuring that it no longer
+    /// appears as “new” in client-facing lists.
+    /// </remarks>
+    /// <example>
+    /// Typical usage:
+    /// <code>
+    /// await storage.UpdateIsNewAsync(modelId, cancellationToken);
+    /// </code>
+    /// </example>
+    public async Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default)
+    {
+        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
+        {
+            if (blob.Metadata == null) continue;
+            if (!TryMatchesId(blob.Metadata, id)) continue;
+
+            var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
+            if (ext != ".glb" && ext != ".gltf") continue;
+
+            var client = _container.GetBlobClient(blob.Name);
+            var properties = await client.GetPropertiesAsync(cancellationToken: ct);
+            var metadata = properties.Value.Metadata;
+
+            metadata[MetaIsNew] = "false";
+
+            await client.SetMetadataAsync(metadata, cancellationToken: ct);
+        }
+
+        return true;
+    }
+
+    #endregion
+
+    #region State Files
+
+    /// <summary>
+    /// Uploads a state or baseline file to Azure Blob Storage, overwriting any existing blob at the same path.
+    /// </summary>
+    /// <param name="blobName">The full blob name (e.g., <c>{assetId}/state/v1/state.json</c> or <c>{assetId}/baseline/baseline.json</c>).</param>
+    /// <param name="content">The stream containing the JSON state data to upload.</param>
+    /// <param name="contentType">
+    /// The MIME type of the uploaded content.  
+    /// Defaults to <c>application/octet-stream</c> if not provided.
+    /// </param>
+    /// <param name="metadata">
+    /// Optional blob metadata to attach.  
+    /// If no <c>Id</c> field is provided, a new GUID is automatically assigned.
+    /// </param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <remarks>
+    /// Unlike <see cref="UploadAsync"/>, this method **allows overwriting** by design.  
+    /// It is typically used for saving user workspace states or baseline snapshots
+    /// that may be updated over time.
+    /// </remarks>
     public async Task UploadOrOverwriteAsync(
         string blobName,
         Stream content,
@@ -313,46 +496,24 @@ public class AzureBlobModelStorage : IModelStorage
         await blobClient.UploadAsync(content, options, ct);
     }
 
-    public async Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default)
-    {
-        await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
-        {
-            if (blob.Metadata == null) continue;
-            if (!TryMatchesId(blob.Metadata, id)) continue;
-
-            var ext = Path.GetExtension(blob.Name).ToLowerInvariant();
-            if (ext != ".glb" && ext != ".gltf") continue;
-
-            var client = _container.GetBlobClient(blob.Name);
-            var properties = await client.GetPropertiesAsync(cancellationToken: ct);
-            var metadata = properties.Value.Metadata;
-
-            metadata[MetaIsNew] = "false";
-
-            await client.SetMetadataAsync(metadata, cancellationToken: ct);
-        }
-
-        return true;
-    }
-
-    public async Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct)
-    {
-        await foreach (var blob in _container.GetBlobsAsync(BlobTraits.Metadata, cancellationToken: ct))
-        {
-            var md = blob.Metadata ?? new Dictionary<string, string>();
-
-            var metaId = TryGetGuidMetadata(md, MetaId);
-            if (metaId.HasValue && metaId.Value == id)
-            {
-                return await BuildModelFileAsync(blob, md, ct);
-            }
-        }
-
-        return null;
-    }
-
-    #endregion
-
+    /// <summary>
+    /// Deletes a specific saved state version for a given asset.
+    /// </summary>
+    /// <param name="assetId">The unique identifier (prefix) of the asset folder.</param>
+    /// <param name="version">
+    /// The name of the version folder (e.g., <c>v2</c>, <c>test4</c>),  
+    /// or <c>state</c>/<c>Default</c> for the latest working copy.
+    /// </param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// The number of deleted blobs (returns <c>0</c> if the version folder was empty or missing).
+    /// </returns>
+    /// <remarks>
+    /// - When <paramref name="version"/> equals <c>state</c> or <c>Default</c>,  
+    ///   the method deletes the working copy file located at <c>{assetId}/state/state.json</c>.  
+    /// - Otherwise, it deletes the entire virtual folder under <c>{assetId}/state/{version}/</c>.  
+    /// This allows clients to manage multiple saved state snapshots per model.
+    /// </remarks>
     public async Task<int> DeleteStateVersionAsync(string assetId, string version, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(assetId))
@@ -400,8 +561,17 @@ public class AzureBlobModelStorage : IModelStorage
         return deleted;
     }
 
+    #endregion
+
     #region Private Helpers
 
+    /// <summary>
+    /// Determines the file format from the blob name based on its file extension.
+    /// </summary>
+    /// <param name="blobName">The blob name or path (e.g., <c>models/myModel.glb</c>).</param>
+    /// <returns>
+    /// The file format (<c>"glb"</c> or <c>"gltf"</c>), or <c>null</c> if the extension is unrecognized.
+    /// </returns>
     private static string? GetFormatOrNull(string blobName)
     {
         if (blobName.EndsWith(".glb", StringComparison.OrdinalIgnoreCase)) return "glb";
@@ -409,6 +579,17 @@ public class AzureBlobModelStorage : IModelStorage
         return null;
     }
 
+    /// <summary>
+    /// Determines whether additional eligible items exist after the current blob
+    /// within the same Azure blob page.
+    /// </summary>
+    /// <param name="values">The collection of blob items on the current page.</param>
+    /// <param name="currentName">The blob name of the most recently emitted model.</param>
+    /// <param name="resume">An optional cursor marker name for pagination.</param>
+    /// <param name="f">The current <see cref="ModelFilterDto"/> used for filtering.</param>
+    /// <returns>
+    /// <see langword="true"/> if another eligible blob exists on the current page; otherwise <see langword="false"/>.
+    /// </returns>
     private bool HasAnotherEligibleInCurrentPage(
         IEnumerable<BlobItem> values, string currentName, string? resume, ModelFilterDto f)
     {
@@ -433,6 +614,15 @@ public class AzureBlobModelStorage : IModelStorage
         return false;
     }
 
+    /// <summary>
+    /// Builds a full, SAS-preserving URI for a blob given its name.
+    /// </summary>
+    /// <param name="blobName">The name (path) of the blob within the container.</param>
+    /// <returns>A <see cref="Uri"/> pointing to the blob.</returns>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="blobName"/> is null or empty.</exception>
+    /// <remarks>
+    /// Ensures no leading slash is present before resolving the URI.
+    /// </remarks>
     private Uri BuildBlobUri(string blobName)
     {
         if (string.IsNullOrWhiteSpace(blobName))
@@ -442,23 +632,60 @@ public class AzureBlobModelStorage : IModelStorage
         return _container.GetBlobClient(blobName).Uri; // includes SAS if the container client has it
     }
 
+    /// <summary>
+    /// Attempts to extract a <see cref="Guid"/> value from blob metadata by key.
+    /// </summary>
+    /// <param name="metadata">The blob metadata dictionary.</param>
+    /// <param name="key">The metadata key to lookup.</param>
+    /// <returns>The parsed <see cref="Guid"/> value, or <c>null</c> if parsing fails.</returns>
     private static Guid? TryGetGuidMetadata(IDictionary<string, string> metadata, string key)
         => metadata.TryGetValue(key, out var idStr) && Guid.TryParse(idStr, out var g) ? g : null;
 
+    /// <summary>
+    /// Reads a string value from metadata or returns <c>null</c> if missing or whitespace.
+    /// </summary>
     private static string? ReadStringMetadataOrNull(IDictionary<string, string> metadata, string key)
         => metadata.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v : null;
 
+    /// <summary>
+    /// Reads a string value from metadata, returning a provided default if missing or invalid.
+    /// </summary>
     private static string ReadStringMetadataOrDefault(IDictionary<string, string> metadata, string key, string @default)
         => ReadStringMetadataOrNull(metadata, key) ?? @default;
 
+    /// <summary>
+    /// Reads and parses a boolean metadata entry.
+    /// </summary>
+    /// <returns><see langword="true"/> if the metadata value exists and parses as true; otherwise false.</returns>
     private static bool ParseBoolMetadata(IDictionary<string, string> metadata, string key)
         => metadata.TryGetValue(key, out var s) && bool.TryParse(s, out var b) && b;
 
+    /// <summary>
+    /// Checks whether a blob’s metadata <c>Id</c> matches the specified model ID.
+    /// </summary>
     private static bool TryMatchesId(IDictionary<string, string> metadata, Guid id)
         => metadata.TryGetValue(MetaId, out var idStr)
            && Guid.TryParse(idStr, out var metaId)
            && metaId == id;
 
+    /// <summary>
+    /// Enumerates all files related to an asset, classifying them as additional files or state snapshots.
+    /// Excludes the main model blob and baseline file.
+    /// </summary>
+    /// <param name="assetId">The asset folder identifier (prefix).</param>
+    /// <param name="entryBlobName">The blob name of the main model file.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A tuple containing:
+    /// <list type="bullet">
+    /// <item><description><c>additional</c> — non-model, non-state, non-baseline blobs.</description></item>
+    /// <item><description><c>state</c> — recognized saved states under <c>{assetId}/state/…/state.json</c>.</description></item>
+    /// </list>
+    /// </returns>
+    /// <remarks>
+    /// Used internally when building a complete <see cref="ModelFile"/> representation
+    /// with associated state and auxiliary files.
+    /// </remarks>
     private async Task<(List<AdditionalFile> additional, List<StateFile> state)> EnumerateFilesAsync(
         string assetId,
         string entryBlobName,
@@ -489,20 +716,20 @@ public class AzureBlobModelStorage : IModelStorage
             {
                 var subUri = BuildBlobUri(sub.Name);
 
-            // Extract timestamp:
-            // Priority: custom metadata["UploadedAtUtc"] we wrote in SaveStateAsync
-            // Fallback: blob.Properties.CreatedOn
-            DateTimeOffset? createdAt = null;
-            if (sub.Metadata != null &&
-                sub.Metadata.TryGetValue("UploadedAtUtc", out var uploadedAtRaw) &&
-                DateTimeOffset.TryParse(uploadedAtRaw, out var dto))
-            {
-                createdAt = dto;
-            }
-            else
-            {
-                createdAt = sub.Properties.CreatedOn;
-            }
+                // Extract timestamp:
+                // Priority: custom metadata["UploadedAtUtc"] we wrote in SaveStateAsync
+                // Fallback: blob.Properties.CreatedOn
+                DateTimeOffset? createdAt;
+                if (sub.Metadata != null &&
+                    sub.Metadata.TryGetValue("UploadedAtUtc", out var uploadedAtRaw) &&
+                    DateTimeOffset.TryParse(uploadedAtRaw, out var dto))
+                {
+                    createdAt = dto;
+                }
+                else
+                {
+                    createdAt = sub.Properties.CreatedOn;
+                }
 
                 stateFiles.Add(new StateFile
                 {
@@ -522,7 +749,7 @@ public class AzureBlobModelStorage : IModelStorage
                 var subUri = BuildBlobUri(sub.Name);
 
                 // Timestamp preference: metadata["UploadedAtUtc"] > blob.Properties.CreatedOn
-                DateTimeOffset? createdAt = null;
+                DateTimeOffset? createdAt;
                 if (sub.Metadata != null &&
                     sub.Metadata.TryGetValue("UploadedAtUtc", out var uploadedAtRaw2) &&
                     DateTimeOffset.TryParse(uploadedAtRaw2, out var dto2))
@@ -548,20 +775,25 @@ public class AzureBlobModelStorage : IModelStorage
         return (additionalFiles, stateFiles);
     }
 
+    /// <summary>
+    /// Extracts the logical version name from a blob path under <c>{assetId}/state/</c>.
+    /// </summary>
+    /// <param name="assetId">The asset identifier prefix.</param>
+    /// <param name="fullBlobName">The full blob name (e.g., <c>{assetId}/state/v2/state.json</c>).</param>
+    /// <returns>
+    /// The version string (e.g., <c>"v2"</c>, <c>"test"</c>),  
+    /// or <c>"Default"</c> if no version subfolder exists.
+    /// </returns>
+    /// <remarks>
+    /// This helper normalizes malformed or missing paths to <c>"Default"</c> for safety.
+    /// </remarks>
     private static string ExtractVersionFromStatePath(string assetId, string fullBlobName)
     {
-        // Example patterns:
-        //   "{assetId}/state/state.json"          → "Default"
-        //   "{assetId}/state/v2/state.json"       → "v2"
-        //   "{assetId}/state/test/state.json"     → "test"
-        //   "{assetId}/state/"                    → "Default"
-        //   anything else                         → "unknown"
-
         var prefix = assetId.TrimEnd('/') + "/state/";
         if (!fullBlobName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             return "unknown";
 
-        var rest = fullBlobName.Substring(prefix.Length); // e.g. "state.json" or "v2/state.json"
+        var rest = fullBlobName.Substring(prefix.Length);
 
         // No subfolder → Default
         if (string.IsNullOrWhiteSpace(rest) ||
@@ -571,7 +803,7 @@ public class AzureBlobModelStorage : IModelStorage
             return "Default";
         }
 
-        // Foldered version case: "{version}/state.json"
+        // Folder version case: "{version}/state.json"
         var slashIdx = rest.IndexOf('/');
         if (slashIdx > 0)
         {
@@ -586,6 +818,19 @@ public class AzureBlobModelStorage : IModelStorage
         return "Default";
     }
 
+    /// <summary>
+    /// Checks whether a blob matches the provided filter criteria.
+    /// </summary>
+    /// <param name="filterDto">The active model filter DTO.</param>
+    /// <param name="blob">The blob item to inspect.</param>
+    /// <param name="md">The blob metadata dictionary.</param>
+    /// <returns>
+    /// <see langword="true"/> if the blob passes all filtering rules; otherwise <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// Used during listing and counting operations to apply client-side filters on metadata,
+    /// such as format, category, favourite flag, or fuzzy query matching.
+    /// </remarks>
     private static bool Matches(ModelFilterDto filterDto, BlobItem blob, IDictionary<string, string> md)
     {
         var format = GetFormatOrNull(blob.Name);
@@ -637,6 +882,12 @@ public class AzureBlobModelStorage : IModelStorage
         return true;
     }
 
+    /// <summary>
+    /// Counts how many blobs match the given <see cref="ModelFilterDto"/> conditions.
+    /// </summary>
+    /// <param name="filterDto">Filtering options to apply (format, favourite, category, etc.).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The number of matching blobs in the container.</returns>
     public async Task<int> CountAsync(ModelFilterDto filterDto, CancellationToken ct = default)
     {
         int count = 0;
@@ -656,6 +907,19 @@ public class AzureBlobModelStorage : IModelStorage
         return count;
     }
 
+
+    /// <summary>
+    /// Builds a <see cref="ModelFile"/> object from a blob and its metadata,
+    /// enriching it with additional, state, and baseline file information.
+    /// </summary>
+    /// <param name="blob">The entry blob representing the model file.</param>
+    /// <param name="md">The associated metadata dictionary.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A populated <see cref="ModelFile"/> instance.</returns>
+    /// <remarks>
+    /// Central method used when listing or retrieving models by ID.
+    /// Calls <see cref="EnumerateFilesAsync"/> to gather related assets and <see cref="GetBaselineAsync"/> for baseline info.
+    /// </remarks>
     private async Task<ModelFile> BuildModelFileAsync(
         BlobItem blob,
         IDictionary<string, string> md,
@@ -698,6 +962,19 @@ public class AzureBlobModelStorage : IModelStorage
         };
     }
 
+    /// <summary>
+    /// Retrieves the baseline file (if present) for the specified asset.
+    /// </summary>
+    /// <param name="assetId">The asset identifier (folder prefix).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// A <see cref="StateFile"/> representing the baseline snapshot,
+    /// or <c>null</c> if no baseline file exists.
+    /// </returns>
+    /// <remarks>
+    /// Looks for <c>{assetId}/baseline/baseline.json</c> and returns its metadata and URL.
+    /// This file represents the model’s saved baseline state, distinct from state versions.
+    /// </remarks>
     private async Task<StateFile?> GetBaselineAsync(string assetId, CancellationToken ct)
     {
         var blobName = $"{assetId.TrimEnd('/')}/baseline/baseline.json";
@@ -718,7 +995,7 @@ public class AzureBlobModelStorage : IModelStorage
                 ContentType = props.Value.ContentType
             };
         }
-        catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+        catch (RequestFailedException ex) when (ex.Status == 404)
         {
             return null; // no baseline present
         }

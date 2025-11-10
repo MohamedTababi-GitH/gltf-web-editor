@@ -11,7 +11,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace ECAD_Backend.Web.Controllers;
 
 /// <summary>
-/// Handles API requests related to model files.
+/// Handles API requests related to 3D model lifecycle: upload, list, retrieval,
+/// metadata updates, deletion, and state/baseline management. Also exposes lightweight
+/// concurrency controls (lock/heartbeat/unlock) for safe edits.
 /// </summary>
 [ApiController]
 [Route("api/model")]
@@ -21,13 +23,6 @@ public class ModelController : ControllerBase
     private readonly IModelUploadService _uploadService;
     private readonly IModelStateService _stateService;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ModelController"/> class.
-    /// </summary>
-    /// <param name="service">The model service used for handling model operations.</param>
-    /// <param name="modelService"></param>
-    /// <param name="uploadService"></param>
-    /// <param name="stateService"></param>
     public ModelController(IModelService modelService, IModelUploadService uploadService,
         IModelStateService stateService)
     {
@@ -83,19 +78,18 @@ public class ModelController : ControllerBase
     }
 
     /// <summary>
-    /// Uploads one or more model files.
+    /// Uploads a new 3D model package (entry <c>.glb/.gltf</c> plus companion files) and optional baseline state.
     /// </summary>
-    /// <param name="files">The uploaded file(s).</param>
-    /// <param name="fileAlias">An alias for the uploaded file.</param>
-    /// <param name="originalFileName">The original filename of the uploaded model.</param>
-    /// <param name="categories">Optional categories for the file.</param>
-    /// <param name="description">Optional description for the file.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <returns>Returns a message with details about the uploaded file.</returns>
-    /// <response code="200">Upload succeeded and returns file details.</response>
-    /// <response code="400">No file was uploaded or invalid request data.</response>
+    /// <param name="form">
+    /// Multipart form containing the model files, alias/metadata, and an optional baseline JSON string.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An <see cref="UploadResultDto"/> with the created model’s alias and blob name.</returns>
+    /// <response code="200">Upload succeeded.</response>
+    /// <response code="400">Invalid form data (e.g., no files or missing alias).</response>
     /// <remarks>
-    /// The maximum allowed file size is 25 MB.
+    /// The controller converts the multipart payload into an internal request DTO and delegates to the upload service.
+    /// If <c>BaselineJson</c> is provided, it will be written to <c>{assetId}/baseline/baseline.json</c>.
     /// </remarks>
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
@@ -122,12 +116,13 @@ public class ModelController : ControllerBase
                 Alias = form.FileAlias,
                 Categories = form.Categories,
                 Description = form.Description,
-                
+
                 BaselineJson = string.IsNullOrWhiteSpace(form.BaselineJson) ? null : form.BaselineJson
             };
 
             var result = await _uploadService.UploadAsync(request, cancellationToken);
-            return Ok(new UploadResultDto { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
+            return Ok(new UploadResultDto
+                { Message = result.Message, Alias = result.Alias, BlobName = result.BlobName });
         }
         finally
         {
@@ -136,11 +131,21 @@ public class ModelController : ControllerBase
         }
     }
 
-    /// <summary>Deletes a model by its Id.</summary>
-    /// <param name="id">The GUID that was exposed as ModelItemDto.Id</param>
-    /// <param name="cancellationToken"></param>
-    /// <response code="204">Delete succeeded.</response>
-    /// <response code="404">No model with the given Id was found.</response>
+    /// <summary>
+    /// Deletes a model by its ID, removing the entire asset folder and related resources.
+    /// </summary>
+    /// <param name="id">The GUID previously exposed in <see cref="ModelItemDto.Id"/>.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// A <see cref="DeleteModelResultDto"/> containing a human-readable confirmation message.
+    /// </returns>
+    /// <response code="200">Delete succeeded and a confirmation message is returned.</response>
+    /// <response code="400">Invalid or empty ID.</response>
+    /// <response code="404">No model found with the provided ID.</response>
+    /// <response code="423">Model is locked by another operation.</response>
+    /// <remarks>
+    /// The service enforces a mutex; if the model is currently locked, a <c>423 Locked</c> response is returned.
+    /// </remarks>
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
@@ -159,14 +164,19 @@ public class ModelController : ControllerBase
     }
 
     /// <summary>
-    /// Updates details (alias, category, description, etc.) for a model.
+    /// Updates model metadata (alias, categories, description, favourite flag) and clears the <c>isNew</c> marker.
     /// </summary>
     /// <param name="id">The model ID.</param>
-    /// <param name="requestDto">The update requestDto data.</param>
-    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
-    /// <response code="204">Update succeeded.</response>
-    /// <response code="400">Invalid ID or requestDto data.</response>
+    /// <param name="requestDto">The metadata updates to apply.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An <see cref="UpdateDetailsResultDto"/> with a confirmation message.</returns>
+    /// <response code="200">Update succeeded and a confirmation message is returned.</response>
+    /// <response code="400">Invalid ID or malformed request body.</response>
     /// <response code="404">Model not found.</response>
+    /// <remarks>
+    /// This endpoint replaces older, split endpoints and centralizes metadata updates into a single call.
+    /// The underlying storage marks <c>isNew=false</c> to indicate the model has been opened/edited.
+    /// </remarks>
     [HttpPut("{id:guid}/details")]
     public async Task<IActionResult> PutDetails(
         Guid id,
@@ -190,13 +200,17 @@ public class ModelController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieves a specific model by its unique identifier.
+    /// Retrieves a specific model by its unique identifier, including baseline, states, and additional files.
     /// </summary>
     /// <param name="id">The model's unique ID.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>The model details as a <see cref="ModelItemDto"/>.</returns>
-    /// <response code="200">Returns the requested model.</response>
-    /// <response code="404">If no model was found with the given ID.</response>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The model as a <see cref="ModelItemDto"/>.</returns>
+    /// <response code="200">Model found.</response>
+    /// <response code="404">No model exists with the specified ID.</response>
+    /// <remarks>
+    /// The service aggregates the entry model blob, baseline (if present), versioned state snapshots,
+    /// and auxiliary files under the same asset folder.
+    /// </remarks>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ModelItemDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -206,6 +220,18 @@ public class ModelController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Marks the specified model as not new (<c>isNew=false</c>) in blob metadata.
+    /// </summary>
+    /// <param name="id">The model ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An <see cref="UpdateDetailsResultDto"/> with a confirmation message.</returns>
+    /// <response code="200">Flag updated.</response>
+    /// <response code="400">Invalid ID.</response>
+    /// <response code="404">Model not found.</response>
+    /// <remarks>
+    /// Intended to be called when a model is first opened/consumed by a client.
+    /// </remarks>
     [HttpPatch("{id:guid}/isNew")]
     public async Task<IActionResult> PutIsNew(
         Guid id,
@@ -219,6 +245,25 @@ public class ModelController : ControllerBase
         return Ok(new UpdateDetailsResultDto { Message = update.Message });
     }
 
+    /// <summary>
+    /// Saves a state snapshot for an asset, either as the working copy or as a named version.
+    /// </summary>
+    /// <param name="assetId">The asset folder identifier.</param>
+    /// <param name="form">
+    /// Multipart form containing the JSON state as a string (<c>StateJson</c>) or as a file (<c>StateFile</c>),
+    /// and an optional <c>TargetVersion</c>.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// An <see cref="UpdateStateResultDto"/> describing where the state was stored (blob path, version).
+    /// </returns>
+    /// <response code="200">State saved.</response>
+    /// <response code="400">No state provided or empty content.</response>
+    /// <response code="422">Invalid JSON format or size constraints exceeded.</response>
+    /// <remarks>
+    /// When <c>TargetVersion</c> is omitted, the state is saved as the working copy at <c>{assetId}/state/state.json</c>.  
+    /// When provided (e.g., <c>v2</c>), it is saved under <c>{assetId}/state/{TargetVersion}/state.json</c>.
+    /// </remarks>
     [HttpPost("{assetId}/state")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(1048576)] // ~1 MB
@@ -264,13 +309,17 @@ public class ModelController : ControllerBase
     }
 
     /// <summary>
-    /// Deletes a named state version for the given asset.
+    /// Deletes a named state version (or the latest working copy) for an asset.
     /// </summary>
     /// <param name="assetId">The asset folder identifier.</param>
-    /// <param name="version">The version label (e.g., "v2", "test4").</param>
+    /// <param name="version">
+    /// The version label (e.g., <c>"v2"</c> or <c>"test4"</c>).  
+    /// Use <c>"state"</c> or <c>"Default"</c> to delete the working copy at <c>state/state.json</c>.
+    /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <response code="200">Version deleted successfully.</response>
-    /// <response code="404">Version not found.</response>
+    /// <returns>A <see cref="DeleteStateVersionResultDto"/> with details of the deletion.</returns>
+    /// <response code="200">Version (or working copy) deleted.</response>
+    /// <response code="404">Version not found for the specified asset.</response>
     /// <response code="422">Validation error.</response>
     [HttpDelete("{assetId}/state/{version}")]
     [ProducesResponseType(typeof(DeleteStateVersionResultDto), StatusCodes.Status200OK)]
@@ -286,12 +335,17 @@ public class ModelController : ControllerBase
 
 
     /// <summary>
-    /// Locks a specific model to prevent concurrent edits or deletions.
+    /// Acquires an exclusive lock for the specified model to prevent concurrent edits or deletion.
     /// </summary>
-    /// <param name="id">The unique identifier of the model to lock.</param>
+    /// <param name="id">The model ID to lock.</param>
+    /// <returns><c>200 OK</c> on success.</returns>
     /// <response code="200">Model successfully locked.</response>
-    /// <response code="400">Invalid model ID was provided.</response>
-    /// <response code="423">Model is already locked by another user.</response>
+    /// <response code="400">Invalid ID.</response>
+    /// <response code="423">Lock already held by another client.</response>
+    /// <remarks>
+    /// Lock semantics are enforced via the application’s mutex service. Locks are expected to be short-lived,
+    /// and should be followed by a <see cref="Heartbeat"/> to keep them alive while the client is active.
+    /// </remarks>
     [HttpPost("{id:guid}/lock")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -306,11 +360,15 @@ public class ModelController : ControllerBase
     }
 
     /// <summary>
-    /// Unlocks a specific model, allowing other users or services to edit or delete it again.
+    /// Releases a previously acquired lock for the specified model.
     /// </summary>
-    /// <param name="id">The unique identifier of the model to unlock.</param>
+    /// <param name="id">The model ID to unlock.</param>
+    /// <returns><c>200 OK</c> on success.</returns>
     /// <response code="200">Model successfully unlocked.</response>
-    /// <response code="400">Invalid model ID was provided.</response>
+    /// <response code="400">Invalid ID.</response>
+    /// <remarks>
+    /// This endpoint is idempotent: calling it when no lock exists has no adverse effects on server state.
+    /// </remarks>
     [HttpPost("{id:guid}/unlock")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -322,14 +380,18 @@ public class ModelController : ControllerBase
         _modelService.UnlockModel(id);
         return Ok();
     }
-    
+
     /// <summary>
-    /// Renews the lease for an actively locked model.
+    /// Renews the existing lock for the specified model, signaling that the client is still active.
     /// </summary>
-    /// <param name="id">The unique identifier of the model to renew the lock for.</param>
-    /// <response code="200">Lock renewed successfully.</response>
-    /// <response code="400">Invalid model ID was provided.</response>
-    /// <response code="423">No active lock was found to renew (e.g., it expired or was never held).</response>
+    /// <param name="id">The model ID whose lock should be renewed.</param>
+    /// <returns><c>200 OK</c> on success.</returns>
+    /// <response code="200">Lock renewed.</response>
+    /// <response code="400">Invalid ID.</response>
+    /// <response code="423">No active lock exists for this model.</response>
+    /// <remarks>
+    /// Clients should call this periodically (e.g., every N seconds) to keep the lock from expiring.
+    /// </remarks>
     [HttpPost("{id:guid}/heartbeat")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -338,7 +400,7 @@ public class ModelController : ControllerBase
     {
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
-        
+
         _modelService.Heartbeat(id);
         return Ok();
     }
