@@ -18,12 +18,12 @@ export function ModelListGrid({
   refreshCurrentPage,
   showNoResults,
   handleModelClick,
-}: ModelListGridProps) {
+}: Readonly<ModelListGridProps>) {
   const { animationSrc } = useTheme();
 
-  return (
-    <ScrollArea className="flex-1 min-h-0 w-full rounded-md border">
-      {isLoading ? (
+  const renderContent = () => {
+    if (isLoading) {
+      return (
         <div className="flex justify-center items-center h-full w-full">
           <DotLottieReact
             className="w-90 h-90"
@@ -32,7 +32,11 @@ export function ModelListGrid({
             autoplay
           />
         </div>
-      ) : models.length > 0 ? (
+      );
+    }
+
+    if (models.length > 0) {
+      return (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,24rem))] justify-center gap-4 w-full items-center p-4">
           {models.map((item) => (
             <div key={item.id}>
@@ -45,11 +49,23 @@ export function ModelListGrid({
             </div>
           ))}
         </div>
-      ) : showNoResults ? (
+      );
+    }
+
+    if (showNoResults) {
+      return (
         <div className="flex justify-center items-center h-full w-full text-gray-400">
           No models found
         </div>
-      ) : null}
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <ScrollArea className="flex-1 min-h-0 w-full rounded-md border">
+      {renderContent()}
       <ScrollBar orientation="vertical" />
     </ScrollArea>
   );

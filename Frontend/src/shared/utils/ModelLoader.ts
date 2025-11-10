@@ -6,6 +6,25 @@ type LoadModelProps = {
   isMounted: boolean;
 };
 
+const patchGltfUris = (
+  resources: { uri?: string }[] | undefined,
+  fileMap: Map<string, string>,
+) => {
+  if (!resources) {
+    return;
+  }
+
+  const replaceUri = (uri: string) => fileMap.get(uri) || uri;
+
+  for (const resource of resources) {
+    const { uri } = resource;
+
+    if (uri && fileMap.has(uri)) {
+      resource.uri = replaceUri(uri);
+    }
+  }
+};
+
 export const loadModel = async ({
   file,
   dependentFiles,
@@ -23,30 +42,17 @@ export const loadModel = async ({
   }
 
   const fileMap = new Map<string, string>();
-  dependentFiles.forEach((file) => {
+  for (const file of dependentFiles) {
     const url = URL.createObjectURL(file);
     fileMap.set(file.name, url);
     objectUrlsToRevoke.push(url);
-  });
+  }
 
   const gltfText = await file.text();
   const gltfJson = JSON.parse(gltfText);
 
-  const replaceUri = (uri: string) => fileMap.get(uri) || uri;
-  if (gltfJson.buffers) {
-    for (const buffer of gltfJson.buffers) {
-      if (buffer.uri && fileMap.has(buffer.uri)) {
-        buffer.uri = replaceUri(buffer.uri);
-      }
-    }
-  }
-  if (gltfJson.images) {
-    for (const image of gltfJson.images) {
-      if (image.uri && fileMap.has(image.uri)) {
-        image.uri = replaceUri(image.uri);
-      }
-    }
-  }
+  patchGltfUris(gltfJson.buffers, fileMap);
+  patchGltfUris(gltfJson.images, fileMap);
 
   const patchedGltfString = JSON.stringify(gltfJson);
   const patchedGltfBlob = new Blob([patchedGltfString], {

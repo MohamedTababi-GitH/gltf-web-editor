@@ -67,7 +67,7 @@ export function ModelViewerToolbar({
   redo,
   groupRef,
   cursorTools,
-}: ModelViewerToolbarProps) {
+}: Readonly<ModelViewerToolbarProps>) {
   const { model } = useModel();
   const { unlockModel } = useMutex();
   const { setIsModelViewer } = useNavigation();

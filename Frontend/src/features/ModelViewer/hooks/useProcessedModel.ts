@@ -59,7 +59,9 @@ export const useProcessedModel = () => {
 
     return () => {
       isMounted = false;
-      objectUrlsToRevoke.forEach(URL.revokeObjectURL);
+      for (const url of objectUrlsToRevoke) {
+        URL.revokeObjectURL(url);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, additionalFilesJson]);

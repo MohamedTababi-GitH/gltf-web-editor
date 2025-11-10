@@ -1,4 +1,11 @@
-import { createContext, useContext, type ReactNode, useState } from "react";
+import {
+  createContext,
+  useContext,
+  type ReactNode,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 
 type NavigationTab = "home" | "model";
 
@@ -13,25 +20,35 @@ const NavigationContext = createContext<NavigationContextType | undefined>(
   undefined,
 );
 
-export function NavigationProvider({ children }: { children: ReactNode }) {
+export function NavigationProvider({
+  children,
+}: {
+  readonly children: ReactNode;
+}) {
   const [activeTab, setActiveTab] = useState<NavigationTab>("home");
   const [isModelViewer, setIsModelViewer] = useState<boolean>(false);
 
-  const navigateTo = (tab: NavigationTab) => {
-    if (activeTab !== tab) {
-      setActiveTab(tab);
-    }
-  };
+  const navigateTo = useCallback(
+    (tab: NavigationTab) => {
+      if (activeTab !== tab) {
+        setActiveTab(tab);
+      }
+    },
+    [activeTab],
+  );
+
+  const memoizedValue = useMemo(
+    () => ({
+      activeTab,
+      navigateTo,
+      isModelViewer,
+      setIsModelViewer,
+    }),
+    [activeTab, navigateTo, isModelViewer, setIsModelViewer],
+  );
 
   return (
-    <NavigationContext.Provider
-      value={{
-        activeTab,
-        navigateTo,
-        isModelViewer,
-        setIsModelViewer,
-      }}
-    >
+    <NavigationContext.Provider value={memoizedValue}>
       {children}
     </NavigationContext.Provider>
   );

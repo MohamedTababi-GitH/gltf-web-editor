@@ -20,6 +20,12 @@ export const CategoryPicker = ({
   categories,
   setCategories,
 }: CategoryPickerProps) => {
+  const handleRemoveCategory = (categoryToRemove: Category) => {
+    setCategories((prev) => prev.filter((c) => c !== categoryToRemove));
+  };
+  const handleAddCategory = (categoryToAdd: Category) => {
+    setCategories((prev) => [...prev, categoryToAdd]);
+  };
   return (
     <div className="grid grid-cols-4 items-start gap-4">
       <Label className="text-right pt-2">Categories</Label>
@@ -41,7 +47,7 @@ export const CategoryPicker = ({
                 Assign categories
               </Label>
               {Object.values(ECADCategory).map((value) => {
-                const isChecked = categories.some((v) => v === value);
+                const isChecked = categories.includes(value);
                 return (
                   <Label
                     key={value}
@@ -51,11 +57,11 @@ export const CategoryPicker = ({
                       id={`category-${value}`}
                       checked={isChecked}
                       onCheckedChange={(checked) => {
-                        setCategories((prev) =>
-                          checked
-                            ? [...prev, value]
-                            : prev.filter((v) => v !== value),
-                        );
+                        if (checked) {
+                          handleAddCategory(value);
+                        } else {
+                          handleRemoveCategory(value);
+                        }
                       }}
                     />
                     {value}
@@ -76,7 +82,7 @@ export const CategoryPicker = ({
               type="button"
               className="rounded-full hover:bg-muted-foreground/20 p-0.5"
               onClick={() => {
-                setCategories((prev) => prev.filter((c) => c !== category));
+                handleRemoveCategory(category);
               }}
             >
               <X className="h-3 w-3 cursor-pointer" />

@@ -46,8 +46,14 @@ export function SearchFilterControls({
   categoryFilter,
   setCategoryFilter,
   totalCount,
-}: SearchFilterControlsProps) {
+}: Readonly<SearchFilterControlsProps>) {
   const id = useId();
+  const handleRemoveCategory = (categoryToRemove: Category) => {
+    setCategoryFilter((prev) => prev.filter((c) => c !== categoryToRemove));
+  };
+  const handleAddCategory = (categoryToAdd: Category) => {
+    setCategoryFilter((prev) => [...prev, categoryToAdd]);
+  };
   return (
     <div className="flex flex-col md:flex-row md:justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-y-4 md:gap-x-20">
       <div className="w-full md:max-w-xs flex items-center">
@@ -145,11 +151,9 @@ export function SearchFilterControls({
                         checked={isChecked}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setCategoryFilter((prev) => [...prev, category]);
+                            handleAddCategory(category);
                           } else {
-                            setCategoryFilter((prev) =>
-                              prev.filter((c) => c !== category),
-                            );
+                            handleRemoveCategory(category);
                           }
                         }}
                       >
@@ -195,11 +199,7 @@ export function SearchFilterControls({
                 Category: {category}
                 <X
                   className="w-4 h-4 cursor-pointer rounded-full hover:bg-foreground/10 hover:border transition duration-150"
-                  onClick={() =>
-                    setCategoryFilter((prev) =>
-                      prev.filter((c) => c !== category),
-                    )
-                  }
+                  onClick={() => handleRemoveCategory(category)}
                 />
               </span>
             ))}

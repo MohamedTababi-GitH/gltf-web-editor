@@ -8,6 +8,22 @@ type FileUploadProps = {
   maxFiles?: number;
 };
 
+const getUrisFromGltfList = (
+  resources: { uri?: string }[] | undefined,
+): string[] => {
+  if (!resources || !Array.isArray(resources)) {
+    return [];
+  }
+
+  const uris: string[] = [];
+  for (const resource of resources) {
+    if (resource.uri) {
+      uris.push(resource.uri);
+    }
+  }
+  return uris;
+};
+
 const parseGLTF = (file: File): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -21,30 +37,14 @@ const parseGLTF = (file: File): Promise<string[]> => {
         const text =
           typeof event.target.result === "string"
             ? event.target.result
-            : new TextDecoder().decode(
-                new Uint8Array(event.target.result as ArrayBuffer),
-              );
+            : new TextDecoder().decode(new Uint8Array(event.target.result));
 
         const gltf = JSON.parse(text);
-        const uris: string[] = [];
 
-        if (gltf.buffers && Array.isArray(gltf.buffers)) {
-          gltf.buffers.forEach((buffer: { uri?: string }) => {
-            if (buffer.uri) {
-              uris.push(buffer.uri);
-            }
-          });
-        }
+        const bufferUris = getUrisFromGltfList(gltf.buffers);
+        const imageUris = getUrisFromGltfList(gltf.images);
 
-        if (gltf.images && Array.isArray(gltf.images)) {
-          gltf.images.forEach((image: { uri?: string }) => {
-            if (image.uri) {
-              uris.push(image.uri);
-            }
-          });
-        }
-
-        resolve(uris);
+        resolve([...bufferUris, ...imageUris]);
       } catch (error) {
         console.error("Error parsing GLTF:", error);
         reject(error);
@@ -58,7 +58,6 @@ const parseGLTF = (file: File): Promise<string[]> => {
     reader.readAsText(file);
   });
 };
-
 export const useFileUpload = ({
   accept = {
     "model/gltf-binary": [".glb"],
@@ -76,57 +75,72 @@ export const useFileUpload = ({
   );
   const { showNotification } = useNotification();
 
+  const resetGltfState = useCallback(() => {
+    setHasRequiredFiles(false);
+    setRequiredFiles([]);
+    setAdditionalFiles(new Map());
+  }, []);
+
+  const handleFileRejection = useCallback(
+    (rejections: FileRejection[]) => {
+      const firstError = rejections[0].errors[0];
+
+      if (firstError.code === "file-too-large") {
+        setError(`File is too large. Max size is ${maxSize / 1024 / 1024}MB.`);
+      } else if (firstError.code === "file-invalid-type") {
+        setError("Invalid file type. Please upload a .glb or .gltf file.");
+      } else {
+        setError("An unknown error occurred.");
+      }
+      setFile(null);
+    },
+    [maxSize, setError, setFile],
+  );
+
+  const handleAcceptedFile = useCallback(
+    async (file: File) => {
+      setFile(file);
+
+      if (file.name.endsWith(".gltf")) {
+        try {
+          const fileNames = await parseGLTF(file);
+          if (fileNames.length > 0) {
+            setRequiredFiles(fileNames);
+            setHasRequiredFiles(true);
+            setAdditionalFiles(new Map());
+          } else {
+            resetGltfState();
+          }
+        } catch (err) {
+          console.error("Error parsing GLTF file:", err);
+          resetGltfState();
+        }
+      } else {
+        resetGltfState();
+      }
+    },
+    [
+      resetGltfState,
+      setFile,
+      setRequiredFiles,
+      setHasRequiredFiles,
+      setAdditionalFiles,
+    ],
+  );
+
   const onDrop = useCallback(
     async (acceptedFiles: File[], fileRejections: FileRejection[]) => {
       setError(null);
 
       if (fileRejections.length > 0) {
-        const firstRejection = fileRejections[0];
-        const firstError = firstRejection.errors[0];
-
-        if (firstError.code === "file-too-large") {
-          setError(
-            `File is too large. Max size is ${maxSize / 1024 / 1024}MB.`,
-          );
-        } else if (firstError.code === "file-invalid-type") {
-          setError("Invalid file type. Please upload a .glb or .gltf file.");
-        } else {
-          setError("An unknown error occurred.");
-        }
-        setFile(null);
+        handleFileRejection(fileRejections);
         return;
       }
-
       if (acceptedFiles.length > 0) {
-        const uploadedFile = acceptedFiles[0];
-        setFile(uploadedFile);
-
-        if (uploadedFile.name.endsWith(".gltf")) {
-          try {
-            const fileNames = await parseGLTF(uploadedFile);
-            if (fileNames.length > 0) {
-              setRequiredFiles(fileNames);
-              setHasRequiredFiles(true);
-              setAdditionalFiles(new Map());
-            } else {
-              setHasRequiredFiles(false);
-              setRequiredFiles([]);
-              setAdditionalFiles(new Map());
-            }
-          } catch (err) {
-            console.error("Error parsing GLTF file:", err);
-            setHasRequiredFiles(false);
-            setRequiredFiles([]);
-            setAdditionalFiles(new Map());
-          }
-        } else {
-          setHasRequiredFiles(false);
-          setRequiredFiles([]);
-          setAdditionalFiles(new Map());
-        }
+        await handleAcceptedFile(acceptedFiles[0]);
       }
     },
-    [maxSize],
+    [handleAcceptedFile, handleFileRejection],
   );
 
   const onDropAdditionalFile = useCallback(
@@ -141,9 +155,7 @@ export const useFileUpload = ({
 
       if (acceptedFiles.length > 0) {
         const newFile = acceptedFiles[0];
-        const isRequiredFile = requiredFiles.some(
-          (requiredFile) => requiredFile === newFile.name,
-        );
+        const isRequiredFile = requiredFiles.includes(newFile.name);
 
         if (isRequiredFile) {
           setAdditionalFiles((prev) =>

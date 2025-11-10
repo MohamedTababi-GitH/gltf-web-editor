@@ -13,7 +13,44 @@ type ModelSearchParams = {
   limit?: number;
 };
 
+type GetModelsResponse = {
+  items: ModelItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  totalCount: number;
+};
+
 const API_LIMIT = 12;
+
+const buildApiParams = (
+  searchParams: ModelSearchParams,
+  cursor: string | null,
+) => {
+  const params = new URLSearchParams();
+
+  if (searchParams.categories && searchParams.categories.length > 0) {
+    for (const category of searchParams.categories) {
+      params.append("categories", category);
+    }
+  }
+  if (searchParams.isFavorite) {
+    params.append("isFavourite", searchParams.isFavorite.toString());
+  }
+  if (searchParams.q) {
+    params.append("q", searchParams.q);
+  }
+  if (searchParams.format) {
+    params.append("format", searchParams.format);
+  }
+
+  params.append("limit", API_LIMIT.toString());
+
+  if (cursor) {
+    params.append("cursor", cursor);
+  }
+
+  return params;
+};
 
 export const useModelList = () => {
   const { setUrl, setModel } = useModel();
@@ -66,6 +103,41 @@ export const useModelList = () => {
   }, [fileTypeFilter, categoryFilter, favoritesOnly, searchTerm, searchParams]);
 
   useEffect(() => {
+    const handleFetchSuccess = async (
+      responseData: GetModelsResponse,
+      pageToFetch: number,
+      isPreload: boolean,
+      totalCount: number,
+    ) => {
+      const data = responseData.items || [];
+      const nextCursor = responseData.nextCursor || null;
+      const newHasMore = responseData.hasMore;
+
+      setPagesData((prevData) => {
+        const newData = [...prevData];
+        newData[pageToFetch - 1] = data;
+        return newData;
+      });
+
+      if (!isPreload || totalCount === 0) {
+        const newTotalCount = responseData.totalCount;
+        const newTotalPages = Math.ceil(newTotalCount / API_LIMIT);
+        setTotalCount(newTotalCount);
+        setTotalPages(newTotalPages);
+      }
+
+      if (newHasMore && nextCursor) {
+        setPageCursors((prevCursors) => {
+          const newCursors = [...prevCursors];
+          newCursors[pageToFetch] = nextCursor;
+          return newCursors;
+        });
+
+        if (!isPreload) {
+          await fetchPage(pageToFetch + 1, true);
+        }
+      }
+    };
     const fetchPage = async (pageToFetch: number, isPreload = false) => {
       if (pagesData[pageToFetch - 1]) {
         return;
@@ -80,21 +152,10 @@ export const useModelList = () => {
         setIsLoading(true);
       }
 
-      const params = new URLSearchParams();
-      if (searchParams.categories && searchParams.categories.length > 0) {
-        searchParams.categories.forEach((category) =>
-          params.append("categories", category),
-        );
-      }
-      if (searchParams.isFavorite)
-        params.append("isFavourite", searchParams.isFavorite.toString());
-      if (searchParams.q) params.append("q", searchParams.q);
-      if (searchParams.format) params.append("format", searchParams.format);
-      params.append("limit", API_LIMIT.toString());
-      if (cursor) params.append("cursor", cursor);
-
       try {
+        const params = buildApiParams(searchParams, cursor);
         const res = await apiClient.get(`/api/model?${params.toString()}`);
+        await handleFetchSuccess(res.data, pageToFetch, isPreload, totalCount);
         const data = (res.data.items as ModelItem[]) || [];
         const nextCursor = res.data.nextCursor || null;
         const newHasMore = res.data.hasMore;

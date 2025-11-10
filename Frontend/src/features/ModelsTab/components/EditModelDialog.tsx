@@ -35,7 +35,7 @@ export function EditModelDialog({
   onSave,
   isSaving,
   item,
-}: EditModelDialogProps) {
+}: Readonly<EditModelDialogProps>) {
   const [editData, setEditData] = useState({
     alias: item.name || "",
     description: item.description || "",

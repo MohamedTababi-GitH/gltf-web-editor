@@ -40,15 +40,17 @@ import { DeleteModelDialog } from "@/features/ModelsTab/components/DeleteModelDi
 import { EditModelDialog } from "@/features/ModelsTab/components/EditModelDialog.tsx";
 import { useModelItem } from "@/features/ModelsTab/hooks/useModelItem.ts";
 
+type ModelListItemProps = {
+  item: ModelItem;
+  onClick: () => void;
+  refreshList: () => void;
+};
+
 function ModelListItem({
   item,
   onClick,
   refreshList,
-}: {
-  item: ModelItem;
-  onClick: () => void;
-  refreshList: () => void;
-}) {
+}: Readonly<ModelListItemProps>) {
   const { animationSrc } = useTheme();
   const {
     isNew,

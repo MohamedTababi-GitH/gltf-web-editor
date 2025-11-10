@@ -25,7 +25,7 @@ function ModelThumbnail({
   gltfFile,
   dependentFiles,
   onSnapshot,
-}: ModelThumbnailProps) {
+}: Readonly<ModelThumbnailProps>) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [thumbnailCaptured, setThumbnailCaptured] = useState(false);
   const processedModelUrl = useLocalProcessedModel(gltfFile, dependentFiles);

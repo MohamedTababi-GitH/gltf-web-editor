@@ -5,7 +5,7 @@ import { useNavigation } from "@/shared/contexts/NavigationContext";
 export function HeroSection({
   setShowingUpload,
 }: {
-  setShowingUpload: (show: boolean) => void;
+  readonly setShowingUpload: (show: boolean) => void;
 }) {
   const { navigateTo } = useNavigation();
   return (
