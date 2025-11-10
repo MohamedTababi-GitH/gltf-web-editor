@@ -26,10 +26,8 @@ export const PositionInput = ({
     const parsed = Number.parseFloat(localValue);
     if (Number.isNaN(parsed)) {
       setLocalValue(value);
-    } else {
-      if (parsed.toFixed(3) !== Number.parseFloat(value).toFixed(3)) {
-        onCommit(parsed);
-      }
+    } else if (parsed.toFixed(3) !== Number.parseFloat(value).toFixed(3)) {
+      onCommit(parsed);
     }
   };
 
@@ -37,11 +35,9 @@ export const PositionInput = ({
     const parsed = Number.parseFloat(localValue);
     if (Number.isNaN(parsed)) {
       setLocalValue(value);
-    } else {
-      if (parsed.toFixed(3) !== Number.parseFloat(value).toFixed(3)) {
-        committedByEnter.current = true;
-        onCommit(parsed);
-      }
+    } else if (parsed.toFixed(3) !== Number.parseFloat(value).toFixed(3)) {
+      committedByEnter.current = true;
+      onCommit(parsed);
     }
   };
 

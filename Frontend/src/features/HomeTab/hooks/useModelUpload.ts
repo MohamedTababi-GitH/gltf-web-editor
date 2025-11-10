@@ -112,9 +112,9 @@ export const useModelUpload = ({ onOpenChange }: ModelUploadProps) => {
     formData.append("originalFileName", file.name);
 
     if (categories && categories.length > 0) {
-      categories.forEach((category) => {
+      for (const category of categories) {
         formData.append("categories", category);
-      });
+      }
     }
     if (description?.trim()) {
       formData.append("description", description);

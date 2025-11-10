@@ -46,7 +46,7 @@ export function SearchFilterControls({
   categoryFilter,
   setCategoryFilter,
   totalCount,
-}: SearchFilterControlsProps) {
+}: Readonly<SearchFilterControlsProps>) {
   const id = useId();
   return (
     <div className="flex flex-col md:flex-row md:justify-between px-2 font-medium text-sm md:text-lg lg:text-xl gap-y-4 md:gap-x-20">

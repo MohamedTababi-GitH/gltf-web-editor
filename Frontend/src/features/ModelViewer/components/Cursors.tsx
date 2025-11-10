@@ -38,7 +38,7 @@ export const tools: Tool[] = [
   { name: CursorEnum.Rotate, icon: RotateCw, shortcut: "R" },
 ];
 
-function Cursors({ setSelectedTool, selectedTool }: CursorProps) {
+function Cursors({ setSelectedTool, selectedTool }: Readonly<CursorProps>) {
   return (
     <div className="absolute left-4 top-1/2 z-10 -translate-y-1/2  sm:mt-4">
       <div className="flex flex-col items-center gap-1.5 lg:gap-2 rounded-md md:rounded-lg lg:rounded-xl border bg-popover/60 p-1.25 lg:p-2 text-popover-foreground shadow-lg backdrop-blur-xl">

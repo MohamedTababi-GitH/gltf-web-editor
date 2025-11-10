@@ -27,29 +27,29 @@ export class MultiTransformCommand implements ICommand {
   }
 
   public execute(): void {
-    this.objects.forEach((obj, i) => {
-      const state = this.newStates[i];
+    for (let i = 0; i < this.objects.length; i++) {
+      const obj = this.objects[i];
+      const state = this.oldStates[i];
       if (!state) return;
-
       obj.position.copy(state.position);
       obj.quaternion.copy(state.rotation);
       obj.scale.copy(state.scale);
       obj.updateMatrixWorld();
-    });
+    }
 
     this.updateCallback(this.objects);
   }
 
   public undo(): void {
-    this.objects.forEach((obj, i) => {
-      const state = this.oldStates[i];
+    for (let i = 0; i < this.objects.length; i++) {
+      const obj = this.objects[i];
+      const state = this.newStates[i];
       if (!state) return;
-
       obj.position.copy(state.position);
       obj.quaternion.copy(state.rotation);
       obj.scale.copy(state.scale);
       obj.updateMatrixWorld();
-    });
+    }
 
     this.updateCallback(this.objects);
   }

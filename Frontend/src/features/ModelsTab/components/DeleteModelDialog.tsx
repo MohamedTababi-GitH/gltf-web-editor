@@ -24,7 +24,7 @@ export function DeleteModelDialog({
   onOpenChange,
   onConfirm,
   isDeleting,
-}: DeleteModelDialogProps) {
+}: Readonly<DeleteModelDialogProps>) {
   const [confirmation, setConfirmation] = useState("");
   const handleOpenChange = (open: boolean) => {
     if (!open) setConfirmation("");

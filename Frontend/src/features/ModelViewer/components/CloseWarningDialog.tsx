@@ -14,7 +14,7 @@ interface CloseWarningDialogProps {
   showCloseWarning: boolean;
   setShowCloseWarning: (show: boolean) => void;
   saveModel: (version?: string) => void;
-  selectedVersion?: StateFile | undefined;
+  selectedVersion?: StateFile;
 }
 
 export function CloseWarningDialog({
@@ -22,7 +22,7 @@ export function CloseWarningDialog({
   setShowCloseWarning,
   saveModel,
   selectedVersion,
-}: CloseWarningDialogProps) {
+}: Readonly<CloseWarningDialogProps>) {
   const { setIsModelViewer } = useNavigation();
   return (
     <Dialog open={showCloseWarning} onOpenChange={setShowCloseWarning}>

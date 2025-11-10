@@ -23,11 +23,11 @@ export const loadModel = async ({
   }
 
   const fileMap = new Map<string, string>();
-  dependentFiles.forEach((file) => {
+  for (const file of dependentFiles) {
     const url = URL.createObjectURL(file);
     fileMap.set(file.name, url);
     objectUrlsToRevoke.push(url);
-  });
+  }
 
   const gltfText = await file.text();
   const gltfJson = JSON.parse(gltfText);

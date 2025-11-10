@@ -6,6 +6,7 @@ import {
   useState,
   type Dispatch,
   type SetStateAction,
+  useMemo,
 } from "react";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 import type { MeshData } from "@/features/ModelViewer/types/MeshData.ts";
@@ -47,7 +48,7 @@ type ModelContextType = {
 
 const ModelContext = createContext<ModelContextType | undefined>(undefined);
 
-export function ModelProvider({ children }: { children: ReactNode }) {
+export function ModelProvider({ children }: { readonly children: ReactNode }) {
   const [url, setUrl] = useState<string>();
   const [model, setModel] = useState<ModelItem>();
   const [meshes, setMeshes] = useState<MeshData[]>([]);
@@ -64,23 +65,39 @@ export function ModelProvider({ children }: { children: ReactNode }) {
     (id: number, position: { x: number; y: number; z: number }) => void
   >(() => () => {});
 
+  const memoizedValue = useMemo(
+    () => ({
+      url,
+      setUrl,
+      model,
+      setModel,
+      meshes,
+      setMeshes,
+      toggleComponentVisibility,
+      setToggleComponentVisibility,
+      toggleComponentOpacity,
+      setToggleComponentOpacity,
+      updateMeshPosition,
+      setUpdateMeshPosition,
+    }),
+    [
+      url,
+      setUrl,
+      model,
+      setModel,
+      meshes,
+      setMeshes,
+      toggleComponentVisibility,
+      setToggleComponentVisibility,
+      toggleComponentOpacity,
+      setToggleComponentOpacity,
+      updateMeshPosition,
+      setUpdateMeshPosition,
+    ],
+  );
+
   return (
-    <ModelContext.Provider
-      value={{
-        url,
-        setUrl,
-        model,
-        setModel,
-        meshes,
-        setMeshes,
-        toggleComponentVisibility,
-        setToggleComponentVisibility,
-        toggleComponentOpacity,
-        setToggleComponentOpacity,
-        updateMeshPosition,
-        setUpdateMeshPosition,
-      }}
-    >
+    <ModelContext.Provider value={memoizedValue}>
       {children}
     </ModelContext.Provider>
   );

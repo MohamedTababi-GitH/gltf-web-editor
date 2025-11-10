@@ -13,7 +13,7 @@ export function Paginator({
   setCurrentPage,
   currentPage,
   pageCursors,
-}: PaginatorProps) {
+}: Readonly<PaginatorProps>) {
   if (totalPages <= 1) return null;
   return (
     <div className="flex justify-center items-center w-full h-12">
@@ -28,9 +28,9 @@ export function Paginator({
           </Button>
         </ButtonGroup>
         <ButtonGroup>
-          {Array.from(Array(totalPages).keys()).map((page, index) => (
+          {Array.from(new Array(totalPages).keys()).map((page) => (
             <Button
-              key={index}
+              key={page}
               variant={page + 1 === currentPage ? "default" : "outline"}
               onClick={() => setCurrentPage(page + 1)}
               disabled={pageCursors[page] === undefined}

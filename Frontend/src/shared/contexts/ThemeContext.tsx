@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import * as React from "react";
 import { DarkAnimation, LightAnimation } from "@/configs/Animation.tsx";
 
@@ -29,18 +29,18 @@ export function ThemeProvider({
   defaultTheme = "system",
   storageKey = "vite-ui-theme",
   ...props
-}: ThemeProviderProps) {
+}: Readonly<ThemeProviderProps>) {
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
   );
 
   useEffect(() => {
-    const root = window.document.documentElement;
+    const root = globalThis.document.documentElement;
 
     root.classList.remove("light", "dark");
 
     if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+      const systemTheme = globalThis.matchMedia("(prefers-color-scheme: dark)")
         .matches
         ? "dark"
         : "light";
@@ -52,19 +52,19 @@ export function ThemeProvider({
     root.classList.add(theme);
   }, [theme]);
 
-  const value = {
-    theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
-    },
-    animationSrc:
-      theme === "dark" ||
-      (theme === "system" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-        ? DarkAnimation
-        : LightAnimation,
-  };
+  const value = useMemo(
+    () => ({
+      theme,
+      setTheme,
+      animationSrc:
+        theme === "dark" ||
+        (theme === "system" &&
+          globalThis.matchMedia("(prefers-color-scheme: dark)").matches)
+          ? DarkAnimation
+          : LightAnimation,
+    }),
+    [theme, setTheme],
+  );
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>

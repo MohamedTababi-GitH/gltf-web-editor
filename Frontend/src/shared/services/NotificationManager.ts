@@ -11,9 +11,10 @@ type NotificationSubscriber = (notifications: NotificationEvent[]) => void;
 
 class NotificationManagerService {
   private static instance: NotificationManagerService;
-  private activeNotifications: Map<string, NotificationEvent> = new Map();
-  private subscribers: Set<NotificationSubscriber> = new Set();
-  private notificationTTL: number = 5000;
+  private readonly activeNotifications: Map<string, NotificationEvent> =
+    new Map();
+  private readonly subscribers: Set<NotificationSubscriber> = new Set();
+  private readonly notificationTTL: number = 5000;
 
   private constructor() {
     setInterval(() => this.cleanupExpiredNotifications(), 1000);
@@ -101,7 +102,7 @@ class NotificationManagerService {
   }
 
   private generateId(): string {
-    const crypto = window.crypto;
+    const crypto = globalThis.crypto;
     const array = new Uint32Array(1);
     crypto.getRandomValues(array);
     return `notification-${Date.now()}-${crypto.getRandomValues(array).toString().substring(2, 11)}`;
@@ -109,7 +110,9 @@ class NotificationManagerService {
 
   private notifySubscribers(): void {
     const notifications = this.getActiveNotifications();
-    this.subscribers.forEach((subscriber) => subscriber(notifications));
+    for (const subscriber of this.subscribers) {
+      subscriber(notifications);
+    }
   }
 }
 

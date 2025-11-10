@@ -23,19 +23,21 @@ function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
 }
 
+type ModelProps = {
+  processedUrl: string;
+  setLoadingProgress: (progress: number) => void;
+  selectedTool: string;
+  setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
+  selectedVersion: StateFile | undefined;
+};
+
 export function Model({
   processedUrl,
   setLoadingProgress,
   selectedTool,
   selectedVersion,
   setGroupRef,
-}: {
-  processedUrl: string;
-  setLoadingProgress: (progress: number) => void;
-  selectedTool: string;
-  setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
-  selectedVersion: StateFile | undefined;
-}) {
+}: Readonly<ModelProps>) {
   const {
     model,
     setMeshes,
@@ -204,40 +206,21 @@ export function Model({
           component.traverse((child) => {
             if (foundOpacity !== undefined) return;
             if (isMesh(child)) {
-              const saved = originalMaterials.current.get(child) as
-                | THREE.Material
-                | THREE.Material[]
-                | undefined;
+              const saved = originalMaterials.current.get(child);
               if (saved) {
                 if (Array.isArray(saved)) {
                   const first = saved[0];
-                  foundOpacity =
-                    "opacity" in first
-                      ? ((first as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
+                  foundOpacity = "opacity" in first ? (first.opacity ?? 1) : 1;
                 } else {
-                  foundOpacity =
-                    "opacity" in saved
-                      ? ((saved as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
+                  foundOpacity = "opacity" in saved ? (saved.opacity ?? 1) : 1;
                 }
               } else {
                 const mat = child.material;
                 if (Array.isArray(mat)) {
                   const first = mat[0];
-                  foundOpacity =
-                    "opacity" in first
-                      ? ((first as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
+                  foundOpacity = "opacity" in first ? (first.opacity ?? 1) : 1;
                 } else {
-                  foundOpacity =
-                    "opacity" in mat
-                      ? ((mat as THREE.Material & { opacity: number })
-                          .opacity ?? 1)
-                      : 1;
+                  foundOpacity = "opacity" in mat ? (mat.opacity ?? 1) : 1;
                 }
               }
             }
@@ -410,19 +393,14 @@ export function Model({
 
           const updateOpacity = (mat: THREE.Material | THREE.Material[]) => {
             if (Array.isArray(mat)) {
-              mat.forEach((m) => {
+              for (const m of mat) {
                 m.transparent = true;
-                (
-                  m as THREE.Material & {
-                    opacity: number;
-                    transparent: boolean;
-                  }
-                ).opacity = newOpacity;
+                m.opacity = newOpacity;
                 m.needsUpdate = true;
-              });
+              }
             } else {
               mat.transparent = true;
-              (mat as THREE.MeshStandardMaterial).opacity = newOpacity;
+              mat.opacity = newOpacity;
               mat.needsUpdate = true;
             }
           };
@@ -541,9 +519,9 @@ export function Model({
   }, [selectedComponents, updateSidebarMeshes]);
 
   const restoreOriginalMaterials = useCallback(() => {
-    originalMaterials.current.forEach((material, mesh) => {
+    for (const [mesh, material] of originalMaterials.current) {
       mesh.material = material;
-    });
+    }
     originalMaterials.current.clear();
   }, []);
 
@@ -554,12 +532,9 @@ export function Model({
           if (!originalMaterials.current.has(child)) {
             originalMaterials.current.set(child, child.material);
 
-            // Clone a new highlight material so each mesh has its own highlight
             const clonedHighlight = highlightMaterial.clone();
             if ("opacity" in child.material) {
-              clonedHighlight.opacity =
-                (child.material as THREE.Material & { opacity: number })
-                  .opacity ?? 1;
+              clonedHighlight.opacity = child.material.opacity ?? 1;
             } else {
               clonedHighlight.opacity = 1;
             }
@@ -618,17 +593,15 @@ export function Model({
           applyHighlight(componentParent);
           updateSidebarMeshes(newSelection);
         }
+      } else if (isSelected) {
+        restoreOriginalMaterials();
+        setSelectedComponents([]);
+        updateSidebarMeshes([]);
       } else {
-        if (isSelected) {
-          restoreOriginalMaterials();
-          setSelectedComponents([]);
-          updateSidebarMeshes([]);
-        } else {
-          restoreOriginalMaterials();
-          setSelectedComponents([componentParent]);
-          applyHighlight(componentParent);
-          updateSidebarMeshes([componentParent]);
-        }
+        restoreOriginalMaterials();
+        setSelectedComponents([componentParent]);
+        applyHighlight(componentParent);
+        updateSidebarMeshes([componentParent]);
       }
     },
     [
@@ -653,7 +626,7 @@ export function Model({
     updateSidebarMeshes,
   ]);
 
-  const componentToControl = selectedComponents[0] as THREE.Mesh | undefined;
+  const componentToControl = selectedComponents[0];
 
   return (
     <>

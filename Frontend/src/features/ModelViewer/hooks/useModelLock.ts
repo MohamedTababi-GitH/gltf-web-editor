@@ -32,12 +32,8 @@ export const useModelLock = (id: string | undefined) => {
 
     const checkIdle = setInterval(async () => {
       const idleTime = Date.now() - lastActivity;
-      // console.log(
-      //   `Inactivity check: ${Math.round(idleTime / 1000)} seconds idle`,
-      // );
 
       if (idleTime > idleTimeout) {
-        //console.log("Unlocking the model: user inactive for 2 mins");
         await unlockModel(id);
         setIsModelViewer(false);
         clearInterval(checkIdle);

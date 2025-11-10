@@ -23,7 +23,7 @@ export function SaveVersionDialog({
   versionName,
   setVersionName,
   saveModel,
-}: SaveVersionDialogProps) {
+}: Readonly<SaveVersionDialogProps>) {
   return (
     <Dialog open={versionModalOpen} onOpenChange={setVersionModalOpen}>
       <DialogContent>

@@ -122,8 +122,8 @@ const AppSidebar = () => {
                         onCommit={(newX) =>
                           updateMeshPosition(mesh.id, {
                             x: newX,
-                            y: parseFloat(mesh.Y),
-                            z: parseFloat(mesh.Z),
+                            y: Number.parseFloat(mesh.Y),
+                            z: Number.parseFloat(mesh.Z),
                           })
                         }
                       />
@@ -137,9 +137,9 @@ const AppSidebar = () => {
                         value={mesh.Y}
                         onCommit={(newY) =>
                           updateMeshPosition(mesh.id, {
-                            x: parseFloat(mesh.X),
+                            x: Number.parseFloat(mesh.X),
                             y: newY,
-                            z: parseFloat(mesh.Z),
+                            z: Number.parseFloat(mesh.Z),
                           })
                         }
                       />
@@ -153,8 +153,8 @@ const AppSidebar = () => {
                         value={mesh.Z}
                         onCommit={(newZ) =>
                           updateMeshPosition(mesh.id, {
-                            x: parseFloat(mesh.X),
-                            y: parseFloat(mesh.Y),
+                            x: Number.parseFloat(mesh.X),
+                            y: Number.parseFloat(mesh.Y),
                             z: newZ,
                           })
                         }

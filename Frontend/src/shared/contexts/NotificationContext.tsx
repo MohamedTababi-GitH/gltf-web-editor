@@ -4,6 +4,8 @@ import {
   useEffect,
   useState,
   type ReactNode,
+  useMemo,
+  useCallback,
 } from "react";
 import { AnimatePresence } from "framer-motion";
 import Notification from "../../layout/Notification.tsx";
@@ -25,7 +27,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     { id: string; message: string; type: string }[]
   >([]);
 
-  // Subscribe to notification manager updates
   useEffect(() => {
     const unsubscribe = NotificationManager.subscribe((notificationEvents) => {
       setNotifications(
@@ -37,22 +38,27 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       );
     });
 
-    // Cleanup subscription on unmount
     return () => {
       unsubscribe();
     };
   }, []);
 
-  const showNotification = (
-    message: string,
-    type: "success" | "error" | "info" | "warn" = "info",
-  ) => {
-    // Delegate to notification manager service
-    NotificationManager.addNotification(message, type);
-  };
+  const showNotification = useCallback(
+    (message: string, type: "success" | "error" | "info" | "warn" = "info") => {
+      NotificationManager.addNotification(message, type);
+    },
+    [],
+  );
+
+  const memoizedValue = useMemo(
+    () => ({
+      showNotification,
+    }),
+    [showNotification],
+  );
 
   return (
-    <NotificationContext.Provider value={{ showNotification }}>
+    <NotificationContext.Provider value={memoizedValue}>
       {children}
       <div className="fixed top-[6dvh] right-5 flex flex-col space-y-2 font-inter z-[9999]">
         <AnimatePresence>

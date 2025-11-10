@@ -21,27 +21,25 @@ const parseGLTF = (file: File): Promise<string[]> => {
         const text =
           typeof event.target.result === "string"
             ? event.target.result
-            : new TextDecoder().decode(
-                new Uint8Array(event.target.result as ArrayBuffer),
-              );
+            : new TextDecoder().decode(new Uint8Array(event.target.result));
 
         const gltf = JSON.parse(text);
         const uris: string[] = [];
 
         if (gltf.buffers && Array.isArray(gltf.buffers)) {
-          gltf.buffers.forEach((buffer: { uri?: string }) => {
+          for (const buffer of gltf.buffers) {
             if (buffer.uri) {
               uris.push(buffer.uri);
             }
-          });
+          }
         }
 
         if (gltf.images && Array.isArray(gltf.images)) {
-          gltf.images.forEach((image: { uri?: string }) => {
+          for (const image of gltf.images) {
             if (image.uri) {
               uris.push(image.uri);
             }
-          });
+          }
         }
 
         resolve(uris);
@@ -141,9 +139,7 @@ export const useFileUpload = ({
 
       if (acceptedFiles.length > 0) {
         const newFile = acceptedFiles[0];
-        const isRequiredFile = requiredFiles.some(
-          (requiredFile) => requiredFile === newFile.name,
-        );
+        const isRequiredFile = requiredFiles.includes(newFile.name);
 
         if (isRequiredFile) {
           setAdditionalFiles((prev) =>

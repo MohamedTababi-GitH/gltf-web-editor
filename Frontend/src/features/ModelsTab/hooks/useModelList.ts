@@ -82,9 +82,9 @@ export const useModelList = () => {
 
       const params = new URLSearchParams();
       if (searchParams.categories && searchParams.categories.length > 0) {
-        searchParams.categories.forEach((category) =>
-          params.append("categories", category),
-        );
+        for (const category of searchParams.categories) {
+          params.append("categories", category);
+        }
       }
       if (searchParams.isFavorite)
         params.append("isFavourite", searchParams.isFavorite.toString());

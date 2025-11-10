@@ -26,7 +26,7 @@ type ModelUploadDialogProps = {
 export default function ModelUploadDialog({
   isOpen,
   onOpenChange,
-}: ModelUploadDialogProps) {
+}: Readonly<ModelUploadDialogProps>) {
   const {
     file,
     fileAlias,

@@ -13,7 +13,7 @@ interface SwitchWarningDialogProps {
   showSwitchWarning: boolean;
   setShowSwitchWarning: (show: boolean) => void;
   handleSwitch: () => Promise<void> | void;
-  selectedVersion?: StateFile | undefined;
+  selectedVersion?: StateFile;
   saveModel: (version?: string) => Promise<void>;
 }
 
@@ -23,7 +23,7 @@ export function SwitchWarningDialog({
   handleSwitch,
   selectedVersion,
   saveModel,
-}: SwitchWarningDialogProps) {
+}: Readonly<SwitchWarningDialogProps>) {
   return (
     <Dialog open={showSwitchWarning} onOpenChange={setShowSwitchWarning}>
       <DialogContent>

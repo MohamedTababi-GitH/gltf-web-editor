@@ -41,7 +41,7 @@ export const CategoryPicker = ({
                 Assign categories
               </Label>
               {Object.values(ECADCategory).map((value) => {
-                const isChecked = categories.some((v) => v === value);
+                const isChecked = categories.includes(value);
                 return (
                   <Label
                     key={value}
