@@ -21,6 +21,5 @@ namespace ECAD_Backend.Application.Interfaces
         /// Deletes a named state version (folder) by version label.
         /// </summary>
         Task<DeleteStateVersionResultDto> DeleteVersionAsync(string assetId, string version, CancellationToken cancellationToken);
-        Task<DeleteBaselineResultDto> DeleteBaselineAsync(string assetId, CancellationToken ct);
     }
 }

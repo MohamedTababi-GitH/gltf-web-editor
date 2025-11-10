@@ -122,8 +122,7 @@ public class ModelController : ControllerBase
                 Alias = form.FileAlias,
                 Categories = form.Categories,
                 Description = form.Description,
-
-                // ✅ baseline only as string
+                
                 BaselineJson = string.IsNullOrWhiteSpace(form.BaselineJson) ? null : form.BaselineJson
             };
 
@@ -282,18 +281,6 @@ public class ModelController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _stateService.DeleteVersionAsync(assetId, version, cancellationToken);
-        return Ok(result);
-    }
-    
-    // DELETE /api/model/{assetId}/baseline
-    [HttpDelete("{assetId}/baseline")]
-    [ProducesResponseType(typeof(DeleteBaselineResultDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteBaseline(
-        string assetId,
-        CancellationToken cancellationToken)
-    {
-        var result = await _stateService.DeleteBaselineAsync(assetId, cancellationToken);
         return Ok(result);
     }
 

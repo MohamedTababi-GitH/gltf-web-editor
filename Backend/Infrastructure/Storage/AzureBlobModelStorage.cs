@@ -400,21 +400,6 @@ public class AzureBlobModelStorage : IModelStorage
         return deleted;
     }
 
-    public async Task<bool> DeleteBaselineAsync(string assetId, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(assetId))
-            throw new ArgumentException("AssetId cannot be empty.", nameof(assetId));
-
-        var name = $"{assetId.Trim().TrimEnd('/')}/baseline/baseline.json";
-        var client = _container.GetBlobClient(name);
-        var resp = await client.DeleteIfExistsAsync(
-            DeleteSnapshotsOption.IncludeSnapshots,
-            conditions: null,
-            cancellationToken: ct);
-
-        return resp.Value;
-    }
-
     #region Private Helpers
 
     private static string? GetFormatOrNull(string blobName)

@@ -113,5 +113,4 @@ public interface IModelStorage
     /// </summary>
     Task<int> DeleteStateVersionAsync(string assetId, string version, CancellationToken ct);
     Task<ModelFile?> GetByIdAsync(Guid id, CancellationToken ct);
-    Task<bool> DeleteBaselineAsync(string assetId, CancellationToken ct);
 }

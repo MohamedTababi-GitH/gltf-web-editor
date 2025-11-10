@@ -170,21 +170,4 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
         };
     }
     
-    public async Task<DeleteBaselineResultDto> DeleteBaselineAsync(
-        string assetId,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(assetId))
-            throw new ValidationException("AssetId is required.");
-
-        var ok = await storage.DeleteBaselineAsync(assetId.Trim(), ct);
-        if (!ok)
-            throw new NotFoundException($"Baseline was not found for asset '{assetId}'.");
-
-        return new DeleteBaselineResultDto
-        {
-            Message = "Baseline deleted successfully.",
-            AssetId = assetId
-        };
-    }
 }
