@@ -1,6 +1,7 @@
 ﻿using Moq;
 using Microsoft.AspNetCore.Mvc;
 using ECAD_Backend.Application.DTOs.Filter;
+using ECAD_Backend.Application.DTOs.Forms;
 using ECAD_Backend.Application.DTOs.General;
 using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.DTOs.ResultDTO;
@@ -156,19 +157,23 @@ public class ModelControllerTest
     //     Assert.Contains(expectedErrorMessage, result.Message);
     // }
 
-    // [TestMethod]
-    // public async Task Delete_ReturnsNoContent_WhenDeleted()
-    // {
-    //     // Arrange
-    //     var id = Guid.NewGuid();
-    //     _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-    //     
-    //     // Act
-    //     var result = await _controller.Delete(id, CancellationToken.None);
-    //     
-    //     // Assert
-    //     Assert.IsInstanceOfType(result, typeof(NoContentResult));
-    // }
+    [TestMethod]
+    public async Task Delete_ReturnsOk_WithDeleteModelResultDto()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        _mockModelService.Setup(s => s.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        
+        // Act
+        var result = await _controller.Delete(id, CancellationToken.None);
+        var okResult = result.Result as OkObjectResult;
+        var deleteModelResult = okResult!.Value as DeleteModelResultDto;
+        
+        // Assert
+        var expectedMessage = $"Model '{id}' was deleted successfully.";
+        Assert.IsNotNull(result);
+        Assert.Contains(expectedMessage, deleteModelResult!.Message);
+    }
 
     // [TestMethod]
     // public async Task Delete_Throws_WhenNotDeleted()
@@ -277,6 +282,77 @@ public class ModelControllerTest
     }
 
     [TestMethod]
+    public async Task SaveState_ReturnsOk_WithUpdateStateResult()
+    {
+        // Arrange
+        var expectedMessage = "Saved successfully.";
+        var assetId = "valid AssetId";
+        var version = "2.0";
+        var stateJson = "valid stateJSON";
+        var expectedUpdateStateResult = new UpdateStateResultDto {Message = expectedMessage, AssetId = assetId, Version = version};
+        var form = new SaveStateFormDto{TargetVersion = version, StateJson = stateJson};
+        _mockStateService.Setup(s => s.SaveStateAsync(It.IsAny<UpdateStateRequestDto>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedUpdateStateResult);
+        
+        // Act
+        var result = await _controller.SaveState(assetId, form, CancellationToken.None);
+        var okResult = result as OkObjectResult;
+        var updateStateResult = okResult!.Value as UpdateStateResultDto;
+        
+        // Assert
+        Assert.IsNotNull(okResult);
+        Assert.AreEqual(expectedUpdateStateResult.Message, updateStateResult!.Message);
+        Assert.AreEqual(expectedUpdateStateResult.AssetId, updateStateResult.AssetId);
+        Assert.AreEqual(expectedUpdateStateResult.Version, updateStateResult.Version);
+    }
+
+    [TestMethod]
+    public async Task SaveState_Throws_WhenAssetIdNull()
+    {
+        // Arrange
+        var expectedErrorMessage = "AssetId is required";
+        string assetId = null!;
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+            await _controller.SaveState(assetId, null!, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task SaveState_Throws_WhenNoStateProvided()
+    {
+        // Arrange
+        var expectedErrorMessage = "Either 'StateJson' or 'StateFile' must be provided";
+        var assetId = "valid AssetID";
+        var form = new SaveStateFormDto();
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.SaveState(assetId, form, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
+    public async Task SaveState_Throws_WhenEmptyState()
+    {
+        // Arrange
+        var expectedErrorMessage = "State content is empty";
+        var assetId = "valid AssetID";
+        var mockedFormFile = new Mock<IFormFile>();
+        mockedFormFile.Setup(f => f.OpenReadStream()).Returns(new MemoryStream());
+        var form = new SaveStateFormDto {StateFile = mockedFormFile.Object};
+        
+        // Act
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _controller.SaveState(assetId, form, CancellationToken.None));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+    }
+
+    [TestMethod]
     public async Task GetById_ReturnsOk_WithModelItem()
     {
         // Arrange
@@ -295,5 +371,114 @@ public class ModelControllerTest
         // Assert
         Assert.IsNotNull(okResult);
         Assert.AreEqual(modelItemDto, modelItemResult);
+    }
+    
+    [TestMethod]
+    public async Task DeleteStateVersion_ReturnsOk_WithDeleteStateVersionResult()
+    {
+        // Arrange
+        var expectedMessage = "Deleted successfully.";
+        var assetId = "valid AssetId";
+        var version = "2.0";
+        var expectedDeleteStateVersionResult = new DeleteStateVersionResultDto {Version = version, AssetId = assetId, Message = expectedMessage};
+        _mockStateService.Setup(s => s.DeleteVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedDeleteStateVersionResult);
+        
+        // Act
+        var result = await _controller.DeleteStateVersion(assetId, version, CancellationToken.None);
+        var okResult = result as OkObjectResult;
+        var deleteStateVersionResult = okResult!.Value as DeleteStateVersionResultDto;
+        
+        // Assert
+        Assert.IsNotNull(result);
+        Assert.AreEqual(expectedDeleteStateVersionResult.Message, deleteStateVersionResult!.Message);
+        Assert.AreEqual(expectedDeleteStateVersionResult.AssetId, deleteStateVersionResult.AssetId);
+        Assert.AreEqual(expectedDeleteStateVersionResult.Version, deleteStateVersionResult.Version);
+    }
+
+    [TestMethod]
+    public Task LockModel_ReturnsOk()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        
+        // Act
+        var result = _controller.LockModel(id);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(OkResult));
+        return Task.CompletedTask;
+    }
+
+    [TestMethod]
+    public Task LockModel_Throws_WhenInvalidID()
+    {
+        // Arrange
+        var expectedErrorMessage = "Invalid model ID";
+        var id = Guid.Empty;
+        
+        // Act 
+        var result = Assert.Throws<BadRequestException>(() => _controller.LockModel(id));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+        return Task.CompletedTask;
+    }
+
+    [TestMethod]
+    public Task UnlockModel_ReturnsOk()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        
+        // Act
+        var result = _controller.UnlockModel(id);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(OkResult));
+        return Task.CompletedTask;
+    }
+
+    [TestMethod]
+    public Task UnlockModel_Throws_WhenInvalidID()
+    {
+        // Arrange
+        var expectedErrorMessage = "Invalid model ID";
+        var id = Guid.Empty;
+        
+        // Act 
+        var result = Assert.Throws<BadRequestException>(() => _controller.UnlockModel(id));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+        return Task.CompletedTask;
+    }
+
+    [TestMethod]
+    public Task Heartbeat_ReturnsOk()
+    {
+        // Arrange
+        var id = Guid.NewGuid();
+        
+        // Act
+        var result = _controller.Heartbeat(id);
+
+        // Assert
+        Assert.IsInstanceOfType(result, typeof(OkResult));
+        return Task.CompletedTask;
+    }
+
+    [TestMethod]
+    public Task Heartbeat_Throws_WhenInvalidID()
+    {
+        // Arrange
+        var expectedErrorMessage = "Invalid model ID";
+        var id = Guid.Empty;
+        
+        // Act 
+        var result = Assert.Throws<BadRequestException>(() => _controller.Heartbeat(id));
+        
+        // Assert
+        Assert.Contains(expectedErrorMessage, result.Message);
+        return Task.CompletedTask;
     }
 }

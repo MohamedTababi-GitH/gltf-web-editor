@@ -291,7 +291,11 @@ public class ModelController : ControllerBase
     /// <param name="id">The unique identifier of the model to lock.</param>
     /// <response code="200">Model successfully locked.</response>
     /// <response code="400">Invalid model ID was provided.</response>
+    /// <response code="423">Model is already locked by another user.</response>
     [HttpPost("{id:guid}/lock")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status423Locked)]
     public IActionResult LockModel(Guid id)
     {
         if (id == Guid.Empty)
@@ -308,12 +312,34 @@ public class ModelController : ControllerBase
     /// <response code="200">Model successfully unlocked.</response>
     /// <response code="400">Invalid model ID was provided.</response>
     [HttpPost("{id:guid}/unlock")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult UnlockModel(Guid id)
     {
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
 
         _modelService.UnlockModel(id);
+        return Ok();
+    }
+    
+    /// <summary>
+    /// Renews the lease for an actively locked model.
+    /// </summary>
+    /// <param name="id">The unique identifier of the model to renew the lock for.</param>
+    /// <response code="200">Lock renewed successfully.</response>
+    /// <response code="400">Invalid model ID was provided.</response>
+    /// <response code="423">No active lock was found to renew (e.g., it expired or was never held).</response>
+    [HttpPost("{id:guid}/heartbeat")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status423Locked)]
+    public IActionResult Heartbeat(Guid id)
+    {
+        if (id == Guid.Empty)
+            throw new BadRequestException("Invalid model ID.");
+        
+        _modelService.Heartbeat(id);
         return Ok();
     }
 }

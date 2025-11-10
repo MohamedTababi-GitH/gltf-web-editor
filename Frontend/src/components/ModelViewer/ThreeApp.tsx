@@ -81,8 +81,6 @@ export default function ThreeApp() {
   const [processedModelURL, setProcessedModelURL] = useState<string | null>(
     null,
   );
-  // ** New (05-11) **
-  const { unlockModel } = useMutexApi();
 
   const closeModel = async () => {
     if (canUndo) {
@@ -169,6 +167,87 @@ export default function ThreeApp() {
   };
 
   const additionalFilesJson = JSON.stringify(model?.additionalFiles);
+
+  // ** NEW **
+  const { heartbeat, unlockModel } = useMutexApi();
+  const heartbeatDuration = 90000;
+  const idleTimeout = 120000;
+
+  // ** NEW **
+  // This useEffect ensures that while the model viewer is open, the backend’s lock(lease) stays alive.
+  useEffect(() => {
+    // If there's no model.id, don't set up the interval in the first place, prevents unnecessary API calls!
+    if (!model?.id) return;
+
+    // Creates an interval that runs every (90 seconds) by calling the API -> heartbeat(model.id).
+    const interval = setInterval(async () => {
+      await heartbeat(model.id); // "I'm still here! Renew my lease!"
+    }, heartbeatDuration); // 90 seconds ensures the lease gets renewed before it expires
+    return () => clearInterval(interval);
+  }, [model?.id, heartbeat]); // The effect re-runs when the one of the dependency array changes.
+
+  //
+
+  // ** NEW **
+  // This useEffect checks, if user interacts -> the timer resets.
+  // If idle for 2 mins -> it unlocks automatically and closes the model viewer.
+  useEffect(() => {
+    if (!model?.id) return;
+
+    //Stores the timestamp of the user's last interaction
+    // Initialized when the model viewer opens
+    let lastActivity = Date.now();
+
+    // Every time user interacts, this updates lastActivity to "now" and resets the inactivity counter!
+    const resetTimer = () => (lastActivity = Date.now());
+
+    // User moves mouse, presses button, pointer down, move wheel:
+    // 1. browser triggers "mousemove" event
+    // 2. resetTimer() function runs
+    // 3. lastActivity = Date.now() (updates the timestamp)
+    globalThis.addEventListener("mousemove", resetTimer);
+    globalThis.addEventListener("keydown", resetTimer);
+    globalThis.addEventListener("pointerdown", resetTimer);
+    globalThis.addEventListener("wheel", resetTimer);
+    globalThis.addEventListener("touchmove", resetTimer);
+
+    const checkIdle = setInterval(async () => {
+      const idleTime = Date.now() - lastActivity;
+      console.log(
+        `Inactivity check: ${Math.round(idleTime / 1000)} seconds idle`,
+      );
+
+      if (idleTime > idleTimeout) {
+        console.log("Unlocking the model: user inactive for 2 mins");
+        await unlockModel(model.id); // Releases the backend lock
+        setIsModelViewer(false); // Automatically closes the model viewer
+        clearInterval(checkIdle); // Stops further checking
+      }
+    }, 30000);
+
+    return () => {
+      globalThis.removeEventListener("mousemove", resetTimer);
+      globalThis.removeEventListener("keydown", resetTimer);
+      globalThis.removeEventListener("pointerdown", resetTimer);
+      globalThis.removeEventListener("wheel", resetTimer);
+      globalThis.removeEventListener("touchmove", resetTimer);
+      clearInterval(checkIdle);
+    };
+  }, [model?.id, unlockModel, setIsModelViewer, idleTimeout]);
+
+  //
+  // ** NEW **
+  // This useEffect ensures that if the user closes the browser, tab, or refreshed the page, the model unlocks automatically.
+  useEffect(() => {
+    if (!model?.id) return;
+    const handleUnload = async () => {
+      await unlockModel(model.id);
+    };
+    globalThis.addEventListener("beforeunload", handleUnload);
+    return () => {
+      globalThis.removeEventListener("beforeunload", handleUnload);
+    };
+  }, [model?.id, unlockModel]);
 
   useEffect(() => {
     let isMounted = true;
