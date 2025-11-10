@@ -2,11 +2,12 @@ import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useEffect } from "react";
 import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
 
-export const useModelLock = (id: string) => {
+export const useModelLock = (id: string | undefined) => {
   const { heartbeat, unlockModel } = useMutex();
   const { setIsModelViewer } = useNavigation();
   const heartbeatDuration = 90000;
   const idleTimeout = 120000;
+
   useEffect(() => {
     if (!id) return;
 
@@ -17,7 +18,7 @@ export const useModelLock = (id: string) => {
   }, [id, heartbeat]);
 
   useEffect(() => {
-    if (id) return;
+    if (!id) return;
 
     let lastActivity = Date.now();
 
@@ -31,12 +32,12 @@ export const useModelLock = (id: string) => {
 
     const checkIdle = setInterval(async () => {
       const idleTime = Date.now() - lastActivity;
-      console.log(
-        `Inactivity check: ${Math.round(idleTime / 1000)} seconds idle`,
-      );
+      // console.log(
+      //   `Inactivity check: ${Math.round(idleTime / 1000)} seconds idle`,
+      // );
 
       if (idleTime > idleTimeout) {
-        console.log("Unlocking the model: user inactive for 2 mins");
+        //console.log("Unlocking the model: user inactive for 2 mins");
         await unlockModel(id);
         setIsModelViewer(false);
         clearInterval(checkIdle);
@@ -54,7 +55,7 @@ export const useModelLock = (id: string) => {
   }, [id, unlockModel, setIsModelViewer, idleTimeout]);
 
   useEffect(() => {
-    if (id) return;
+    if (!id) return;
     const handleUnload = async () => {
       await unlockModel(id);
     };

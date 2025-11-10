@@ -43,7 +43,7 @@ export default function ThreeApp() {
     selectedVersion: versioning.selectedVersion,
     versionModalOpen: versioning.versionModalOpen,
   });
-  useModelLock(model?.id ?? "");
+  useModelLock(model?.id);
 
   return (
     <div className={`w-full h-full relative`}>
