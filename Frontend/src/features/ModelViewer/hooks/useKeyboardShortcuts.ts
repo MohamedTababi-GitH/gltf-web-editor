@@ -40,44 +40,55 @@ export const useKeyboardShortcuts = ({
     setSaveAsShortcut(isMac ? "⌘+Shift+S" : "Ctrl+Shift+S");
   }, []);
 
+  const handleSave = (): void => {
+    if (canUndo && groupRef) {
+      if (selectedVersion?.version === "Default") {
+        saveModel();
+      } else {
+        saveModel(selectedVersion?.version);
+      }
+    }
+  };
+
+  const handleToolSelect = (key: string): boolean => {
+    const tool = tools?.find(
+      (t) => t.shortcut.toLowerCase() === key.toLowerCase(),
+    );
+
+    if (tool) {
+      setSelectedTool(tool.name);
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (versionModalOpen) return;
 
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "s"
-      ) {
+      const { key, ctrlKey, metaKey, shiftKey, altKey } = event;
+      const lowerKey = key.toLowerCase();
+      const isCtrl = ctrlKey || metaKey;
+
+      if (isCtrl && shiftKey && lowerKey === "s") {
         event.preventDefault();
         if (groupRef) {
           setVersionModalOpen(true);
         }
         return;
       }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      if (isCtrl && lowerKey === "s") {
         event.preventDefault();
-        if (canUndo && groupRef) {
-          if (selectedVersion?.version === "Default") {
-            saveModel();
-          } else {
-            saveModel(selectedVersion?.version);
-          }
-        }
+        handleSave();
         return;
       }
 
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      if (isCtrl || shiftKey || altKey) {
         return;
       }
 
-      const tool = tools?.find(
-        (t) => t.shortcut.toLowerCase() === event.key.toLowerCase(),
-      );
-
-      if (tool) {
+      if (handleToolSelect(lowerKey)) {
         event.preventDefault();
-        setSelectedTool(tool.name);
       }
     };
 
@@ -89,6 +100,8 @@ export const useKeyboardShortcuts = ({
   }, [
     canUndo,
     groupRef,
+    handleSave,
+    handleToolSelect,
     saveModel,
     selectedVersion?.version,
     setSelectedTool,
