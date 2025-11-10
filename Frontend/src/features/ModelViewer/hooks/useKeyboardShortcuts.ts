@@ -9,7 +9,7 @@ import * as THREE from "three";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import { tools } from "@/features/ModelViewer/components/Cursors.tsx";
 
-interface KeyboardShortcutsProps {
+type KeyboardShortcutsProps = {
   saveModel: (version?: string) => void;
   versionModalOpen: boolean;
   groupRef: React.RefObject<THREE.Group | null>;
@@ -17,7 +17,7 @@ interface KeyboardShortcutsProps {
   selectedVersion?: { version: string };
   canUndo: boolean;
   setSelectedTool: Dispatch<SetStateAction<Cursor>>;
-}
+};
 
 export const useKeyboardShortcuts = ({
   saveModel,

@@ -9,13 +9,13 @@ import {
 import { Button } from "@/shared/components/button.tsx";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 
-interface SwitchWarningDialogProps {
+type SwitchWarningDialogProps = {
   showSwitchWarning: boolean;
   setShowSwitchWarning: (show: boolean) => void;
   handleSwitch: () => Promise<void> | void;
   selectedVersion?: StateFile;
   saveModel: (version?: string) => Promise<void>;
-}
+};
 
 export function SwitchWarningDialog({
   showSwitchWarning,

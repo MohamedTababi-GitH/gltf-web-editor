@@ -9,13 +9,13 @@ import {
 import { Input } from "@/shared/components/input.tsx";
 import { Button } from "@/shared/components/button.tsx";
 
-interface SaveVersionDialogProps {
+type SaveVersionDialogProps = {
   versionModalOpen: boolean;
   setVersionModalOpen: (open: boolean) => void;
   versionName: string;
   setVersionName: (name: string) => void;
   saveModel: (version: string) => void;
-}
+};
 
 export function SaveVersionDialog({
   versionModalOpen,

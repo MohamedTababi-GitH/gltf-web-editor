@@ -11,11 +11,12 @@ import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 import { useMutex } from "@/shared/hooks/useMutex.ts";
 
-interface CloseWarningDialogProps {
+type CloseWarningDialogProps = {
   showCloseWarning: boolean;
   setShowCloseWarning: (show: boolean) => void;
   saveModel: (version?: string) => void;
   selectedVersion?: StateFile;
+};
   id?: string;
 }
 
