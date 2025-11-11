@@ -2,6 +2,7 @@ import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useEffect } from "react";
 import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
 import { formatDateTime } from "@/shared/utils/DateTime.ts";
+import { useNotification } from "@/shared/contexts/NotificationContext.tsx";
 
 type ModelLockProps = {
   saveModel: (version?: string) => void;
@@ -14,21 +15,12 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
   const { setIsModelViewer } = useNavigation();
   //const heartbeatDuration = 90000;
   const idleTimeout = 120000;
-
-  useEffect(() => {
-    if (!id) return;
-
-    const interval = setInterval(async () => {
-      await heartbeat(id);
-    }, heartbeatDuration);
-    return () => clearInterval(interval);
-  }, [id, heartbeat]);
+  const { showNotification } = useNotification();
 
   useEffect(() => {
     if (!id) return;
 
     let lastActivity = Date.now();
-
     const resetTimer = () => (lastActivity = Date.now());
     let interactionCount = 0;
 
@@ -42,17 +34,43 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     globalThis.addEventListener("wheel", incrementInteractionCount);
     globalThis.addEventListener("touchmove", incrementInteractionCount);
 
-    const checkIdle = setInterval(async () => {
-      const idleTime = Date.now() - lastActivity;
+    const idleCheckInterval = setInterval(async () => {
+      console.log(`Interaction count ${interactionCount}`);
+      const interacted = interactionCount > 0;
+      interactionCount = 0;
 
+      if (interacted) {
+        console.log("Interacted, sending heartbeat and resetting the timer");
+        await heartbeat(id);
+        resetTimer();
+        return;
+      }
+
+      const idleTime = Date.now() - lastActivity;
+      console.log(`Idle for ${Math.round(idleTime / 1000)}s`);
+      if (Math.round(idleTime / 1000) === (idleTimeout - 30000) / 1000) {
+        showNotification("Still there? Session ends in 30 seconds.", "warn");
+      }
       if (idleTime > idleTimeout) {
-        if (canUndo) {
-          const versionName = `AutoSave at ${formatDateTime(new Date().toISOString()).timeStr}`;
-          saveModel(versionName);
+        console.log(
+          `Idle for ${Math.round(idleTime / 1000)}s → auto-save & unlock`,
+        );
+
+        try {
+          if (canUndo) {
+            const versionName = `AutoSave at ${
+              formatDateTime(new Date().toISOString()).timeStr
+            }`;
+            saveModel(versionName);
+          }
+
+          await unlockModel(id);
+          setIsModelViewer(false);
+        } catch (err) {
+          console.error("Error during auto-save/unlock:", err);
+        } finally {
+          clearInterval(idleCheckInterval);
         }
-        await unlockModel(id);
-        setIsModelViewer(false);
-        clearInterval(checkIdle);
       }
     }, 10000);
 
@@ -62,9 +80,17 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
       globalThis.removeEventListener("pointerdown", resetTimer);
       globalThis.removeEventListener("wheel", resetTimer);
       globalThis.removeEventListener("touchmove", resetTimer);
-      clearInterval(checkIdle);
+      clearInterval(idleCheckInterval);
     };
-  }, [id, unlockModel, setIsModelViewer, idleTimeout, saveModel, canUndo]);
+  }, [
+    id,
+    heartbeat,
+    unlockModel,
+    setIsModelViewer,
+    saveModel,
+    canUndo,
+    idleTimeout,
+  ]);
 
   useEffect(() => {
     if (!id) return;
