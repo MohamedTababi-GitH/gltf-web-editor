@@ -29,8 +29,8 @@ export class MultiTransformCommand implements ICommand {
   public execute(): void {
     for (let i = 0; i < this.objects.length; i++) {
       const obj = this.objects[i];
-      const state = this.oldStates[i];
-      if (!state) return;
+      const state = this.newStates[i];
+      if (!state) continue;
       obj.position.copy(state.position);
       obj.quaternion.copy(state.rotation);
       obj.scale.copy(state.scale);
@@ -43,8 +43,8 @@ export class MultiTransformCommand implements ICommand {
   public undo(): void {
     for (let i = 0; i < this.objects.length; i++) {
       const obj = this.objects[i];
-      const state = this.newStates[i];
-      if (!state) return;
+      const state = this.oldStates[i];
+      if (!state) continue;
       obj.position.copy(state.position);
       obj.quaternion.copy(state.rotation);
       obj.scale.copy(state.scale);
