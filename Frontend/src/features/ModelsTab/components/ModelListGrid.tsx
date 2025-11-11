@@ -24,7 +24,7 @@ export function ModelListGrid({
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="flex justify-center items-center h-full w-full">
+        <div className="flex justify-center items-center h-[calc(100dvh-16rem)] w-full">
           <DotLottieReact
             className="w-90 h-90"
             src={animationSrc}
