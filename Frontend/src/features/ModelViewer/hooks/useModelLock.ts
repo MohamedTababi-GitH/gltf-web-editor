@@ -13,8 +13,8 @@ type ModelLockProps = {
 export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
   const { heartbeat, unlockModel } = useMutex();
   const { setIsModelViewer } = useNavigation();
-  //const heartbeatDuration = 90000;
   const idleTimeout = 120000;
+  const notificationCheckTime = 30000;
   const { showNotification } = useNotification();
 
   useEffect(() => {
@@ -35,27 +35,25 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     globalThis.addEventListener("touchmove", incrementInteractionCount);
 
     const idleCheckInterval = setInterval(async () => {
-      console.log(`Interaction count ${interactionCount}`);
       const interacted = interactionCount > 0;
       interactionCount = 0;
 
       if (interacted) {
-        console.log("Interacted, sending heartbeat and resetting the timer");
         await heartbeat(id);
         resetTimer();
         return;
       }
 
       const idleTime = Date.now() - lastActivity;
-      console.log(`Idle for ${Math.round(idleTime / 1000)}s`);
-      if (Math.round(idleTime / 1000) === (idleTimeout - 30000) / 1000) {
+      const idleTimeInSeconds = Math.round(idleTime / 1000);
+      const notificationTimeInSeconds =
+        (idleTimeout - notificationCheckTime) / 1000;
+      const isNotificationTime =
+        idleTimeInSeconds === notificationTimeInSeconds;
+      if (isNotificationTime) {
         showNotification("Still there? Session ends in 30 seconds.", "warn");
       }
       if (idleTime > idleTimeout) {
-        console.log(
-          `Idle for ${Math.round(idleTime / 1000)}s → auto-save & unlock`,
-        );
-
         try {
           if (canUndo) {
             const versionName = `AutoSave at ${
@@ -90,6 +88,7 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     saveModel,
     canUndo,
     idleTimeout,
+    showNotification,
   ]);
 
   useEffect(() => {

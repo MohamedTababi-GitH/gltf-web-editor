@@ -52,6 +52,11 @@ export function DeleteModelDialog({
             onChange={(e) => {
               setConfirmation(e.target.value);
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleConfirm();
+              }
+            }}
             value={confirmation}
             autoFocus
             autoComplete="off"

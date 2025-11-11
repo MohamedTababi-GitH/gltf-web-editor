@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+} from "react";
 import * as React from "react";
 import { DarkAnimation, LightAnimation } from "@/configs/Animation.tsx";
 
@@ -52,10 +59,18 @@ export function ThemeProvider({
     root.classList.add(theme);
   }, [theme]);
 
+  const updateTheme = useCallback(
+    (newTheme: Theme) => {
+      localStorage.setItem(storageKey, newTheme);
+      setTheme(newTheme);
+    },
+    [storageKey],
+  );
+
   const value = useMemo(
     () => ({
       theme,
-      setTheme,
+      setTheme: updateTheme,
       animationSrc:
         theme === "dark" ||
         (theme === "system" &&
@@ -63,7 +78,7 @@ export function ThemeProvider({
           ? DarkAnimation
           : LightAnimation,
     }),
-    [theme, setTheme],
+    [theme, updateTheme],
   );
 
   return (
