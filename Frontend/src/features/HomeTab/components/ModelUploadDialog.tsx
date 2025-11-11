@@ -16,7 +16,8 @@ import ModelThumbnail from "@/features/HomeTab/components/ModelThumbnail.tsx";
 import { useModelUpload } from "@/features/HomeTab/hooks/useModelUpload.ts";
 import { CategoryPicker } from "@/features/HomeTab/components/CategoryPicker.tsx";
 import { useFileUpload } from "@/features/HomeTab/hooks/useFileUpload.ts";
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import * as THREE from "three";
 
 type ModelUploadDialogProps = {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export default function ModelUploadDialog({
   isOpen,
   onOpenChange,
 }: Readonly<ModelUploadDialogProps>) {
+  const [groupRef, setGroupRef] =
+    useState<React.RefObject<THREE.Group | null> | null>(null);
   const {
     file,
     fileAlias,
@@ -47,7 +50,10 @@ export default function ModelUploadDialog({
     needsRequiredFiles,
     categories,
     setCategories,
-  } = useModelUpload({ onOpenChange });
+  } = useModelUpload({
+    onOpenChange,
+    groupRef: groupRef as React.RefObject<THREE.Group | null>,
+  });
   const fileUpload = useFileUpload({});
   const {
     file: uploadedFile,
@@ -122,6 +128,7 @@ export default function ModelUploadDialog({
                 gltfFile={file}
                 dependentFiles={requiredFiles}
                 onSnapshot={handleSnapshot}
+                setGroupRef={setGroupRef}
               />
             )}
           </>
@@ -149,7 +156,8 @@ export default function ModelUploadDialog({
               !fileAlias ||
               isUploading ||
               isUploadDisabled ||
-              (needsRequiredFiles && requiredFiles.length === 0)
+              (needsRequiredFiles && requiredFiles.length === 0) ||
+              !groupRef?.current?.children[0]
             }
           >
             {isUploading && <Spinner />}

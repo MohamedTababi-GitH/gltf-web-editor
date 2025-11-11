@@ -33,6 +33,9 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     globalThis.addEventListener("pointerdown", incrementInteractionCount);
     globalThis.addEventListener("wheel", incrementInteractionCount);
     globalThis.addEventListener("touchmove", incrementInteractionCount);
+    globalThis.addEventListener("touchstart", incrementInteractionCount);
+    globalThis.addEventListener("touchend", incrementInteractionCount);
+    globalThis.addEventListener("touchcancel", incrementInteractionCount);
     //TODO: Delete console statements
     const idleCheckInterval = setInterval(async () => {
       const interacted = interactionCount > 0;
@@ -78,11 +81,14 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     }, 10000);
 
     return () => {
-      globalThis.removeEventListener("mousemove", resetTimer);
-      globalThis.removeEventListener("keydown", resetTimer);
-      globalThis.removeEventListener("pointerdown", resetTimer);
-      globalThis.removeEventListener("wheel", resetTimer);
-      globalThis.removeEventListener("touchmove", resetTimer);
+      globalThis.removeEventListener("mousemove", incrementInteractionCount);
+      globalThis.removeEventListener("keydown", incrementInteractionCount);
+      globalThis.removeEventListener("pointerdown", incrementInteractionCount);
+      globalThis.removeEventListener("wheel", incrementInteractionCount);
+      globalThis.removeEventListener("touchmove", incrementInteractionCount);
+      globalThis.removeEventListener("touchstart", incrementInteractionCount);
+      globalThis.removeEventListener("touchend", incrementInteractionCount);
+      globalThis.removeEventListener("touchcancel", incrementInteractionCount);
       clearInterval(idleCheckInterval);
     };
   }, [

@@ -1,32 +1,52 @@
 import { Canvas, useLoader } from "@react-three/fiber";
-import { Suspense, useRef, useState, memo } from "react";
+import React, { Suspense, useRef, useState, memo, useEffect } from "react";
 import { Environment, Center, OrbitControls, Resize } from "@react-three/drei";
 import { Button } from "@/shared/components/button.tsx";
 import { Camera, Check } from "lucide-react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useLocalProcessedModel } from "@/features/HomeTab/hooks/useLocalProcessedModel.ts";
+import * as THREE from "three";
 
 type ModelThumbnailProps = {
   gltfFile: File;
   dependentFiles: File[];
   onSnapshot?: (image: string) => void;
+  setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
 };
 
-const LoadedModel = memo(({ url }: { url: string }) => {
-  const gltf = useLoader(GLTFLoader, url);
-  return (
-    <group>
-      <primitive object={gltf.scene} />
-    </group>
-  );
-});
+const LoadedModel = memo(
+  ({
+    url,
+    groupRef,
+    setScene,
+  }: {
+    url: string;
+    groupRef: React.RefObject<THREE.Group | null> | null;
+    setScene: (scene: THREE.Group) => void;
+  }) => {
+    const gltf = useLoader(GLTFLoader, url);
+    useEffect(() => {
+      if (gltf.scene) {
+        setScene(gltf.scene);
+      }
+    }, [gltf.scene, setScene]);
+    return (
+      <group ref={groupRef}>
+        <primitive object={gltf.scene} />
+      </group>
+    );
+  },
+);
 
 function ModelThumbnail({
   gltfFile,
   dependentFiles,
   onSnapshot,
+  setGroupRef,
 }: Readonly<ModelThumbnailProps>) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const [scene, setScene] = useState<THREE.Group>();
   const [thumbnailCaptured, setThumbnailCaptured] = useState(false);
   const processedModelUrl = useLocalProcessedModel(gltfFile, dependentFiles);
   const takeSnapshot = () => {
@@ -37,6 +57,11 @@ function ModelThumbnail({
     setTimeout(() => setThumbnailCaptured(false), 1500);
   };
 
+  useEffect(() => {
+    if (groupRef.current && scene) {
+      setGroupRef(groupRef);
+    }
+  }, [setGroupRef, scene]);
   return (
     <div
       style={{ width: 400, height: 200 }}
@@ -52,7 +77,13 @@ function ModelThumbnail({
           <directionalLight position={[10, 10, 5]} intensity={1} />
           <Center>
             <Resize scale={10}>
-              {processedModelUrl && <LoadedModel url={processedModelUrl} />}
+              {processedModelUrl && (
+                <LoadedModel
+                  url={processedModelUrl}
+                  groupRef={groupRef}
+                  setScene={setScene}
+                />
+              )}
             </Resize>
           </Center>
           <OrbitControls makeDefault />
