@@ -29,7 +29,7 @@ function ModelsTab() {
   } = useModelList();
 
   return (
-    <div className="h-[calc(100dvh-4rem)] flex flex-col p-4 md:p-8 lg:p-12 xl:p-16 gap-4">
+    <div className="h-[calc(100dvh-4rem)] flex flex-col p-4 md:p-6 lg:p-8 gap-4">
       <SearchFilterControls
         searchInput={searchInput}
         setSearchInput={setSearchInput}

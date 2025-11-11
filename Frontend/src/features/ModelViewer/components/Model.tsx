@@ -58,9 +58,14 @@ export function Model({
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
   >([]);
+  const selectedComponentsRef = useRef<THREE.Object3D[]>(selectedComponents);
   const originalMaterials = useRef(
     new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
   );
+
+  useEffect(() => {
+    selectedComponentsRef.current = selectedComponents;
+  }, [selectedComponents]);
 
   const highlightMaterial = useMemo(
     () =>
@@ -293,7 +298,8 @@ export function Model({
   }, [selectedComponents]);
 
   const handleDragEnd = useCallback(() => {
-    const newStates = selectedComponents.map((comp) => ({
+    const componentsForCommand = [...selectedComponents];
+    const newStates = componentsForCommand.map((comp) => ({
       position: comp.position.clone(),
       rotation: comp.quaternion.clone(),
       scale: comp.scale.clone(),
@@ -302,11 +308,21 @@ export function Model({
     const oldStates = dragStartStates.current;
 
     if (oldStates.length > 0 && oldStates.length === newStates.length) {
+      const onTransformComplete = (transformedObjects: THREE.Object3D[]) => {
+        const currentSelection = selectedComponentsRef.current;
+        const currentSelectionSet = new Set(currentSelection.map((c) => c.id));
+        const shouldUpdate = transformedObjects.some((obj) =>
+          currentSelectionSet.has(obj.id),
+        );
+        if (shouldUpdate) {
+          updateSidebarMeshes(currentSelection);
+        }
+      };
       const command = new MultiTransformCommand(
-        selectedComponents,
+        componentsForCommand,
         oldStates,
         newStates,
-        updateSidebarMeshes,
+        onTransformComplete,
       );
       addCommand(command);
     }
