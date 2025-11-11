@@ -12,7 +12,7 @@ type ModelLockProps = {
 export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
   const { heartbeat, unlockModel } = useMutex();
   const { setIsModelViewer } = useNavigation();
-  const heartbeatDuration = 90000;
+  //const heartbeatDuration = 90000;
   const idleTimeout = 120000;
 
   useEffect(() => {
@@ -30,12 +30,17 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     let lastActivity = Date.now();
 
     const resetTimer = () => (lastActivity = Date.now());
+    let interactionCount = 0;
 
-    globalThis.addEventListener("mousemove", resetTimer);
-    globalThis.addEventListener("keydown", resetTimer);
-    globalThis.addEventListener("pointerdown", resetTimer);
-    globalThis.addEventListener("wheel", resetTimer);
-    globalThis.addEventListener("touchmove", resetTimer);
+    const incrementInteractionCount = () => {
+      interactionCount += 1;
+    };
+
+    globalThis.addEventListener("mousemove", incrementInteractionCount);
+    globalThis.addEventListener("keydown", incrementInteractionCount);
+    globalThis.addEventListener("pointerdown", incrementInteractionCount);
+    globalThis.addEventListener("wheel", incrementInteractionCount);
+    globalThis.addEventListener("touchmove", incrementInteractionCount);
 
     const checkIdle = setInterval(async () => {
       const idleTime = Date.now() - lastActivity;
