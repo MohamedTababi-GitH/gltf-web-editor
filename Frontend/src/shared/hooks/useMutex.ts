@@ -27,7 +27,8 @@ export const useMutex = () => {
     try {
       await apiClient.post(`/api/model/${modelId}/heartbeat`);
       return { success: true };
-    } catch {
+    } catch (error) {
+      console.log(error);
       return { success: false };
     }
   };
