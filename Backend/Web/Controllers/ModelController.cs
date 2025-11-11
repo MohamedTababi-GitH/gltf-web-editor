@@ -157,7 +157,7 @@ public class ModelController : ControllerBase
 
         var dto = new DeleteModelResultDto
         {
-            Message = $"Model '{id}' was deleted successfully."
+            Message = "Model  was deleted successfully."
         };
 
         return Ok(dto);
