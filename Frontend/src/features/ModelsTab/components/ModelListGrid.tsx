@@ -3,6 +3,7 @@ import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import ModelListItem from "@/features/ModelsTab/components/ModelListItem.tsx";
 import type { ModelItem } from "@/shared/types/ModelItem.ts";
 import { useTheme } from "@/shared/contexts/ThemeContext.tsx";
+import emptyState from "@/assets/images/empty.svg";
 
 type ModelListGridProps = {
   isLoading: boolean;
@@ -54,8 +55,17 @@ export function ModelListGrid({
 
     if (showNoResults) {
       return (
-        <div className="flex justify-center items-center h-full w-full text-gray-400">
-          No models found
+        <div className="flex flex-col justify-center items-center h-[calc(100dvh-16rem)] w-full text-gray-400">
+          <img
+            src={emptyState}
+            className={`bg-muted/80 border-2 rounded-4xl w-[300px] sm:w-[350px] md:w-[400px]`}
+            alt="No results"
+          />
+          <span
+            className={`mt-3 bg-destructive/10 border-2 border-destructive/10 px-4 py-1 text-destructive rounded-full`}
+          >
+            No models found
+          </span>
         </div>
       );
     }
