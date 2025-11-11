@@ -1,10 +1,11 @@
 import { Canvas, useLoader } from "@react-three/fiber";
-import { Suspense, useRef, useState, memo } from "react";
+import React, { Suspense, useRef, useState, memo, useEffect } from "react";
 import { Environment, Center, OrbitControls, Resize } from "@react-three/drei";
 import { Button } from "@/shared/components/button.tsx";
 import { Camera, Check } from "lucide-react";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useLocalProcessedModel } from "@/features/HomeTab/hooks/useLocalProcessedModel.ts";
+import * as THREE from "three";
 
 type ModelThumbnailProps = {
   gltfFile: File;

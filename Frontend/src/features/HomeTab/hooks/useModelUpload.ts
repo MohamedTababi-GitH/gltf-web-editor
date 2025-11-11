@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type { Category } from "@/shared/types/Category.ts";
 import { useNotification } from "@/shared/contexts/NotificationContext.tsx";
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
+import { handleSaveScene } from "@/features/ModelViewer/utils/StateSaver.ts";
+import * as THREE from "three";
 
 type ModelUploadProps = {
   onOpenChange: (isOpen: boolean) => void;
+  groupRef: React.RefObject<THREE.Group | null>;
 };
 
-export const useModelUpload = ({ onOpenChange }: ModelUploadProps) => {
+export const useModelUpload = ({
+  onOpenChange,
+  groupRef,
+}: ModelUploadProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [requiredFiles, setRequiredFiles] = useState<File[]>([]);
   const [fileAlias, setFileAlias] = useState<string>("");
@@ -119,6 +125,8 @@ export const useModelUpload = ({ onOpenChange }: ModelUploadProps) => {
     if (description?.trim()) {
       formData.append("description", description);
     }
+    const state = handleSaveScene(groupRef);
+    formData.append("BaselineJson", state);
 
     try {
       await apiClient.post("/api/model/upload", formData);
@@ -139,6 +147,7 @@ export const useModelUpload = ({ onOpenChange }: ModelUploadProps) => {
     requiredFiles,
     thumbnail,
     categories,
+    groupRef,
     showNotification,
     apiClient,
     onOpenChange,
