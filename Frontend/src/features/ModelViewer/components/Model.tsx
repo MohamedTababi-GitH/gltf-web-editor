@@ -197,6 +197,7 @@ export function Model({
 
   useEffect(() => {
     if (groupRef.current && scene) {
+      console.log(typeof scene);
       setGroupRef(groupRef);
     }
   }, [setGroupRef, scene]);

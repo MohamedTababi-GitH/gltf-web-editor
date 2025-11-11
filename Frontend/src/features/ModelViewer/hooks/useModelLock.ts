@@ -33,6 +33,9 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     globalThis.addEventListener("pointerdown", incrementInteractionCount);
     globalThis.addEventListener("wheel", incrementInteractionCount);
     globalThis.addEventListener("touchmove", incrementInteractionCount);
+    globalThis.addEventListener("touchstart", incrementInteractionCount);
+    globalThis.addEventListener("touchend", incrementInteractionCount);
+    globalThis.addEventListener("touchcancel", incrementInteractionCount);
     //TODO: Delete console statements
     const idleCheckInterval = setInterval(async () => {
       const interacted = interactionCount > 0;

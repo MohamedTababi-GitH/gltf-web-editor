@@ -27,6 +27,8 @@ export default function ModelUploadDialog({
   isOpen,
   onOpenChange,
 }: Readonly<ModelUploadDialogProps>) {
+  const [groupRef, setGroupRef] =
+    useState<React.RefObject<THREE.Group | null> | null>(null);
   const {
     file,
     fileAlias,
@@ -149,7 +151,8 @@ export default function ModelUploadDialog({
               !fileAlias ||
               isUploading ||
               isUploadDisabled ||
-              (needsRequiredFiles && requiredFiles.length === 0)
+              (needsRequiredFiles && requiredFiles.length === 0) ||
+              !groupRef?.current?.children[0]
             }
           >
             {isUploading && <Spinner />}
