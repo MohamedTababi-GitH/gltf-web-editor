@@ -13,7 +13,7 @@ namespace ECAD_Backend.Application.Services
         private readonly ConcurrentDictionary<Guid, DateTime> _locks = new();
         
         // Define how long a lock lease lasts
-        private static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(120);
+        private static readonly TimeSpan LeaseDuration = TimeSpan.FromSeconds(131);
 
         /// <summary>
         /// Acquires an in-memory lock for the specified model ID.

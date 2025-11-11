@@ -33,7 +33,7 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     globalThis.addEventListener("pointerdown", incrementInteractionCount);
     globalThis.addEventListener("wheel", incrementInteractionCount);
     globalThis.addEventListener("touchmove", incrementInteractionCount);
-
+    //TODO: Delete console statements
     const idleCheckInterval = setInterval(async () => {
       const interacted = interactionCount > 0;
       interactionCount = 0;
@@ -46,12 +46,15 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
       }
 
       const idleTime = Date.now() - lastActivity;
+      console.log(idleTime);
       const idleTimeInSeconds = Math.round(idleTime / 1000);
       console.log(idleTimeInSeconds);
       const notificationTimeInSeconds =
         (idleTimeout - notificationCheckTime) / 1000;
       const isNotificationTime =
-        idleTimeInSeconds === notificationTimeInSeconds;
+        idleTimeInSeconds >= notificationTimeInSeconds - 1 &&
+        idleTimeInSeconds <= notificationTimeInSeconds + 1;
+
       if (isNotificationTime) {
         showNotification("Still there? Session ends in 30 seconds.", "warn");
       }
