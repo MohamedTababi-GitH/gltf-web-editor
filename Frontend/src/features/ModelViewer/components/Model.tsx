@@ -1,9 +1,9 @@
 import React, {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  useCallback,
 } from "react";
 import { TransformControls } from "@react-three/drei";
 import { useModel } from "@/shared/contexts/ModelContext.tsx";
@@ -171,6 +171,7 @@ export function Model({
     if (!gltf.scene) return new THREE.Group();
     const clonedScene = gltf.scene.clone(true);
 
+    // --- Scene Normalization (Unchanged) ---
     const box = new THREE.Box3().setFromObject(clonedScene);
     const size = box.getSize(new THREE.Vector3());
     const maxDimension = Math.max(size.x, size.y, size.z);
@@ -181,14 +182,293 @@ export function Model({
     const center = scaledBox.getCenter(new THREE.Vector3());
     clonedScene.position.sub(center);
 
-    // FIX: Give each mesh its own material clone - otherwise the similar meshes will change together..
-    clonedScene.traverse((obj) => {
-      if (isMesh(obj)) {
-        if (Array.isArray(obj.material)) {
-          obj.material = obj.material.map((m) => m.clone());
+    // --- Helper Materials (Unchanged) ---
+    const pointSlotHelperMaterial = new THREE.MeshBasicMaterial({
+      color: 0x000000, // Red
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -1.0,
+      polygonOffsetUnits: -1.0,
+    });
+    const areaSlotHelperMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ff00, // Green
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -1.0,
+      polygonOffsetUnits: -1.0,
+    });
+    const lineSlotHelperMaterial = new THREE.MeshBasicMaterial({
+      color: 0x0000ff, // Blue
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -1.0,
+      polygonOffsetUnits: -1.0,
+    });
+
+    // --- Scene Traversal and Slot Creation ---
+    clonedScene.traverse((node) => {
+      // Clone materials
+      if (isMesh(node)) {
+        if (Array.isArray(node.material)) {
+          node.material = node.material.map((m) => m.clone());
         } else {
-          obj.material = obj.material.clone();
+          node.material = node.material.clone();
         }
+      }
+
+      // Check for Slots userData
+      if (node.userData.Slots && Array.isArray(node.userData.Slots)) {
+        // --- 1. Get Component's Bounding Box (Unchanged) ---
+        const localGeomBox = new THREE.Box3();
+
+        if (isMesh(node) && node.geometry) {
+          if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+          if (node.geometry.boundingBox) {
+            localGeomBox.copy(node.geometry.boundingBox);
+          }
+        } else {
+          node.traverse((child) => {
+            if (isMesh(child) && child.geometry) {
+              if (!child.geometry.boundingBox)
+                child.geometry.computeBoundingBox();
+              if (child.geometry.boundingBox) {
+                const childBox = child.geometry.boundingBox.clone();
+                childBox.applyMatrix4(child.matrixWorld);
+                localGeomBox.union(childBox);
+              }
+            }
+          });
+          const invWorldMatrix = node.matrixWorld.clone().invert();
+          if (!localGeomBox.isEmpty()) {
+            localGeomBox.applyMatrix4(invWorldMatrix);
+          }
+        }
+
+        const componentSize = localGeomBox.getSize(new THREE.Vector3());
+        const boxCenter = localGeomBox.getCenter(new THREE.Vector3());
+        let helperThickness;
+
+        if (localGeomBox.isEmpty()) {
+          helperThickness = 0.01 * targetSize;
+        } else {
+          helperThickness =
+            Math.max(componentSize.x, componentSize.y, componentSize.z) * 0.01;
+          if (helperThickness === 0) helperThickness = 0.01 * targetSize;
+        }
+
+        const mountingDesc = node.userData.MountingDescription;
+
+        // --- 2. Iterate Slots and Create Helpers ---
+        node.userData.Slots.forEach((slot) => {
+          let slotHelperMesh: THREE.Object3D | undefined;
+          let lineLength = 0;
+
+          const { x, y, z } = slot.directionVector;
+          const absX = Math.abs(x);
+          const absY = Math.abs(y);
+          const absZ = Math.abs(z);
+          const targetVec = new THREE.Vector3(x, y, z).normalize();
+
+          // --- Safe Justification Getters ---
+          const justPoint = mountingDesc?.justificationOnPointSlots || {
+            x: 0,
+            y: 0,
+            z: 0,
+          };
+          const justLine = mountingDesc?.justificationOnLineSlot
+            ? { x: 0, ...mountingDesc.justificationOnLineSlot } // Ensure x exists
+            : { x: 0, y: 0, z: 0 };
+          const justAreaRaw = mountingDesc?.justificationOnAreaSlots;
+          const justArea =
+            typeof justAreaRaw === "object" && justAreaRaw !== null
+              ? justAreaRaw
+              : { x: 0, y: 0, z: 0 };
+
+          // --- Check if justification is "non-zero" ---
+          const pointIsJustified =
+            justPoint.x !== 0 || justPoint.y !== 0 || justPoint.z !== 0;
+          const lineIsJustified =
+            justLine.x !== 0 || justLine.y !== 0 || justLine.z !== 0;
+          const areaIsJustified =
+            justArea.x !== 0 || justArea.y !== 0 || justArea.z !== 0;
+
+          // --- 3. Create Geometry based on Type ---
+          if (slot.type === "ModelAreaSlot") {
+            let areaW: number, areaH: number;
+            if (localGeomBox.isEmpty()) {
+              areaW = 0.1 * targetSize;
+              areaH = 0.1 * targetSize;
+            } else {
+              if (absX > absY && absX > absZ) {
+                // X-axis
+                areaW = componentSize.y;
+                areaH = componentSize.z;
+              } else if (absY > absX && absY > absZ) {
+                // Y-axis
+                areaW = componentSize.x;
+                areaH = componentSize.z;
+              } else {
+                // Z-axis
+                areaW = componentSize.x;
+                areaH = componentSize.y;
+              }
+            }
+            if (areaW === 0)
+              areaW = Math.max(
+                0.1 * targetSize,
+                componentSize.x,
+                componentSize.y,
+                componentSize.z,
+              );
+            if (areaH === 0)
+              areaH = Math.max(
+                0.1 * targetSize,
+                componentSize.x,
+                componentSize.y,
+                componentSize.z,
+              );
+
+            const geometry = new THREE.BoxGeometry(
+              areaW,
+              areaH,
+              helperThickness,
+            );
+            slotHelperMesh = new THREE.Mesh(geometry, areaSlotHelperMaterial);
+
+            // --- Positioning ---
+            if (areaIsJustified) {
+              slotHelperMesh.position.set(justArea.x, justArea.y, justArea.z);
+            } else {
+              // Auto-position on face center, offset by half thickness
+              slotHelperMesh.position.set(
+                boxCenter.x + x * (componentSize.x / 2 + helperThickness / 2),
+                boxCenter.y + y * (componentSize.y / 2 + helperThickness / 2),
+                boxCenter.z + z * (componentSize.z / 2 + helperThickness / 2),
+              );
+            }
+          } else if (slot.type === "ModelLineSlot") {
+            if (localGeomBox.isEmpty()) {
+              lineLength = 0.5 * targetSize;
+            } else {
+              // Length is along the direction vector
+              if (absX > absY && absX > absZ) {
+                // X-axis
+                lineLength = componentSize.x;
+              } else if (absY > absX && absY > absZ) {
+                // Y-axis
+                lineLength = componentSize.y;
+              } else {
+                // Z-axis
+                lineLength = componentSize.z;
+              }
+            }
+            if (lineLength === 0) lineLength = 0.5 * targetSize;
+
+            // Dimensions: X is length, Y/Z are thickness
+            const geometry = new THREE.BoxGeometry(
+              lineLength,
+              helperThickness,
+              helperThickness / 2,
+            );
+            // DO NOT translate geometry - this was the "intersect" bug
+
+            slotHelperMesh = new THREE.Mesh(geometry, lineSlotHelperMaterial);
+
+            // --- Positioning ---
+            if (lineIsJustified) {
+              slotHelperMesh.position.set(justLine.x, justLine.y, justLine.z);
+            } else {
+              // Auto-position based on user's rule (X/Y-dir -> Z-face, Z-dir -> X-face)
+              const lineThickness = helperThickness / 2; // This is the Z-dim of the geometry
+
+              if (absZ > absX && absZ > absY) {
+                // Direction is Z-axis: Place on +X face
+                slotHelperMesh.position.set(
+                  boxCenter.x + componentSize.x / 2 + lineThickness / 2, // Offset by half line thickness
+                  boxCenter.y,
+                  boxCenter.z,
+                );
+              } else {
+                // Direction is X or Y axis: Place on +Z face
+                slotHelperMesh.position.set(
+                  boxCenter.x,
+                  boxCenter.y,
+                  boxCenter.z + componentSize.z / 2 + lineThickness / 2, // Offset by half line thickness
+                );
+              }
+            }
+          } else if (slot.type === "ModelPointSlot") {
+            const arrowLength = 30 * targetSize;
+            const direction = new THREE.Vector3(x, y, z).normalize();
+            const origin = new THREE.Vector3(0, 0, 0);
+
+            const arrowHelper = new THREE.ArrowHelper(
+              direction,
+              origin,
+              arrowLength,
+              pointSlotHelperMaterial.color.getHex(),
+              arrowLength * 0.5,
+              arrowLength * 0.2,
+            );
+
+            (arrowHelper.line.material as THREE.MeshBasicMaterial).copy(
+              pointSlotHelperMaterial,
+            );
+            (arrowHelper.cone.material as THREE.MeshBasicMaterial).copy(
+              pointSlotHelperMaterial,
+            );
+
+            slotHelperMesh = arrowHelper;
+
+            // --- Positioning ---
+            if (pointIsJustified) {
+              slotHelperMesh.position.set(
+                justPoint.x,
+                justPoint.y,
+                justPoint.z,
+              );
+            } else {
+              // Auto-position: Place arrow *base* on the face
+              slotHelperMesh.position.set(
+                boxCenter.x + (x * componentSize.x) / 2,
+                boxCenter.y + (y * componentSize.y) / 2,
+                boxCenter.z + (z * componentSize.z) / 2,
+              );
+            }
+          }
+
+          // --- 4. Orient and Add Helper to Node ---
+          if (slotHelperMesh) {
+            node.add(slotHelperMesh);
+
+            if (slot.directionVector && targetVec.lengthSq() > 0.0001) {
+              if (slot.type === "ModelAreaSlot") {
+                const defaultNormal = new THREE.Vector3(0, 0, 1);
+                slotHelperMesh.quaternion.setFromUnitVectors(
+                  defaultNormal,
+                  targetVec,
+                );
+              }
+              if (slot.type === "ModelLineSlot") {
+                const defaultDir = new THREE.Vector3(1, 0, 0); // Geometry's length is along its X-axis
+                slotHelperMesh.quaternion.setFromUnitVectors(
+                  defaultDir,
+                  targetVec,
+                );
+              }
+              // No orientation for ModelPointSlot, ArrowHelper handles it
+            }
+          }
+        });
       }
     });
 
