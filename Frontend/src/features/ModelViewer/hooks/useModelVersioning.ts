@@ -25,35 +25,39 @@ export const useModelVersioning = (
   const { resetStacks } = useHistory();
 
   // *** Old Logic ***
-  // const files = model?.stateFiles || [];
-  // const sortedFiles = useMemo(
-  //     () => [...files].sort((a, b) => (a.createdOn > b.createdOn ? -1 : 1)),
-  //     [files],
-  // );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const files = model?.stateFiles || [];
+  const sortedFiles = useMemo(
+    () => [...files].sort((a, b) => (a.createdOn > b.createdOn ? -1 : 1)),
+    [files],
+  );
 
-  // $$$  New Updated version of SortedFiles that displays the Baseline model first  $$$
-  const sortedFiles = useMemo(() => {
-    if (!model) return [];
+  // // $$$  New Updated version of SortedFiles that displays the Baseline model first  $$$
+  // const sortedFiles = useMemo(() => {
+  //   if (!model) return [];
+  //
+  //   const files = [...(model.stateFiles || [])].sort((a, b) =>
+  //     a.createdOn > b.createdOn ? -1 : 1,
+  //   );
+  //
+  //   return [...files];
+  // }, [model]);
 
-    const files = [...(model.stateFiles || [])].sort((a, b) =>
-      a.createdOn > b.createdOn ? -1 : 1,
-    );
-
-    const baseline: StateFile = {
+  useEffect(() => {
+    if (!model) return;
+    setBaseline({
       name: model.baseline?.name || "baseline.json",
-      version: "Baseline",
+      version: "Original",
       createdOn: model.baseline?.createdOn || model.createdOn,
       url: model.baseline?.url || model.url,
       sizeBytes: model.baseline?.sizeBytes ?? model.sizeBytes ?? 0,
       contentType: model.baseline?.contentType ?? "application/json",
-    };
-
-    return [baseline, ...files];
+    });
   }, [model]);
 
   useEffect(() => {
     // Only set Baseline version once on first model load!
-    if (!selectedVersion && sortedFiles.length > 0) {
+    if (sortedFiles.length > 0) {
       setSelectedVersion(sortedFiles[0]);
     }
   }, [sortedFiles]);

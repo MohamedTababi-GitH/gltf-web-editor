@@ -203,7 +203,7 @@ export function ModelViewerToolbar({
             <Button
               disabled={!groupRef || !canUndo}
               onClick={() => {
-                if (selectedVersion?.version === "Baseline") {
+                if (selectedVersion?.version === "Original") {
                   saveModel("Default");
                 } else {
                   saveModel(selectedVersion?.version);
@@ -249,58 +249,81 @@ export function ModelViewerToolbar({
           </PopoverTrigger>
           <PopoverContent className="w-90 select-none">
             <div className="grid gap-4">
-              <h4 className="font-medium leading-none">Versions</h4>
-              <ul className="grid gap-2">
-                {sortedFiles.map((file) => (
-                  <li className="list-none flex gap-2" key={file.createdOn}>
-                    <button
-                      type="button"
+              <div className={"flex justify-between items-center"}>
+                <h4 className="font-medium leading-none">Versions</h4>
+                <Tooltip>
+                  <TooltipTrigger asChild={true}>
+                    <Milestone
+                      className={`cursor-pointer p-2 rounded-sm size-9 ${selectedVersion?.version === "Original" ? "bg-foreground text-background" : "bg-muted text-foreground"}`}
                       onClick={() => {
-                        handleVersionClick(file, canUndo);
+                        if (!baseline) return;
+                        handleVersionClick(baseline, canUndo);
                       }}
-                      className={`w-full text-left py-2 px-4 rounded-md cursor-pointer ${
-                        file.version === selectedVersion?.version
-                          ? "bg-primary/90 text-primary-foreground"
-                          : "bg-muted"
-                      }`}
-                    >
-                      <p className="text-sm">{file.version}</p>
-                      <p
-                        className={`text-sm ${
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p>Original Version</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <ScrollArea>
+                <ul className="grid gap-2 max-h-[calc(100dvh-10rem)]">
+                  {sortedFiles.map((file) => (
+                    <li className="list-none flex gap-2" key={file.createdOn}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedVersion?.version === "Original") {
+                            handleVersionClick(file, false);
+                          } else {
+                            handleVersionClick(file, canUndo);
+                          }
+                        }}
+                        className={`w-full text-left py-2 px-4 rounded-md cursor-pointer ${
                           file.version === selectedVersion?.version
-                            ? "text-muted"
-                            : "text-muted-foreground"
+                            ? "bg-primary/90 text-primary-foreground"
+                            : "bg-muted"
                         }`}
                       >
-                        Last Saved: {formatDateTime(file.createdOn).fullStr}
-                      </p>
-                    </button>
-                    {file.version !== "Baseline" && (
-                      <Tooltip>
-                        <TooltipTrigger asChild={true}>
-                          <Button
-                            onClick={() => {
-                              handleDeleteVersionClick(file);
-                            }}
-                            className="flex items-center px-2 py-2 rounded-md bg-muted transition h-full border hover:bg-destructive/60 text-sidebar-foreground/70"
-                          >
-                            <Trash className="size-4 lg:size-5 text-foreground" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <p>
-                            Delete{" "}
-                            <b>
-                              <i>{file.version}</i>
-                            </b>{" "}
-                            Version
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                        <p className="text-sm">{file.version}</p>
+                        <p
+                          className={`text-sm ${
+                            file.version === selectedVersion?.version
+                              ? "text-muted"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          Last Saved: {formatDateTime(file.createdOn).fullStr}
+                        </p>
+                      </button>
+                      {file.version !== "Original" && (
+                        <Tooltip>
+                          <TooltipTrigger asChild={true}>
+                            <Button
+                              onClick={() => {
+                                handleDeleteVersionClick(file);
+                              }}
+                              className="flex items-center px-2 py-2 rounded-md bg-muted transition h-full border hover:bg-destructive/60 text-sidebar-foreground/70"
+                            >
+                              <Trash className="size-4 lg:size-5 text-foreground" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">
+                            <p>
+                              Delete{" "}
+                              <b>
+                                <i>{file.version}</i>
+                              </b>{" "}
+                              Version
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <ScrollBar orientation="vertical" />
+              </ScrollArea>
             </div>
           </PopoverContent>
         </Popover>
