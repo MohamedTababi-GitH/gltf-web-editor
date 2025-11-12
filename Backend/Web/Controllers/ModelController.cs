@@ -22,13 +22,15 @@ public class ModelController : ControllerBase
     private readonly IModelService _modelService;
     private readonly IModelUploadService _uploadService;
     private readonly IModelStateService _stateService;
+    private readonly IMutexService _mutexService;
 
     public ModelController(IModelService modelService, IModelUploadService uploadService,
-        IModelStateService stateService)
+        IModelStateService stateService, IMutexService mutexService)
     {
         _modelService = modelService;
         _uploadService = uploadService;
         _stateService = stateService;
+        _mutexService = mutexService;
     }
 
     /// <summary>
@@ -355,7 +357,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
 
-        _modelService.LockModel(id);
+        _mutexService.AcquireLock(id);
         return Ok();
     }
 
@@ -377,7 +379,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
 
-        _modelService.UnlockModel(id);
+        _mutexService.ReleaseLock(id);
         return Ok();
     }
 
@@ -401,7 +403,7 @@ public class ModelController : ControllerBase
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
 
-        _modelService.Heartbeat(id);
+        _mutexService.Heartbeat(id);
         return Ok();
     }
 }
