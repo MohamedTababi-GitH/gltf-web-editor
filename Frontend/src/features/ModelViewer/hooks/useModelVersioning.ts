@@ -16,6 +16,7 @@ export const useModelVersioning = (
   const [versionToDelete, setVersionToDelete] = useState<StateFile>();
   const [showSwitchWarning, setShowSwitchWarning] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [baseline, setBaseline] = useState<StateFile>();
   const [showDeleteVersionWarning, setShowDeleteVersionWarning] =
     useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,7 +56,7 @@ export const useModelVersioning = (
     if (!selectedVersion && sortedFiles.length > 0) {
       setSelectedVersion(sortedFiles[0]);
     }
-  }, [selectedVersion, sortedFiles]);
+  }, [sortedFiles]);
 
   const refetchModel = useCallback(async () => {
     try {
@@ -175,6 +176,7 @@ export const useModelVersioning = (
     handleDeleteVersion,
     sortedFiles,
     handleDeleteVersionClick,
+    baseline,
     switchWarningDialogProps: {
       showSwitchWarning,
       setShowSwitchWarning,

@@ -7,6 +7,7 @@ import { Button } from "@/shared/components/button.tsx";
 import {
   Keyboard,
   Layers,
+  Milestone,
   Redo2,
   Save,
   SaveAll,
@@ -28,6 +29,7 @@ import React from "react";
 import * as THREE from "three";
 import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useNavigation } from "@/shared/contexts/NavigationContext";
+import { ScrollArea, ScrollBar } from "@/shared/components/scroll-area.tsx";
 
 type ModelViewerToolbarProps = {
   setVersionModalOpen: (open: boolean) => void;
@@ -45,6 +47,7 @@ type ModelViewerToolbarProps = {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
+  baseline: StateFile | undefined;
   groupRef: React.RefObject<THREE.Group | null>;
   cursorTools: { name: string; shortcut: string }[];
 };
@@ -67,6 +70,7 @@ export function ModelViewerToolbar({
   redo,
   groupRef,
   cursorTools,
+  baseline,
 }: Readonly<ModelViewerToolbarProps>) {
   const { model } = useModel();
   const { unlockModel } = useMutex();
@@ -243,7 +247,7 @@ export function ModelViewerToolbar({
               {selectedVersion?.version}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-96 select-none">
+          <PopoverContent className="w-90 select-none">
             <div className="grid gap-4">
               <h4 className="font-medium leading-none">Versions</h4>
               <ul className="grid gap-2">
