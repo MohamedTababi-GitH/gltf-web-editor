@@ -51,10 +51,11 @@ export const useModelVersioning = (
   }, [model]);
 
   useEffect(() => {
-    if (sortedFiles.length > 0) {
+    // Only set Baseline version once on first model load!
+    if (!selectedVersion && sortedFiles.length > 0) {
       setSelectedVersion(sortedFiles[0]);
     }
-  }, [model?.id, sortedFiles]);
+  }, [selectedVersion, sortedFiles]);
 
   const refetchModel = useCallback(async () => {
     try {
@@ -88,16 +89,28 @@ export const useModelVersioning = (
           const newSortedFiles = [...newModelData.stateFiles].sort((a, b) =>
             a.createdOn > b.createdOn ? -1 : 1,
           );
+          const savedVersionName =
+            targetVersion ??
+            (selectedVersion?.version === "Baseline"
+              ? "Default"
+              : selectedVersion?.version);
           const savedVersion = newSortedFiles.find(
-            (file) => file.version === (targetVersion || "Default"),
+            (file) => file.version === savedVersionName,
           );
-          setSelectedVersion(savedVersion || newSortedFiles[0]);
+          setSelectedVersion(savedVersion || newSortedFiles);
         }
       } catch (error) {
         console.error("Error saving model:", error);
       }
     },
-    [apiClient, groupRef, model?.assetId, refetchModel, resetStacks],
+    [
+      apiClient,
+      groupRef,
+      model?.assetId,
+      refetchModel,
+      resetStacks,
+      selectedVersion?.version,
+    ],
   );
 
   const handleSwitch = async () => {

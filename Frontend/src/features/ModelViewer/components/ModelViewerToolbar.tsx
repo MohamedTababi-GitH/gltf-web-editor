@@ -199,10 +199,7 @@ export function ModelViewerToolbar({
             <Button
               disabled={!groupRef || !canUndo}
               onClick={() => {
-                if (
-                  selectedVersion?.version === "Baseline" ||
-                  selectedVersion?.version === "Default"
-                ) {
+                if (selectedVersion?.version === "Baseline") {
                   saveModel("Default");
                 } else {
                   saveModel(selectedVersion?.version);
