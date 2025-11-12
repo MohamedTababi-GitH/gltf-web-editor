@@ -199,8 +199,11 @@ export function ModelViewerToolbar({
             <Button
               disabled={!groupRef || !canUndo}
               onClick={() => {
-                if (selectedVersion?.version === "Default") {
-                  saveModel();
+                if (
+                  selectedVersion?.version === "Baseline" ||
+                  selectedVersion?.version === "Default"
+                ) {
+                  saveModel("Default");
                 } else {
                   saveModel(selectedVersion?.version);
                 }
@@ -232,7 +235,7 @@ export function ModelViewerToolbar({
           </TooltipContent>
         </Tooltip>
       </ButtonGroup>
-      {model?.stateFiles && model?.stateFiles?.length > 0 && (
+      {sortedFiles.length > 0 && (
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -271,7 +274,7 @@ export function ModelViewerToolbar({
                         Last Saved: {formatDateTime(file.createdOn).fullStr}
                       </p>
                     </button>
-                    {sortedFiles.length > 1 && (
+                    {file.version !== "Baseline" && (
                       <Tooltip>
                         <TooltipTrigger asChild={true}>
                           <Button
