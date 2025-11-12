@@ -24,6 +24,10 @@ export function SaveVersionDialog({
   setVersionName,
   saveModel,
 }: Readonly<SaveVersionDialogProps>) {
+  const handleConfirm = () => {
+    if (versionName.trim().length === 0) return;
+    saveModel(versionName.trim());
+  };
   return (
     <Dialog open={versionModalOpen} onOpenChange={setVersionModalOpen}>
       <DialogContent>
@@ -39,6 +43,11 @@ export function SaveVersionDialog({
             maxLength={25}
             value={versionName}
             onChange={(e) => setVersionName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleConfirm();
+              }
+            }}
           />
         </div>
         <DialogFooter>
