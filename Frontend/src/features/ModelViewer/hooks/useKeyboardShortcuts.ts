@@ -7,7 +7,11 @@ import React, {
 } from "react";
 import * as THREE from "three";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
-import { tools } from "@/features/ModelViewer/components/Cursors.tsx";
+import {
+  cursors,
+  getTools,
+} from "@/features/ModelViewer/components/Cursors.tsx";
+import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 type KeyboardShortcutsProps = {
   saveModel: (version?: string) => void;
@@ -17,6 +21,7 @@ type KeyboardShortcutsProps = {
   selectedVersion?: { version: string };
   canUndo: boolean;
   setSelectedTool: Dispatch<SetStateAction<Cursor>>;
+  orbitRef: React.RefObject<OrbitControlsImpl | null>;
 };
 
 export const useKeyboardShortcuts = ({
@@ -27,6 +32,7 @@ export const useKeyboardShortcuts = ({
   selectedVersion,
   canUndo,
   setSelectedTool,
+  orbitRef,
 }: KeyboardShortcutsProps) => {
   const [undoShortcut, setUndoShortcut] = useState("Ctrl+Z");
   const [redoShortcut, setRedoShortcut] = useState("Ctrl+Y");
@@ -51,19 +57,34 @@ export const useKeyboardShortcuts = ({
     }
   }, [canUndo, groupRef, saveModel, selectedVersion?.version]);
 
-  const handleToolSelect = useCallback(
+  const handleCursorSelect = useCallback(
     (key: string): boolean => {
-      const tool = tools?.find(
-        (t) => t.shortcut.toLowerCase() === key.toLowerCase(),
+      const cursor = cursors?.find(
+        (c) => c.shortcut.toLowerCase() === key.toLowerCase(),
       );
 
-      if (tool) {
-        setSelectedTool(tool.name);
+      if (cursor) {
+        setSelectedTool(cursor.name);
         return true;
       }
       return false;
     },
     [setSelectedTool],
+  );
+
+  const handleToolSelect = useCallback(
+    (key: string): boolean => {
+      const tool = getTools({ orbitRef })?.find(
+        (t) => t.shortcut.toLowerCase() === key.toLowerCase(),
+      );
+
+      if (tool) {
+        tool.onClick?.();
+        return true;
+      }
+      return false;
+    },
+    [orbitRef],
   );
 
   useEffect(() => {
@@ -91,6 +112,10 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
+      if (handleCursorSelect(lowerKey)) {
+        event.preventDefault();
+      }
+
       if (handleToolSelect(lowerKey)) {
         event.preventDefault();
       }
@@ -105,12 +130,13 @@ export const useKeyboardShortcuts = ({
     canUndo,
     groupRef,
     handleSave,
-    handleToolSelect,
+    handleCursorSelect,
     saveModel,
     selectedVersion?.version,
     setSelectedTool,
     setVersionModalOpen,
     versionModalOpen,
+    handleToolSelect,
   ]);
 
   return {

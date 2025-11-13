@@ -28,6 +28,8 @@ import React from "react";
 import * as THREE from "three";
 import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useNavigation } from "@/shared/contexts/NavigationContext";
+import { getTools } from "@/features/ModelViewer/components/Cursors.tsx";
+import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 type ModelViewerToolbarProps = {
   setVersionModalOpen: (open: boolean) => void;
@@ -47,6 +49,7 @@ type ModelViewerToolbarProps = {
   redo: () => void;
   groupRef: React.RefObject<THREE.Group | null>;
   cursorTools: { name: string; shortcut: string }[];
+  orbitRef: React.RefObject<OrbitControlsImpl | null>;
 };
 
 export function ModelViewerToolbar({
@@ -67,6 +70,7 @@ export function ModelViewerToolbar({
   redo,
   groupRef,
   cursorTools,
+  orbitRef,
 }: Readonly<ModelViewerToolbarProps>) {
   const { model } = useModel();
   const { unlockModel } = useMutex();
@@ -179,6 +183,17 @@ export function ModelViewerToolbar({
                 Tools
               </h5>
               {cursorTools.map((tool) => (
+                <div
+                  key={tool.name}
+                  className="flex items-center justify-between"
+                >
+                  <p className="text-sm">{tool.name}</p>
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                    {tool.shortcut}
+                  </kbd>
+                </div>
+              ))}
+              {getTools({ orbitRef }).map((tool) => (
                 <div
                   key={tool.name}
                   className="flex items-center justify-between"

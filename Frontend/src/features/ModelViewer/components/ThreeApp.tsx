@@ -1,9 +1,11 @@
 import { Center, OrbitControls, Environment, Resize } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Model } from "./Model.tsx";
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useRef, useState } from "react";
 import { useModel } from "@/shared/contexts/ModelContext.tsx";
-import Cursors, { tools } from "@/features/ModelViewer/components/Cursors.tsx";
+import Cursors, {
+  cursors,
+} from "@/features/ModelViewer/components/Cursors.tsx";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import * as THREE from "three";
 import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
@@ -18,6 +20,7 @@ import { CloseWarningDialog } from "./CloseWarningDialog.tsx";
 import { SaveVersionDialog } from "@/features/ModelViewer/components/SaveVersionDialog.tsx";
 import { Loading } from "@/features/ModelViewer/components/Loading.tsx";
 import { DeleteVersionDialog } from "@/features/ModelViewer/components/DeleteVersionDialog.tsx";
+import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 export default function ThreeApp() {
   const { model } = useModel();
@@ -25,6 +28,7 @@ export default function ThreeApp() {
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null> | null>(null);
+  const orbitRef = useRef<OrbitControlsImpl | null>(null);
 
   const { undo, redo, undoStack, redoStack } = useHistory();
 
@@ -43,6 +47,7 @@ export default function ThreeApp() {
     groupRef: groupRef as React.RefObject<THREE.Group | null>,
     selectedVersion: versioning.selectedVersion,
     versionModalOpen: versioning.versionModalOpen,
+    orbitRef,
   });
   useModelLock({ id: model?.id, saveModel: versioning.saveModel, canUndo });
 
@@ -63,7 +68,8 @@ export default function ThreeApp() {
           undo={undo}
           redo={redo}
           groupRef={groupRef}
-          cursorTools={tools}
+          cursorTools={cursors}
+          orbitRef={orbitRef}
         />
       )}
 
@@ -75,7 +81,11 @@ export default function ThreeApp() {
       <SaveVersionDialog {...versioning.saveVersionDialogProps} />
       <DeleteVersionDialog {...versioning.deleteVersionDialogProps} />
 
-      <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
+      <Cursors
+        setSelectedTool={setSelectedTool}
+        selectedTool={selectedTool}
+        orbitRef={orbitRef}
+      />
       <Canvas>
         <color attach="background" args={["#888888"]} />
         <Suspense fallback={null}>
@@ -95,6 +105,7 @@ export default function ThreeApp() {
           </Center>
         </Suspense>
         <OrbitControls
+          ref={orbitRef}
           makeDefault
           enableDamping={false}
           mouseButtons={{
