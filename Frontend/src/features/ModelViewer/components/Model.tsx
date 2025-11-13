@@ -23,6 +23,34 @@ function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
 }
 
+function detectCollisions(
+  movedObject: THREE.Object3D,
+  scene: THREE.Group,
+  tolerance = 0.001
+): THREE.Object3D[] {
+  const collisions: THREE.Object3D[] = [];
+
+  // Get world-space bounding box for the moved object
+  const movedBox = new THREE.Box3().setFromObject(movedObject);
+
+  scene.children.forEach((child) => {
+    if (child === movedObject || !child.visible) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (
+      movedBox.min.x <= childBox.max.x - tolerance &&
+      movedBox.max.x >= childBox.min.x + tolerance &&
+      movedBox.min.y <= childBox.max.y - tolerance &&
+      movedBox.max.y >= childBox.min.y + tolerance &&
+      movedBox.min.z <= childBox.max.z - tolerance &&
+      movedBox.max.z >= childBox.min.z + tolerance
+    ) {
+      collisions.push(child);
+    }
+  });
+
+  return collisions;
+}
+
 type ModelProps = {
   processedUrl: string;
   setLoadingProgress: (progress: number) => void;
@@ -54,13 +82,14 @@ export function Model({
   const [loadedState, setLoadedState] = useState<SavedComponentState[]>();
   const { addCommand } = useHistory();
   const apiClient = useAxiosConfig();
+  const previousCollided = useRef<THREE.Object3D[]>([]);
 
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
   >([]);
   const selectedComponentsRef = useRef<THREE.Object3D[]>(selectedComponents);
   const originalMaterials = useRef(
-    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>()
   );
 
   useEffect(() => {
@@ -78,7 +107,7 @@ export function Model({
         roughness: 0.5,
         metalness: 0.5,
       }),
-    [],
+    []
   );
 
   function isSavedStateArray(data: unknown): data is SavedComponentState[] {
@@ -139,7 +168,7 @@ export function Model({
           } else {
             console.error(
               "Loaded file is not a valid scene state:",
-              parsedData,
+              parsedData
             );
           }
         } catch (parseError) {
@@ -242,10 +271,10 @@ export function Model({
             isVisible: component.visible,
             opacity: opacity,
           };
-        }),
+        })
       );
     },
-    [setMeshes],
+    [setMeshes]
   );
 
   useEffect(() => {
@@ -312,7 +341,7 @@ export function Model({
         const currentSelection = selectedComponentsRef.current;
         const currentSelectionSet = new Set(currentSelection.map((c) => c.id));
         const shouldUpdate = transformedObjects.some((obj) =>
-          currentSelectionSet.has(obj.id),
+          currentSelectionSet.has(obj.id)
         );
         if (shouldUpdate) {
           updateSidebarMeshes(currentSelection);
@@ -322,7 +351,7 @@ export function Model({
         componentsForCommand,
         oldStates,
         newStates,
-        onTransformComplete,
+        onTransformComplete
       );
       addCommand(command);
     }
@@ -333,7 +362,7 @@ export function Model({
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
       const componentToToggle = selectedComponents.find(
-        (comp) => comp.id === componentId,
+        (comp) => comp.id === componentId
       );
 
       if (componentToToggle) {
@@ -342,13 +371,11 @@ export function Model({
 
       setMeshes((prevMeshes) =>
         prevMeshes.map((mesh) =>
-          mesh.id === componentId
-            ? { ...mesh, isVisible: newVisibility }
-            : mesh,
-        ),
+          mesh.id === componentId ? { ...mesh, isVisible: newVisibility } : mesh
+        )
       );
     },
-    [selectedComponents, setMeshes],
+    [selectedComponents, setMeshes]
   );
 
   const updateMeshPosition = useCallback(
@@ -374,7 +401,7 @@ export function Model({
         [object],
         [oldState],
         [newState],
-        updateSidebarMeshes,
+        updateSidebarMeshes
       );
       addCommand(command);
 
@@ -387,17 +414,17 @@ export function Model({
                 Y: position.y.toFixed(3),
                 Z: position.z.toFixed(3),
               }
-            : mesh,
-        ),
+            : mesh
+        )
       );
     },
-    [selectedComponents, setMeshes, updateSidebarMeshes, addCommand],
+    [selectedComponents, setMeshes, updateSidebarMeshes, addCommand]
   );
 
   const toggleComponentOpacity = useCallback(
     (componentId: number, newOpacity: number) => {
       const componentToChange = selectedComponents.find(
-        (comp) => comp.id === componentId,
+        (comp) => comp.id === componentId
       );
 
       if (componentToChange) {
@@ -428,11 +455,11 @@ export function Model({
 
       setMeshes((prevMeshes) =>
         prevMeshes.map((mesh) =>
-          mesh.id === componentId ? { ...mesh, opacity: newOpacity } : mesh,
-        ),
+          mesh.id === componentId ? { ...mesh, opacity: newOpacity } : mesh
+        )
       );
     },
-    [selectedComponents, setMeshes],
+    [selectedComponents, setMeshes]
   );
 
   useEffect(() => {
@@ -470,11 +497,11 @@ export function Model({
         initialOffsets.current.set(follower, offset);
 
         const followerWorldRot = follower.getWorldQuaternion(
-          new THREE.Quaternion(),
+          new THREE.Quaternion()
         );
         const rotationDelta = new THREE.Quaternion().copy(followerWorldRot);
         rotationDelta.premultiply(
-          new THREE.Quaternion().copy(leaderWorldRot).invert(),
+          new THREE.Quaternion().copy(leaderWorldRot).invert()
         );
         initialRotations.current.set(follower, rotationDelta);
 
@@ -531,6 +558,73 @@ export function Model({
       }
     }
 
+    if (scene && leader) {
+      const collidedObjects: THREE.Object3D[] = [];
+
+      selectedComponents.forEach((comp) => {
+        collidedObjects.push(...detectCollisions(comp, scene));
+      });
+
+      // Restore original materials for objects no longer colliding
+      previousCollided.current.forEach((obj) => {
+        if (!collidedObjects.includes(obj)) {
+          obj.traverse((child) => {
+            if (isMesh(child)) {
+              const original = originalMaterials.current.get(child);
+              if (original) {
+                child.material = original;
+                originalMaterials.current.delete(child);
+              }
+            }
+          });
+        }
+      });
+
+      // Apply red highlight to newly collided objects
+      collidedObjects.forEach((obj) => {
+        obj.traverse((child) => {
+          if (isMesh(child)) {
+            if (!originalMaterials.current.has(child)) {
+              originalMaterials.current.set(child, child.material);
+            }
+            const highlight = (
+              child.material as THREE.MeshStandardMaterial
+            ).clone();
+            highlight.color.set("red");
+            child.material = highlight;
+          }
+        });
+      });
+
+      // For each selected component, apply collision material if it is currently colliding
+      selectedComponents.forEach((component) => {
+        const collisions = detectCollisions(component, scene); // detect collisions for THIS component
+        const isColliding = collisions.length > 0;
+
+        component.traverse((child) => {
+          if (!isMesh(child)) return;
+
+          // If colliding, apply collision highlight
+          if (isColliding) {
+            const collisionMat = (
+              child.material as THREE.MeshStandardMaterial
+            ).clone();
+            collisionMat.emissive = new THREE.Color("#ff6f91"); // red glow
+            collisionMat.emissiveIntensity = 0.8;
+            child.material = collisionMat;
+          } else {
+            // Not colliding → revert to selected highlight
+            const highlight = highlightMaterial.clone();
+            if ("opacity" in child.material)
+              highlight.opacity = child.material.opacity ?? 1;
+            child.material = highlight;
+          }
+        });
+      });
+
+      previousCollided.current = collidedObjects;
+    }
+
     updateSidebarMeshes(selectedComponents);
   }, [selectedComponents, updateSidebarMeshes]);
 
@@ -559,7 +653,7 @@ export function Model({
         }
       });
     },
-    [highlightMaterial],
+    [highlightMaterial]
   );
 
   const removeHighlight = useCallback((component: THREE.Object3D) => {
@@ -592,13 +686,13 @@ export function Model({
       if (!componentParent) return;
 
       const isSelected = selectedComponents.some(
-        (comp) => comp.id === componentParent.id,
+        (comp) => comp.id === componentParent.id
       );
 
       if (selectedTool === "Multi-Select") {
         if (isSelected) {
           const newSelection = selectedComponents.filter(
-            (comp) => comp.id !== componentParent.id,
+            (comp) => comp.id !== componentParent.id
           );
           setSelectedComponents(newSelection);
           removeHighlight(componentParent);
@@ -627,7 +721,7 @@ export function Model({
       applyHighlight,
       removeHighlight,
       restoreOriginalMaterials,
-    ],
+    ]
   );
 
   const handleMiss = useCallback(() => {
