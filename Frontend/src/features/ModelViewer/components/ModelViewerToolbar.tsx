@@ -201,13 +201,14 @@ export function ModelViewerToolbar({
         <Tooltip>
           <TooltipTrigger asChild={true}>
             <Button
-              disabled={!groupRef || !canUndo}
+              disabled={
+                !groupRef ||
+                !canUndo ||
+                selectedVersion?.version === "Original" ||
+                !selectedVersion
+              }
               onClick={() => {
-                if (selectedVersion?.version === "Original") {
-                  saveModel("Default");
-                } else {
-                  saveModel(selectedVersion?.version);
-                }
+                saveModel(selectedVersion?.version);
               }}
               className="flex items-center px-2 py-2 rounded-md bg-muted transition hover:bg-background/60 text-sidebar-foreground/70 disabled:opacity-50 disabled:cursor-not-allowed"
             >

@@ -94,15 +94,10 @@ export const useModelVersioning = (
           const newSortedFiles = [...newModelData.stateFiles].sort((a, b) =>
             a.createdOn > b.createdOn ? -1 : 1,
           );
-          const savedVersionName =
-            targetVersion ??
-            (selectedVersion?.version === "Baseline"
-              ? "Default"
-              : selectedVersion?.version);
           const savedVersion = newSortedFiles.find(
-            (file) => file.version === savedVersionName,
+            (file) => file.version === targetVersion,
           );
-          setSelectedVersion(savedVersion || newSortedFiles);
+          setSelectedVersion(savedVersion);
         }
       } catch (error) {
         console.error("Error saving model:", error);
@@ -120,7 +115,13 @@ export const useModelVersioning = (
 
   const handleSwitch = async () => {
     if (!versionToSwitch) return;
-    setSelectedVersion(versionToSwitch);
+
+    if (versionToSwitch.version === "Original") {
+      setSelectedVersion(baseline);
+    } else {
+      setSelectedVersion(versionToSwitch);
+    }
+
     resetStacks();
     setVersionToSwitch(undefined);
     setShowSwitchWarning(false);
@@ -148,6 +149,8 @@ export const useModelVersioning = (
 
   const handleDeleteVersion = useCallback(async () => {
     if (!model?.assetId || !versionToDelete) return;
+    console.log(model.assetId);
+    console.log(versionToDelete);
     try {
       setIsDeleting(true);
       await apiClient.delete(
