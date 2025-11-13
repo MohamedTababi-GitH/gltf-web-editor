@@ -16,6 +16,7 @@ public class BaselineFileDtoTest
         var dto = new BaselineFileDto();
         
         // Assert
+        Assert.IsNotNull(dto);
         Assert.AreEqual(defaultName, dto.Name);
         Assert.AreEqual(defaultUrl, dto.Url);
         Assert.IsNull(dto.Url, "Url should default to null (default!).");

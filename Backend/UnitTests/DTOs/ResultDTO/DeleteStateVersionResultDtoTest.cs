@@ -17,6 +17,7 @@ public class DeleteStateVersionResultDtoTest
         var dto = new DeleteStateVersionResultDto();
         
         // Assert
+        Assert.IsNotNull(dto);
         Assert.AreEqual(defaultMessage, dto.Message);
         Assert.AreEqual(defaultAssetId, dto.AssetId);
         Assert.AreEqual(defaultVersion, dto.Version);

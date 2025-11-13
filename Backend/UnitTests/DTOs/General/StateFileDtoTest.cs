@@ -17,6 +17,7 @@ public class StateFileDtoTest
         var dto = new StateFileDto();
         
         // Assert
+        Assert.IsNotNull(dto);
         Assert.AreEqual(defaultVersion, dto.Version);
         Assert.AreEqual(defaultName, dto.Name);
         Assert.AreEqual(url, dto.Url);

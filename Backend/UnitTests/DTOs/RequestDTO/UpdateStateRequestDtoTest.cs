@@ -16,6 +16,7 @@ public class UpdateStateRequestDtoTest
         var dto = new UpdateStateRequestDto();
         
         // Arrange
+        Assert.IsNotNull(dto);
         Assert.AreEqual(defaultAssetId, dto.AssetId);
         Assert.AreEqual(defaultStateJson, dto.StateJson);
         Assert.IsNull(dto.TargetVersion);
