@@ -20,6 +20,9 @@ public class StateFileDtoTest
         Assert.AreEqual(defaultVersion, dto.Version);
         Assert.AreEqual(defaultName, dto.Name);
         Assert.AreEqual(url, dto.Url);
+        Assert.IsNull(dto.SizeBytes);
+        Assert.IsNull(dto.CreatedOn);
+        Assert.IsNull(dto.ContentType);
     }
 
     [TestMethod]
