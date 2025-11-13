@@ -103,14 +103,7 @@ export const useModelVersioning = (
         console.error("Error saving model:", error);
       }
     },
-    [
-      apiClient,
-      groupRef,
-      model?.assetId,
-      refetchModel,
-      resetStacks,
-      selectedVersion?.version,
-    ],
+    [apiClient, groupRef, model?.assetId, refetchModel, resetStacks],
   );
 
   const handleSwitch = async () => {
