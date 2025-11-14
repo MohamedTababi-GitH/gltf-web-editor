@@ -47,7 +47,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
 
         var modelFile = await storage.GetByIdAsync(id, cancellationToken);
         if (modelFile is null)
-            throw new NotFoundException($"No model was found with ID '{id}'.");
+            throw new NotFoundException($"No model was found '.");
 
         return mapper.ToDto(modelFile);
     }
@@ -200,7 +200,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
 
         if (!updated)
             throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+                $"We couldn't find a model with the ID. Please check the ID and try again.");
 
         return new UpdateDetailsResultDto
         {
@@ -232,13 +232,13 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     )
     {
         if (id == Guid.Empty)
-            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+            throw new ValidationException("The provided model doesn't exist.");
 
         var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
 
         if (!updated)
             throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+                $"We couldn't find a dedicated model.");
 
         return new UpdateDetailsResultDto
         {
