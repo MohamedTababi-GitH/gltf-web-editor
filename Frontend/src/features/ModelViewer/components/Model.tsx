@@ -407,7 +407,7 @@ export function Model({
               }
             }
           } else if (slot.type === "ModelPointSlot") {
-            const arrowLength = 30 * targetSize;
+            const arrowLength = 60 * targetSize;
             const direction = new THREE.Vector3(x, y, z).normalize();
             const origin = new THREE.Vector3(0, 0, 0);
 
