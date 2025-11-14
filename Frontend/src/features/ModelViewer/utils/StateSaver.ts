@@ -43,8 +43,8 @@ export const handleSaveScene = (
 
   const scene = groupRef.current.children[0];
   const savedComponentData: SavedComponentState[] = [];
-  for (const component of scene.children) {
-    if (component.isObject3D) {
+  scene.traverse((component) => {
+    if (component.userData?.ObjectId) {
       const euler = new THREE.Euler().setFromQuaternion(
         component.quaternion,
         "YXZ",
@@ -60,7 +60,6 @@ export const handleSaveScene = (
         opacity: getComponentOpacity(component),
       });
     }
-  }
-
+  });
   return JSON.stringify(savedComponentData);
 };

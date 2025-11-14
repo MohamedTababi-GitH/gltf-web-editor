@@ -29,6 +29,7 @@ type ModelProps = {
   selectedTool: string;
   setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
   selectedVersion: StateFile | undefined;
+  setSelectedVersion: (version: StateFile | undefined) => void;
 };
 
 export function Model({
@@ -36,6 +37,7 @@ export function Model({
   setLoadingProgress,
   selectedTool,
   selectedVersion,
+  setSelectedVersion,
   setGroupRef,
 }: Readonly<ModelProps>) {
   const {
@@ -109,7 +111,12 @@ export function Model({
       return;
     }
 
-    const versionToLoad = selectedVersion ?? files[0];
+    const versionExists =
+      selectedVersion?.version === "Original"
+        ? true
+        : files.some((file) => file.version === selectedVersion?.version);
+    const versionToLoad = versionExists ? selectedVersion : files[0];
+    setSelectedVersion(versionToLoad);
 
     if (!versionToLoad?.url) {
       console.error("Latest state file has no valid URL.");
@@ -151,7 +158,7 @@ export function Model({
     };
 
     loadFromUrl();
-  }, [apiClient, model?.stateFiles, selectedVersion]);
+  }, [apiClient, model?.stateFiles, selectedVersion, setSelectedVersion]);
 
   useEffect(() => {
     handleLoadScene();

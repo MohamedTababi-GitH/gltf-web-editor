@@ -297,29 +297,30 @@ export function ModelViewerToolbar({
                           Last Saved: {formatDateTime(file.createdOn).fullStr}
                         </p>
                       </button>
-                      {file.version !== "Original" && (
-                        <Tooltip>
-                          <TooltipTrigger asChild={true}>
-                            <Button
-                              onClick={() => {
-                                handleDeleteVersionClick(file);
-                              }}
-                              className="flex items-center px-2 py-2 rounded-md bg-muted transition h-full border hover:bg-destructive/60 text-sidebar-foreground/70"
-                            >
-                              <Trash className="size-4 lg:size-5 text-foreground" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="right">
-                            <p>
-                              Delete{" "}
-                              <b>
-                                <i>{file.version}</i>
-                              </b>{" "}
-                              Version
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      {file.version !== "Original" &&
+                        sortedFiles.length > 1 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild={true}>
+                              <Button
+                                onClick={() => {
+                                  handleDeleteVersionClick(file);
+                                }}
+                                className="flex items-center px-2 py-2 rounded-md bg-muted transition h-full border hover:bg-destructive/60 text-sidebar-foreground/70"
+                              >
+                                <Trash className="size-4 lg:size-5 text-foreground" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                              <p>
+                                Delete{" "}
+                                <b>
+                                  <i>{file.version}</i>
+                                </b>{" "}
+                                Version
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                     </li>
                   ))}
                 </ul>
