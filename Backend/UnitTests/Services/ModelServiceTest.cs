@@ -8,7 +8,7 @@ using ECAD_Backend.Application.Services;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Exceptions;
 
-namespace ECAD_Backend.UnitTests;
+namespace ECAD_Backend.UnitTests.Services;
 
 [TestClass]
 public class ModelServiceTest

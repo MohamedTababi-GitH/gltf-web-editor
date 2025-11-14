@@ -5,7 +5,7 @@ using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Exceptions;
 using Moq;
 
-namespace ECAD_Backend.UnitTests;
+namespace ECAD_Backend.UnitTests.Services;
 
 [TestClass]
 public class ModelUploadServiceTest
