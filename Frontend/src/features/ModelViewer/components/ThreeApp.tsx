@@ -87,6 +87,7 @@ export default function ThreeApp() {
                   setGroupRef={setGroupRef}
                   selectedTool={selectedTool}
                   selectedVersion={versioning.selectedVersion}
+                  setSelectedVersion={versioning.setSelectedVersion}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
                 />
