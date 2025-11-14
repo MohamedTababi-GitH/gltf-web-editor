@@ -1,7 +1,6 @@
 ﻿using Moq;
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.DTOs.General;
-using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
@@ -24,7 +23,7 @@ public class ModelServiceTest
         _mockStorage = new Mock<IModelStorage>();
         _mockMapper = new Mock<IModelMapper>();
         _mockMutex = new Mock<IMutexService>();
-        _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object,_mockMutex.Object);
+        _modelService = new ModelService(_mockStorage.Object, _mockMapper.Object, _mockMutex.Object);
     }
 
     [TestMethod]
@@ -35,20 +34,19 @@ public class ModelServiceTest
         var name = "alias";
         var format = "glb";
         var url = new Uri("http://localhost");
-        var modelFile = new ModelFile{Name = name, Format = format, Url = url, Id = id};
-        var modelItemDto = new ModelItemDto {Id = id, Name = name, Format = format,  Url = url};
+        var modelFile = new ModelFile { Name = name, Format = format, Url = url, Id = id };
+        var modelItemDto = new ModelItemDto { Id = id, Name = name, Format = format, Url = url };
         _mockStorage.Setup(s => s.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(modelFile);
         _mockMapper.Setup(m => m.ToDto(It.IsAny<ModelFile>())).Returns(modelItemDto);
 
         // Act
-        var result = await _modelService.GetByIdAsync(id,  CancellationToken.None);
+        var result = await _modelService.GetByIdAsync(id, CancellationToken.None);
 
         // Assert
         Assert.IsNotNull(result);
         Assert.AreEqual(modelItemDto.Id, result.Id);
         Assert.AreEqual(modelItemDto.Name, result.Name);
-
     }
 
     [TestMethod]
@@ -59,27 +57,28 @@ public class ModelServiceTest
         var emptyId = Guid.Empty;
 
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelService.GetByIdAsync(emptyId, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelService.GetByIdAsync(emptyId, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
-
     }
-    
+
     [TestMethod]
     public async Task GetByIdAsync_CallsStorageAndThrows_WhenModelFileIsNull()
     {
         // Arrange
         var id = Guid.NewGuid();
-        _mockStorage.Setup(s => s.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(null as ModelFile);
-        
+        _mockStorage.Setup(s => s.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(null as ModelFile);
+
         // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.GetByIdAsync(id, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
+            await _modelService.GetByIdAsync(id, CancellationToken.None));
+
         // Assert
         var expectedErrorMessage = $"No model was found with ID '{id}'.";
         Assert.Contains(expectedErrorMessage, result.Message);
-
     }
 
     [TestMethod]
@@ -110,7 +109,7 @@ public class ModelServiceTest
                 It.IsAny<string>(),
                 It.IsAny<ModelFilterDto>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((files, (string?)null));
+            .ReturnsAsync((files, null));
 
         // storage.CountAsync -> return some total (doesn't affect NRE but keeps service happy)
         _mockStorage
@@ -134,7 +133,7 @@ public class ModelServiceTest
         var result = await _modelService.ListAsync(limit, null, filter, CancellationToken.None);
 
         // Assert
-        Assert.AreEqual(1, result.Items.Count, "Expected one item in the page result.");
+        Assert.HasCount(1, result.Items, "Expected one item in the page result.");
         Assert.AreEqual(name, result.Items[0].Name, "Item Name should match mapped alias.");
         Assert.AreEqual(format, result.Items[0].Format);
         Assert.AreEqual(url, result.Items[0].Url);
@@ -153,7 +152,7 @@ public class ModelServiceTest
         // Act & Assert
         var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await _modelService.ListAsync(limit, null, filter, CancellationToken.None));
-        
+
         // Assert
         Assert.AreEqual(nameof(limit), result.ParamName);
     }
@@ -167,7 +166,7 @@ public class ModelServiceTest
         var filter = new ModelFilterDto();
 
         // Act & Assert
-        var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async() =>
+        var result = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await _modelService.ListAsync(limit, null, filter, CancellationToken.None));
 
         // Assert
@@ -196,14 +195,15 @@ public class ModelServiceTest
         var expectedErrorMessage = "This model is currently being used.";
         var id = Guid.NewGuid();
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(true);
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<ModelLockedException>(async () => await _modelService.DeleteAsync(id, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<ModelLockedException>(async () =>
+            await _modelService.DeleteAsync(id, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
-    
+
     [TestMethod]
     public async Task DeleteAsync_Throws_WhenEmptyId()
     {
@@ -211,7 +211,7 @@ public class ModelServiceTest
         var expectedErrorMessage = "provided model ID is not valid";
         var id = Guid.Empty;
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(false);
-        
+
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
             await _modelService.DeleteAsync(id, CancellationToken.None));
@@ -224,13 +224,15 @@ public class ModelServiceTest
     public async Task DeleteAsync_CallsStorageAndThrows_WhenInvalidId()
     {
         // Arrange
-        var expectedErrorMessage = "couldn't find a model with the ID";
+        var expectedErrorMessage = "Model doesn't exist";
         var id = Guid.NewGuid();
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(false);
         _mockStorage.Setup(s => s.DeleteByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.DeleteAsync(id, CancellationToken.None));
+        var result =
+            await Assert.ThrowsAsync<NotFoundException>(async () =>
+                await _modelService.DeleteAsync(id, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -245,10 +247,10 @@ public class ModelServiceTest
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(false);
         _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
             It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        
+
         // Act
         var result = await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None);
-        
+
         // Assert
         _mockStorage.Verify(s => s.UpdateDetailsAsync(
                 It.IsAny<Guid>(),
@@ -258,25 +260,24 @@ public class ModelServiceTest
                 It.IsAny<bool?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
-        
+
         Assert.AreEqual("Updated successfully.", result.Message);
-        
     }
 
     [TestMethod]
     public async Task UpdateDetailsAsync_Throws_WhenModelIsLocked()
     {
         // Arrange
-        var id =  Guid.NewGuid();
+        var id = Guid.NewGuid();
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(true);
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<ModelLockedException>(async () => await _modelService.UpdateDetailsAsync(id, null, null, null, null, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<ModelLockedException>(async () =>
+            await _modelService.UpdateDetailsAsync(id, null, null, null, null, CancellationToken.None));
+
         // Assert
         var expectedErrorMessage = $"This model is currently being used.";
         Assert.Contains(expectedErrorMessage, result.Message);
-        
     }
 
     [TestMethod]
@@ -286,11 +287,11 @@ public class ModelServiceTest
         var expectedErrorMessage = "provided model ID is not valid";
         var id = Guid.Empty;
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(false);
-        
+
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
-            await _modelService.UpdateDetailsAsync(id, null, null,null, null, CancellationToken.None));
-        
+            await _modelService.UpdateDetailsAsync(id, null, null, null, null, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -301,13 +302,13 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "alias format is invalid";
         var newAlias = "Invalid Alias!";
-        var id  = Guid.NewGuid();
+        var id = Guid.NewGuid();
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(false);
-        
+
         // Act
         var result = await Assert.ThrowsAsync<ValidationException>(async () =>
             await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
-        
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -318,15 +319,15 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "couldn't find a model with the ID";
         var newAlias = "newAlias";
-        var id  = Guid.NewGuid();
+        var id = Guid.NewGuid();
         _mockMutex.Setup(m => m.IsLocked(It.IsAny<Guid>())).Returns(false);
         _mockStorage.Setup(s => s.UpdateDetailsAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<string>?>(),
             It.IsAny<string?>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
+
         // Act
         var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
             await _modelService.UpdateDetailsAsync(id, newAlias, null, null, null, CancellationToken.None));
-        
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -338,10 +339,10 @@ public class ModelServiceTest
         var emptyMessage = "";
         var id = Guid.NewGuid();
         _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        
+
         // Act
         var result = await _modelService.UpdateIsNewAsync(id, CancellationToken.None);
-        
+
         // Assert
         Assert.AreEqual(emptyMessage, result.Message);
     }
@@ -352,10 +353,11 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "provided model ID is not valid";
         var id = Guid.Empty;
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -366,11 +368,13 @@ public class ModelServiceTest
         // Arrange
         var expectedErrorMessage = "couldn't find a model with the ID";
         var id = Guid.NewGuid();
-        _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        
+        _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
         // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
+            await _modelService.UpdateIsNewAsync(id, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
