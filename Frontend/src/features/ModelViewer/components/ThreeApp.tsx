@@ -35,6 +35,8 @@ export default function ThreeApp() {
   const versioning = useModelVersioning(
     groupRef as React.RefObject<THREE.Group | null>,
   );
+  const { sortedFiles, baseline } = versioning;
+
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
     setVersionModalOpen: versioning.setVersionModalOpen,
@@ -75,7 +77,11 @@ export default function ThreeApp() {
       <SaveVersionDialog {...versioning.saveVersionDialogProps} />
       <DeleteVersionDialog {...versioning.deleteVersionDialogProps} />
 
-      <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
+      <Cursors
+        setSelectedTool={setSelectedTool}
+        selectedTool={selectedTool}
+        versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
+      />
       <Canvas>
         <color attach="background" args={["#888888"]} />
         <Suspense fallback={null}>
