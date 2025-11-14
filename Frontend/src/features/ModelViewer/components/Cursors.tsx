@@ -177,7 +177,7 @@ function Cursors({
                     variant="outline"
                     disabled={!leftVersion}
                     className={`flex-1 min-w-0 justify-between bg-background text-foreground ${
-                      !leftVersion ? "opacity-40 cursor-not-allowed" : ""
+                      leftVersion ? "" : "opacity-40 cursor-not-allowed"
                     }`}
                   >
                     {rightVersion?.version || "Select version"}
