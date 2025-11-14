@@ -110,12 +110,15 @@ export function Model({
     if (!files || files.length === 0) {
       return;
     }
+    const sortedFiles = [...files].sort((a, b) =>
+      a.createdOn > b.createdOn ? -1 : 1,
+    );
 
     const versionExists =
       selectedVersion?.version === "Original"
         ? true
-        : files.some((file) => file.version === selectedVersion?.version);
-    const versionToLoad = versionExists ? selectedVersion : files[0];
+        : sortedFiles.some((file) => file.version === selectedVersion?.version);
+    const versionToLoad = versionExists ? selectedVersion : sortedFiles[0];
     setSelectedVersion(versionToLoad);
 
     if (!versionToLoad?.url) {
