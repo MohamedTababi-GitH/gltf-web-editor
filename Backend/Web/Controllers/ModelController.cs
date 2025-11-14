@@ -340,9 +340,11 @@ public class ModelController : ControllerBase
     /// Acquires an exclusive lock for the specified model to prevent concurrent edits or deletion.
     /// </summary>
     /// <param name="id">The model ID to lock.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns><c>200 OK</c> on success.</returns>
     /// <response code="200">Model successfully locked.</response>
     /// <response code="400">Invalid ID.</response>
+    /// <response code="404">Model not found.</response>
     /// <response code="423">Lock already held by another client.</response>
     /// <remarks>
     /// Lock semantics are enforced via the application’s mutex service. Locks are expected to be short-lived,
@@ -351,12 +353,15 @@ public class ModelController : ControllerBase
     [HttpPost("{id:guid}/lock")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status423Locked)]
-    public IActionResult LockModel(Guid id)
+    public async Task<IActionResult> LockModel(Guid id, CancellationToken cancellationToken)
     {
         if (id == Guid.Empty)
             throw new BadRequestException("Invalid model ID.");
-
+        
+        await _modelService.GetByIdAsync(id, cancellationToken);
+        
         _mutexService.AcquireLock(id);
         return Ok();
     }
