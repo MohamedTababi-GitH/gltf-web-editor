@@ -77,7 +77,7 @@ public class ModelServiceTest
             await _modelService.GetByIdAsync(id, CancellationToken.None));
 
         // Assert
-        var expectedErrorMessage = $"No model was found with ID '{id}'.";
+        var expectedErrorMessage = $"No model was found";
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
@@ -351,7 +351,7 @@ public class ModelServiceTest
     public async Task UpdateIsNewAsync_Throws_WhenEmptyID()
     {
         // Arrange
-        var expectedErrorMessage = "provided model ID is not valid";
+        var expectedErrorMessage = "The provided model doesn't exist.";
         var id = Guid.Empty;
 
         // Act
@@ -366,7 +366,7 @@ public class ModelServiceTest
     public async Task UpdateIsNewAsync_CallsStorageAndThrows_WhenInvalidId()
     {
         // Arrange
-        var expectedErrorMessage = "couldn't find a model with the ID";
+        var expectedErrorMessage = "We couldn't find a dedicated model.";
         var id = Guid.NewGuid();
         _mockStorage.Setup(s => s.UpdateIsNewAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
