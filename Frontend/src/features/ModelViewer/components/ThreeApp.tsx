@@ -56,6 +56,8 @@ export default function ThreeApp() {
       },
     },
   ];
+  const { sortedFiles, baseline } = versioning;
+
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
     setVersionModalOpen: versioning.setVersionModalOpen,
@@ -102,6 +104,7 @@ export default function ThreeApp() {
         setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
         tools={tools}
+        versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
       />
       <Canvas>
         <color attach="background" args={["#888888"]} />
