@@ -19,10 +19,9 @@ import {
 } from "lucide-react";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import { Cursor as CursorEnum } from "@/features/ModelViewer/types/Cursor.ts";
-import { type ComponentType } from "react";
+import { type ComponentType, useState } from "react";
 import { Separator } from "@/shared/components/separator.tsx";
 import type { ToolConfig } from "./ThreeApp";
-import { type ComponentType, useState } from "react";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 import {
   Popover,
@@ -35,6 +34,8 @@ type CursorProps = {
   selectedTool: string;
   tools: ToolConfig[];
   versions: StateFile[];
+  compareOpen: boolean;
+  setCompareOpen: (open: boolean) => void;
 };
 
 type CursorConfig = {
@@ -57,13 +58,10 @@ function Cursors({
   setSelectedTool,
   selectedTool,
   tools,
-}: Readonly<CursorProps>) {
-function Cursors({
-  setSelectedTool,
-  selectedTool,
   versions,
+  compareOpen,
+  setCompareOpen,
 }: Readonly<CursorProps>) {
-  const [compareOpen, setCompareOpen] = useState(false);
   const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [rightVersion, setRightVersion] = useState<StateFile | null>(null);
   return (

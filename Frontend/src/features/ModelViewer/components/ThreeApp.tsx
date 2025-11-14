@@ -32,6 +32,7 @@ export default function ThreeApp() {
   const { model } = useModel();
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
+  const [compareOpen, setCompareOpen] = useState(false);
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null> | null>(null);
   const orbitRef = useRef<OrbitControlsImpl | null>(null);
@@ -53,6 +54,13 @@ export default function ThreeApp() {
         if (orbitRef) {
           orbitRef?.current?.reset();
         }
+      },
+    },
+    {
+      name: "Compare Versions",
+      shortcut: "D",
+      onClick: () => {
+        setCompareOpen((prev) => !prev);
       },
     },
   ];
@@ -105,6 +113,8 @@ export default function ThreeApp() {
         selectedTool={selectedTool}
         tools={tools}
         versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
+        compareOpen={compareOpen}
+        setCompareOpen={setCompareOpen}
       />
       <Canvas>
         <color attach="background" args={["#888888"]} />
