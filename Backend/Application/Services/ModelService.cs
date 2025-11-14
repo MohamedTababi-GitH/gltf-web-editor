@@ -19,42 +19,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
 {
     private readonly IMutexService _mutex = mutexService;
     private static readonly Regex AliasRegex = new Regex("^[a-zA-Z0-9_]+$", RegexOptions.Compiled);
-
-    #region Locking and Unlocking
-
-    /// <summary>
-    /// Locks a model in memory to prevent other operations (such as delete or update) 
-    /// from being executed concurrently on the same model.
-    /// </summary>
-    /// <param name="id">The unique model identifier.</param>
-    /// <exception cref="ModelLockedException">
-    /// Thrown if the model is already locked by another user or process.
-    /// </exception>
-    public void LockModel(Guid id)
-    {
-        _mutex.AcquireLock(id);
-    }
-
-    /// <summary>
-    /// Releases the lock for a model, allowing other operations to access or modify it again.
-    /// </summary>
-    /// <param name="id">The unique model identifier.</param>
-    public void UnlockModel(Guid id)
-    {
-        _mutex.ReleaseLock(id);
-    }
-
-    /// <summary>
-    /// Extends the duration of an existing lock, proving the client is still active.
-    /// </summary>
-    /// <param name="id">The unique model identifier.</param>
-    public void Heartbeat(Guid id)
-    {
-        _mutex.Heartbeat(id);
-    }
-
-    #endregion
-
+    
     #region CRUD Operations
 
     /// <summary>
@@ -82,7 +47,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
 
         var modelFile = await storage.GetByIdAsync(id, cancellationToken);
         if (modelFile is null)
-            throw new NotFoundException($"No model was found with ID '{id}'.");
+            throw new NotFoundException($"No model was found '.");
 
         return mapper.ToDto(modelFile);
     }
@@ -235,7 +200,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
 
         if (!updated)
             throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+                $"We couldn't find a model with the ID. Please check the ID and try again.");
 
         return new UpdateDetailsResultDto
         {
@@ -267,13 +232,13 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
     )
     {
         if (id == Guid.Empty)
-            throw new ValidationException("The provided model ID is not valid. Please check the ID and try again.");
+            throw new ValidationException("The provided model doesn't exist.");
 
         var updated = await storage.UpdateIsNewAsync(id, cancellationToken);
 
         if (!updated)
             throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+                $"We couldn't find a dedicated model.");
 
         return new UpdateDetailsResultDto
         {
