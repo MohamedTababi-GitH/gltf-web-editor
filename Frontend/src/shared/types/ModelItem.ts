@@ -16,4 +16,5 @@ export type ModelItem = {
   assetId: string;
   isFavourite: boolean;
   isNew: boolean;
+  baseline?: StateFile;
 };

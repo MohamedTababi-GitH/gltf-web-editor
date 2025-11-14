@@ -42,12 +42,8 @@ export const useKeyboardShortcuts = ({
   }, []);
 
   const handleSave = useCallback((): void => {
-    if (canUndo && groupRef) {
-      if (selectedVersion?.version === "Default") {
-        saveModel();
-      } else {
-        saveModel(selectedVersion?.version);
-      }
+    if (canUndo && groupRef && selectedVersion?.version !== "Original") {
+      saveModel(selectedVersion?.version);
     }
   }, [canUndo, groupRef, saveModel, selectedVersion?.version]);
 

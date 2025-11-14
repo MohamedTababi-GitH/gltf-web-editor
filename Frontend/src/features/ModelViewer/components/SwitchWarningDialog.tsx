@@ -41,11 +41,7 @@ export function SwitchWarningDialog({
           <Button
             onClick={async () => {
               try {
-                if (selectedVersion?.version === "Default") {
-                  await saveModel();
-                } else {
-                  await saveModel(selectedVersion?.version);
-                }
+                await saveModel(selectedVersion?.version);
                 await handleSwitch();
               } catch (error) {
                 console.error("Error during save and switch:", error);

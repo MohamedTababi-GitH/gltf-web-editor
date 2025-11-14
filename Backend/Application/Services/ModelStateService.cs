@@ -160,7 +160,7 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
     /// It supports both named versions (e.g., <c>/state/v1/state.json</c>) and the
     /// unversioned working copy (e.g., <c>/state/state.json</c>).
     /// </remarks>
-    public async Task<DeleteStateVersionResultDto> DeleteVersionAsync(
+    public async Task<DeleteStateVersionResultDto> DeleteStateVersionAsync(
         string assetId,
         string version,
         CancellationToken cancellationToken)
@@ -170,30 +170,25 @@ public class ModelStateService(IModelStorage storage) : IModelStateService
         if (string.IsNullOrWhiteSpace(version))
             throw new ValidationException("Version is required.");
 
-        var trimmedAsset = assetId.Trim();
+        var trimmedAsset   = assetId.Trim();
         var trimmedVersion = version.Trim();
-        var deletedCount = await storage.DeleteStateVersionAsync(trimmedAsset, trimmedVersion, cancellationToken);
+
+        var deletedCount = await storage.DeleteStateVersionAsync(
+            trimmedAsset,
+            trimmedVersion,
+            cancellationToken);
 
         if (deletedCount == 0)
-        {
-            var label = (trimmedVersion.Equals("state", StringComparison.OrdinalIgnoreCase) ||
-                         trimmedVersion.Equals("Default", StringComparison.OrdinalIgnoreCase))
-                ? "latest working copy"
-                : $"version '{trimmedVersion}'";
-            throw new NotFoundException($"{label} was not found for asset '{trimmedAsset}'.");
-        }
+            throw new NotFoundException(
+                $"Version '{trimmedVersion}' was not found for asset '{trimmedAsset}'.");
 
-        // Human-friendly message
-        var message = (trimmedVersion.Equals("state", StringComparison.OrdinalIgnoreCase) ||
-                       trimmedVersion.Equals("latest", StringComparison.OrdinalIgnoreCase))
-            ? "Deleted latest working copy."
-            : $"Deleted version '{trimmedVersion}'.";
+        var message = $"Deleted version '{trimmedVersion}'.";
 
         return new DeleteStateVersionResultDto
         {
-            Message = message,
-            AssetId = trimmedAsset,
-            Version = trimmedVersion,
+            Message      = message,
+            AssetId      = trimmedAsset,
+            Version      = trimmedVersion,
             DeletedBlobs = deletedCount
         };
     }

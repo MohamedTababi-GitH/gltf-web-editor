@@ -129,7 +129,7 @@ public sealed class ModelService(IModelStorage storage, IModelMapper mapper, IMu
         var deleted = await storage.DeleteByIdAsync(id, cancellationToken);
         if (!deleted)
             throw new NotFoundException(
-                $"We couldn't find a model with the ID '{id}'. Please check the ID and try again.");
+                $"Model doesn't exist");
 
         return true;
     }

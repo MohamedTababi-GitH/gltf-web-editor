@@ -16,6 +16,7 @@ export const useModelVersioning = (
   const [versionToDelete, setVersionToDelete] = useState<StateFile>();
   const [showSwitchWarning, setShowSwitchWarning] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [baseline, setBaseline] = useState<StateFile>();
   const [showDeleteVersionWarning, setShowDeleteVersionWarning] =
     useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -31,10 +32,22 @@ export const useModelVersioning = (
   );
 
   useEffect(() => {
-    if (sortedFiles.length > 0) {
+    if (!model) return;
+    setBaseline({
+      name: model.baseline?.name || "baseline.json",
+      version: "Original",
+      createdOn: model.baseline?.createdOn || model.createdOn,
+      url: model.baseline?.url || model.url,
+      sizeBytes: model.baseline?.sizeBytes ?? model.sizeBytes ?? 0,
+      contentType: model.baseline?.contentType ?? "application/json",
+    });
+  }, [model]);
+
+  useEffect(() => {
+    if (sortedFiles.length > 0 && !selectedVersion) {
       setSelectedVersion(sortedFiles[0]);
     }
-  }, [model?.id, sortedFiles]);
+  }, [sortedFiles, selectedVersion]);
 
   const refetchModel = useCallback(async () => {
     try {
@@ -69,9 +82,9 @@ export const useModelVersioning = (
             a.createdOn > b.createdOn ? -1 : 1,
           );
           const savedVersion = newSortedFiles.find(
-            (file) => file.version === (targetVersion || "Default"),
+            (file) => file.version === targetVersion,
           );
-          setSelectedVersion(savedVersion || newSortedFiles[0]);
+          setSelectedVersion(savedVersion);
         }
       } catch (error) {
         console.error("Error saving model:", error);
@@ -82,7 +95,13 @@ export const useModelVersioning = (
 
   const handleSwitch = async () => {
     if (!versionToSwitch) return;
-    setSelectedVersion(versionToSwitch);
+
+    if (versionToSwitch.version === "Original") {
+      setSelectedVersion(baseline);
+    } else {
+      setSelectedVersion(versionToSwitch);
+    }
+
     resetStacks();
     setVersionToSwitch(undefined);
     setShowSwitchWarning(false);
@@ -110,6 +129,8 @@ export const useModelVersioning = (
 
   const handleDeleteVersion = useCallback(async () => {
     if (!model?.assetId || !versionToDelete) return;
+    console.log(model.assetId);
+    console.log(versionToDelete);
     try {
       setIsDeleting(true);
       await apiClient.delete(
@@ -142,6 +163,7 @@ export const useModelVersioning = (
     handleDeleteVersion,
     sortedFiles,
     handleDeleteVersionClick,
+    baseline,
     switchWarningDialogProps: {
       showSwitchWarning,
       setShowSwitchWarning,

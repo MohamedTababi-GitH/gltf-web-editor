@@ -277,6 +277,9 @@ public class ModelController : ControllerBase
         if (string.IsNullOrWhiteSpace(assetId))
             throw new BadRequestException("AssetId is required.");
 
+        if (form is null || string.IsNullOrWhiteSpace(form.TargetVersion))
+            throw new BadRequestException("TargetVersion is required.");
+
         // normalize content
         string finalStateJson = form.StateJson ?? string.Empty;
 
@@ -294,33 +297,34 @@ public class ModelController : ControllerBase
 
         var request = new UpdateStateRequestDto
         {
-            AssetId = assetId,
-            TargetVersion = form.TargetVersion,
-            StateJson = finalStateJson
+            AssetId      = assetId,
+            TargetVersion = form.TargetVersion,  // MUST be non-empty now
+            StateJson    = finalStateJson
         };
 
         var result = await _stateService.SaveStateAsync(request, cancellationToken);
 
         return Ok(new UpdateStateResultDto
         {
-            Message = result.Message,
-            AssetId = result.AssetId,
-            Version = result.Version,
+            Message  = result.Message,
+            AssetId  = result.AssetId,
+            Version  = result.Version,
             BlobName = result.BlobName
         });
     }
 
     /// <summary>
-    /// Deletes a named state version (or the latest working copy) for an asset.
+    /// Deletes a named state version for an asset.
     /// </summary>
     /// <param name="assetId">The asset folder identifier.</param>
     /// <param name="version">
-    /// The version label (e.g., <c>"v2"</c> or <c>"test4"</c>).  
-    /// Use <c>"state"</c> or <c>"Default"</c> to delete the working copy at <c>state/state.json</c>.
+    /// The version label (e.g., <c>"baseline"</c>, <c>"v2"</c>, <c>"current"</c>).
+    /// This corresponds to the folder <c>{assetId}/state/{version}/</c>
+    /// which contains <c>state.json</c>.
     /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="DeleteStateVersionResultDto"/> with details of the deletion.</returns>
-    /// <response code="200">Version (or working copy) deleted.</response>
+    /// <response code="200">Version deleted.</response>
     /// <response code="404">Version not found for the specified asset.</response>
     /// <response code="422">Validation error.</response>
     [HttpDelete("{assetId}/state/{version}")]
@@ -331,7 +335,7 @@ public class ModelController : ControllerBase
         string version,
         CancellationToken cancellationToken)
     {
-        var result = await _stateService.DeleteVersionAsync(assetId, version, cancellationToken);
+        var result = await _stateService.DeleteStateVersionAsync(assetId, version, cancellationToken);
         return Ok(result);
     }
 
