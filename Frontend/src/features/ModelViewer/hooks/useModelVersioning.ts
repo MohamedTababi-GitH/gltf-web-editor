@@ -56,11 +56,10 @@ export const useModelVersioning = (
   }, [model]);
 
   useEffect(() => {
-    // Only set Baseline version once on first model load!
-    if (sortedFiles.length > 0) {
+    if (sortedFiles.length > 0 && !selectedVersion) {
       setSelectedVersion(sortedFiles[0]);
     }
-  }, [sortedFiles]);
+  }, [sortedFiles, selectedVersion]);
 
   const refetchModel = useCallback(async () => {
     try {
