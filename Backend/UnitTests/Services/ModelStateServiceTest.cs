@@ -1,13 +1,10 @@
-﻿using System.Text;
-using System.Text.Json;
-using ECAD_Backend.Application.DTOs.RequestDTO;
-using ECAD_Backend.Application.DTOs.ResultDTO;
+﻿using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Exceptions;
 using Moq;
 
-namespace ECAD_Backend.UnitTests;
+namespace ECAD_Backend.UnitTests.Services;
 
 [TestClass]
 public class ModelStateServiceTest
@@ -31,7 +28,8 @@ public class ModelStateServiceTest
         var stateJson = "{\"ok\":true}";
         var requestDto = new UpdateStateRequestDto { AssetId = assetId, StateJson = stateJson };
         _mockStorage.Setup(s => s.UploadOrOverwriteAsync(It.IsAny<string>(), It.IsAny<MemoryStream>(),
-            "application/json", It.IsAny<Dictionary<string, string>?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                "application/json", It.IsAny<Dictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Act
         var result = await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None);
@@ -40,7 +38,9 @@ public class ModelStateServiceTest
         Assert.IsNotNull(result);
         Assert.AreEqual(assetId, result.AssetId);
         Assert.AreEqual(message, result.Message);
-    }[TestMethod]
+    }
+
+    [TestMethod]
     public async Task SaveStateAsync_ReturnsUpdateStateResult_WithVersion()
     {
         // Arrange
@@ -48,9 +48,11 @@ public class ModelStateServiceTest
         var assetId = "assetId";
         var stateJson = "{\"ok\":true}";
         var version = "2.0";
-        var requestDto = new UpdateStateRequestDto { AssetId = assetId, StateJson = stateJson,  TargetVersion = version };
+        var requestDto = new UpdateStateRequestDto
+            { AssetId = assetId, StateJson = stateJson, TargetVersion = version };
         _mockStorage.Setup(s => s.UploadOrOverwriteAsync(It.IsAny<string>(), It.IsAny<MemoryStream>(),
-            "application/json", It.IsAny<Dictionary<string, string>?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                "application/json", It.IsAny<Dictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Act
         var result = await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None);
@@ -68,10 +70,11 @@ public class ModelStateServiceTest
         // Arrange
         var expectedErrorMessage = "state update requestDto is empty";
         UpdateStateRequestDto requestDto = null!;
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<BadRequestException>(async () => await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<BadRequestException>(async () =>
+            await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -86,10 +89,11 @@ public class ModelStateServiceTest
             AssetId = null!,
             StateJson = null!
         };
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -105,10 +109,11 @@ public class ModelStateServiceTest
             AssetId = assetId,
             StateJson = null!
         };
-        
+
         // Act
-        var result  = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -121,10 +126,11 @@ public class ModelStateServiceTest
         var assetId = "assetId";
         var stateJson = "invalidStateJson";
         var requestDto = new UpdateStateRequestDto { AssetId = assetId, StateJson = stateJson };
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
@@ -138,17 +144,17 @@ public class ModelStateServiceTest
         var stateJson = $"\"{largeJson}\"";
         var assetId = "assetId";
         var requestDto = new UpdateStateRequestDto { AssetId = assetId, StateJson = stateJson };
-        
+
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
-        
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelStateService.SaveStateAsync(requestDto, CancellationToken.None));
+
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
-
     }
 
     [TestMethod]
-    public async Task DeleteVersionAsync_ReturnsDeleteStateVersionResult()
+    public async Task DeleteStateVersionAsync_ReturnsDeleteStateVersionResult()
     {
         // Arrange
         var assetId = "assetId";
@@ -157,10 +163,10 @@ public class ModelStateServiceTest
         _mockStorage.Setup(s =>
                 s.DeleteStateVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
-        
+
         // Act
         var result = await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None);
-        
+
         // Assert
         Assert.IsNotNull(result);
         Assert.AreEqual(assetId, result.AssetId);
@@ -169,7 +175,7 @@ public class ModelStateServiceTest
     }
 
     [TestMethod]
-    public async Task DeleteVersionAsync_Throws_WhenAssetIdIsNull()
+    public async Task DeleteStateVersionAsync_Throws_WhenAssetIdIsNull()
     {
         // Arrange
         var expectedErrorMessage = "AssetId is required";
@@ -177,14 +183,15 @@ public class ModelStateServiceTest
         var version = "version2";
 
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
     [TestMethod]
-    public async Task DeleteVersionAsync_Throws_WhenVersionIsNull()
+    public async Task DeleteStateVersionAsync_Throws_WhenVersionIsNull()
     {
         // Arrange
         var expectedErrorMessage = "Version is required";
@@ -192,14 +199,15 @@ public class ModelStateServiceTest
         string version = null!;
 
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<ValidationException>(async () =>
+            await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
     }
 
     [TestMethod]
-    public async Task DeleteVersionAsync_Throws_WhenVersionNotFound()
+    public async Task DeleteStateVersionAsync_Throws_WhenVersionNotFound()
     {
         // Arrange
         string assetId = "assetId";
@@ -209,10 +217,11 @@ public class ModelStateServiceTest
             .ReturnsAsync(0);
 
         // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () =>
+            await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
 
         // Assert
-        var expectedErrorMessage = $"version '{version}' was not found for asset '{assetId}'.";
-        Assert.Contains(expectedErrorMessage, result.Message);   
+        var expectedErrorMessage = $"Version '{version}' was not found for asset '{assetId}'.";
+        Assert.Contains(expectedErrorMessage, result.Message);
     }
 }
