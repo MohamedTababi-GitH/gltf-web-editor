@@ -1,9 +1,11 @@
 import { Center, OrbitControls, Environment, Resize } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Model } from "./Model.tsx";
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useRef, useState } from "react";
 import { useModel } from "@/shared/contexts/ModelContext.tsx";
-import Cursors, { tools } from "@/features/ModelViewer/components/Cursors.tsx";
+import Cursors, {
+  cursors,
+} from "@/features/ModelViewer/components/Cursors.tsx";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import * as THREE from "three";
 import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
@@ -18,13 +20,22 @@ import { CloseWarningDialog } from "./CloseWarningDialog.tsx";
 import { SaveVersionDialog } from "@/features/ModelViewer/components/SaveVersionDialog.tsx";
 import { Loading } from "@/features/ModelViewer/components/Loading.tsx";
 import { DeleteVersionDialog } from "@/features/ModelViewer/components/DeleteVersionDialog.tsx";
+import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+
+export type ToolConfig = {
+  name: string;
+  shortcut: string;
+  onClick: (param?: unknown) => void;
+};
 
 export default function ThreeApp() {
   const { model } = useModel();
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
+  const [compareOpen, setCompareOpen] = useState(false);
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null> | null>(null);
+  const orbitRef = useRef<OrbitControlsImpl | null>(null);
 
   const { undo, redo, undoStack, redoStack } = useHistory();
 
@@ -35,6 +46,26 @@ export default function ThreeApp() {
   const versioning = useModelVersioning(
     groupRef as React.RefObject<THREE.Group | null>,
   );
+  const tools: ToolConfig[] = [
+    {
+      name: "Reset Camera",
+      shortcut: "B",
+      onClick: () => {
+        if (orbitRef) {
+          orbitRef?.current?.reset();
+        }
+      },
+    },
+    {
+      name: "Compare Versions",
+      shortcut: "D",
+      onClick: () => {
+        setCompareOpen((prev) => !prev);
+      },
+    },
+  ];
+  const { sortedFiles, baseline } = versioning;
+
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
     setVersionModalOpen: versioning.setVersionModalOpen,
@@ -43,6 +74,7 @@ export default function ThreeApp() {
     groupRef: groupRef as React.RefObject<THREE.Group | null>,
     selectedVersion: versioning.selectedVersion,
     versionModalOpen: versioning.versionModalOpen,
+    tools,
   });
   useModelLock({ id: model?.id, saveModel: versioning.saveModel, canUndo });
 
@@ -63,7 +95,8 @@ export default function ThreeApp() {
           undo={undo}
           redo={redo}
           groupRef={groupRef}
-          cursorTools={tools}
+          cursors={cursors}
+          tools={tools}
         />
       )}
 
@@ -75,7 +108,14 @@ export default function ThreeApp() {
       <SaveVersionDialog {...versioning.saveVersionDialogProps} />
       <DeleteVersionDialog {...versioning.deleteVersionDialogProps} />
 
-      <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
+      <Cursors
+        setSelectedTool={setSelectedTool}
+        selectedTool={selectedTool}
+        tools={tools}
+        versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
+        compareOpen={compareOpen}
+        setCompareOpen={setCompareOpen}
+      />
       <Canvas>
         <color attach="background" args={["#888888"]} />
         <Suspense fallback={null}>
@@ -96,6 +136,7 @@ export default function ThreeApp() {
           </Center>
         </Suspense>
         <OrbitControls
+          ref={orbitRef}
           makeDefault
           enableDamping={false}
           mouseButtons={{
