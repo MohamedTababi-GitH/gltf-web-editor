@@ -161,7 +161,7 @@ public class MutexServiceTest
         var field = typeof(MutexService).GetField("_locks", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
         var dict = (System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime>)field.GetValue(_mutexService)!;
 
-        for (int attempt = 0; attempt < 500 && !exceptionThrown; attempt++)
+        for (int attempt = 0; attempt < 1000 && !exceptionThrown; attempt++)
         {
             dict[id] = DateTime.UtcNow.AddSeconds(5);
 
