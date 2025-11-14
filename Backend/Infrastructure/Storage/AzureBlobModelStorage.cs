@@ -420,6 +420,8 @@ public class AzureBlobModelStorage : IModelStorage
     /// </example>
     public async Task<bool> UpdateIsNewAsync(Guid id, CancellationToken ct = default)
     {
+        var updated = false;
+        
         await foreach (var blob in _container.GetBlobsAsync(traits: BlobTraits.Metadata, cancellationToken: ct))
         {
             if (blob.Metadata == null) continue;
@@ -435,9 +437,10 @@ public class AzureBlobModelStorage : IModelStorage
             metadata[MetaIsNew] = "false";
 
             await client.SetMetadataAsync(metadata, cancellationToken: ct);
+            updated = true;
         }
 
-        return true;
+        return updated;
     }
 
     #endregion
