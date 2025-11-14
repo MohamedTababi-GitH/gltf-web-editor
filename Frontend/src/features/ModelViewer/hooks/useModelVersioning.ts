@@ -24,24 +24,12 @@ export const useModelVersioning = (
   const apiClient = useAxiosConfig();
   const { resetStacks } = useHistory();
 
-  // *** Old Logic ***
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const files = model?.stateFiles || [];
   const sortedFiles = useMemo(
     () => [...files].sort((a, b) => (a.createdOn > b.createdOn ? -1 : 1)),
     [files],
   );
-
-  // // $$$  New Updated version of SortedFiles that displays the Baseline model first  $$$
-  // const sortedFiles = useMemo(() => {
-  //   if (!model) return [];
-  //
-  //   const files = [...(model.stateFiles || [])].sort((a, b) =>
-  //     a.createdOn > b.createdOn ? -1 : 1,
-  //   );
-  //
-  //   return [...files];
-  // }, [model]);
 
   useEffect(() => {
     if (!model) return;
