@@ -30,8 +30,7 @@ import * as THREE from "three";
 import { useMutex } from "@/shared/hooks/useMutex.ts";
 import { useNavigation } from "@/shared/contexts/NavigationContext";
 import { ScrollArea, ScrollBar } from "@/shared/components/scroll-area.tsx";
-import { getTools } from "@/features/ModelViewer/components/Cursors.tsx";
-import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import type { ToolConfig } from "@/features/ModelViewer/components/ThreeApp.tsx";
 
 type ModelViewerToolbarProps = {
   setVersionModalOpen: (open: boolean) => void;
@@ -51,8 +50,8 @@ type ModelViewerToolbarProps = {
   redo: () => void;
   baseline: StateFile | undefined;
   groupRef: React.RefObject<THREE.Group | null>;
-  cursorTools: { name: string; shortcut: string }[];
-  orbitRef: React.RefObject<OrbitControlsImpl | null>;
+  cursors: { name: string; shortcut: string }[];
+  tools: ToolConfig[];
 };
 
 export function ModelViewerToolbar({
@@ -72,9 +71,9 @@ export function ModelViewerToolbar({
   undo,
   redo,
   groupRef,
-  cursorTools,
+  cursors,
   baseline,
-  orbitRef,
+  tools,
 }: Readonly<ModelViewerToolbarProps>) {
   const { model } = useModel();
   const { unlockModel } = useMutex();
@@ -150,7 +149,7 @@ export function ModelViewerToolbar({
             <p>Keyboard Shortcuts</p>
           </TooltipContent>
         </Tooltip>
-        <PopoverContent className="w-64">
+        <PopoverContent className="w-72 select-none">
           <div className="grid gap-4">
             <h4 className="font-medium leading-none">Shortcuts</h4>
             <div className="grid gap-2">
@@ -159,25 +158,25 @@ export function ModelViewerToolbar({
               </h5>
               <div className="flex items-center justify-between">
                 <p className="text-sm">Undo</p>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                <span className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-jetbrains text-xs font-medium opacity-100">
                   {undoShortcut}
-                </kbd>
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm">Redo</p>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-jetbrains text-xs font-medium opacity-100">
                   {redoShortcut}
                 </kbd>
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm">Save</p>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-jetbrains text-xs font-medium opacity-100">
                   {saveShortcut}
                 </kbd>
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm">Save as Version</p>
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-jetbrains text-xs font-medium opacity-100">
                   {saveAsShortcut}
                 </kbd>
               </div>
@@ -186,24 +185,24 @@ export function ModelViewerToolbar({
               <h5 className="text-sm font-medium text-muted-foreground">
                 Tools
               </h5>
-              {cursorTools.map((tool) => (
+              {cursors.map((tool) => (
                 <div
                   key={tool.name}
                   className="flex items-center justify-between"
                 >
                   <p className="text-sm">{tool.name}</p>
-                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-jetbrains text-xs font-medium opacity-100">
                     {tool.shortcut}
                   </kbd>
                 </div>
               ))}
-              {getTools({ orbitRef }).map((tool) => (
+              {tools.map((tool) => (
                 <div
                   key={tool.name}
                   className="flex items-center justify-between"
                 >
                   <p className="text-sm">{tool.name}</p>
-                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100">
+                  <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-jetbrains text-xs font-medium opacity-100">
                     {tool.shortcut}
                   </kbd>
                 </div>

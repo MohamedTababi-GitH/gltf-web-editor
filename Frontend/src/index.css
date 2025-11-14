@@ -10,6 +10,10 @@
     "cv11" 1,
     "tnum" 1;
 }
+@font-face {
+  font-family: "JetbrainsMono";
+  src: url("./assets/fonts/JetbrainsMono.ttf") format("truetype");
+}
 
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */
@@ -26,6 +30,9 @@
 
 @theme {
   --font-inter: InterVariable, "sans-serif";
+}
+@theme {
+  --font-jetbrains: JetbrainsMono, "monospace";
 }
 
 @custom-variant dark (&:is(.dark *));

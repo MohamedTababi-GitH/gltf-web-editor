@@ -7,11 +7,8 @@ import React, {
 } from "react";
 import * as THREE from "three";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
-import {
-  cursors,
-  getTools,
-} from "@/features/ModelViewer/components/Cursors.tsx";
-import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { cursors } from "@/features/ModelViewer/components/Cursors.tsx";
+import type { ToolConfig } from "@/features/ModelViewer/components/ThreeApp.tsx";
 
 type KeyboardShortcutsProps = {
   saveModel: (version?: string) => void;
@@ -21,7 +18,7 @@ type KeyboardShortcutsProps = {
   selectedVersion?: { version: string };
   canUndo: boolean;
   setSelectedTool: Dispatch<SetStateAction<Cursor>>;
-  orbitRef: React.RefObject<OrbitControlsImpl | null>;
+  tools: ToolConfig[];
 };
 
 export const useKeyboardShortcuts = ({
@@ -32,7 +29,7 @@ export const useKeyboardShortcuts = ({
   selectedVersion,
   canUndo,
   setSelectedTool,
-  orbitRef,
+  tools,
 }: KeyboardShortcutsProps) => {
   const [undoShortcut, setUndoShortcut] = useState("Ctrl+Z");
   const [redoShortcut, setRedoShortcut] = useState("Ctrl+Y");
@@ -70,7 +67,7 @@ export const useKeyboardShortcuts = ({
 
   const handleToolSelect = useCallback(
     (key: string): boolean => {
-      const tool = getTools({ orbitRef })?.find(
+      const tool = tools?.find(
         (t) => t.shortcut.toLowerCase() === key.toLowerCase(),
       );
 
@@ -80,7 +77,7 @@ export const useKeyboardShortcuts = ({
       }
       return false;
     },
-    [orbitRef],
+    [tools],
   );
 
   useEffect(() => {

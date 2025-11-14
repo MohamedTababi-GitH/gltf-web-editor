@@ -22,6 +22,12 @@ import { Loading } from "@/features/ModelViewer/components/Loading.tsx";
 import { DeleteVersionDialog } from "@/features/ModelViewer/components/DeleteVersionDialog.tsx";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
+export type ToolConfig = {
+  name: string;
+  shortcut: string;
+  onClick: (param?: unknown) => void;
+};
+
 export default function ThreeApp() {
   const { model } = useModel();
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -39,6 +45,17 @@ export default function ThreeApp() {
   const versioning = useModelVersioning(
     groupRef as React.RefObject<THREE.Group | null>,
   );
+  const tools: ToolConfig[] = [
+    {
+      name: "Reset Camera",
+      shortcut: "B",
+      onClick: () => {
+        if (orbitRef) {
+          orbitRef?.current?.reset();
+        }
+      },
+    },
+  ];
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
     setVersionModalOpen: versioning.setVersionModalOpen,
@@ -47,7 +64,7 @@ export default function ThreeApp() {
     groupRef: groupRef as React.RefObject<THREE.Group | null>,
     selectedVersion: versioning.selectedVersion,
     versionModalOpen: versioning.versionModalOpen,
-    orbitRef,
+    tools,
   });
   useModelLock({ id: model?.id, saveModel: versioning.saveModel, canUndo });
 
@@ -68,8 +85,8 @@ export default function ThreeApp() {
           undo={undo}
           redo={redo}
           groupRef={groupRef}
-          cursorTools={cursors}
-          orbitRef={orbitRef}
+          cursors={cursors}
+          tools={tools}
         />
       )}
 
@@ -84,7 +101,7 @@ export default function ThreeApp() {
       <Cursors
         setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
-        orbitRef={orbitRef}
+        tools={tools}
       />
       <Canvas>
         <color attach="background" args={["#888888"]} />
