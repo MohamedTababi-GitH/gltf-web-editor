@@ -159,7 +159,7 @@ public class ModelStateServiceTest
             .ReturnsAsync(1);
         
         // Act
-        var result = await _modelStateService.DeleteVersionAsync(assetId, version, CancellationToken.None);
+        var result = await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None);
         
         // Assert
         Assert.IsNotNull(result);
@@ -177,7 +177,7 @@ public class ModelStateServiceTest
         var version = "version2";
 
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.DeleteVersionAsync(assetId, version, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -192,7 +192,7 @@ public class ModelStateServiceTest
         string version = null!;
 
         // Act
-        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.DeleteVersionAsync(assetId, version, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<ValidationException>(async () => await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
 
         // Assert
         Assert.Contains(expectedErrorMessage, result.Message);
@@ -209,7 +209,7 @@ public class ModelStateServiceTest
             .ReturnsAsync(0);
 
         // Act
-        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelStateService.DeleteVersionAsync(assetId, version, CancellationToken.None));
+        var result = await Assert.ThrowsAsync<NotFoundException>(async () => await _modelStateService.DeleteStateVersionAsync(assetId, version, CancellationToken.None));
 
         // Assert
         var expectedErrorMessage = $"version '{version}' was not found for asset '{assetId}'.";
