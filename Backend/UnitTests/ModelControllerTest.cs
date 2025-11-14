@@ -27,7 +27,7 @@ public class ModelControllerTest
         _mockModelService = new Mock<IModelService>();
         _mockStateService = new Mock<IModelStateService>();
         _mockUploadService = new Mock<IModelUploadService>();
-        _controller = new ModelController(_mockModelService.Object, _mockUploadService.Object, _mockStateService.Object);
+        _controller = new ModelController(_mockModelService.Object, _mockUploadService.Object, _mockStateService.Object,null);
     }
 
     [TestMethod]
