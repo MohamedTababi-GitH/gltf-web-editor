@@ -381,7 +381,7 @@ public class ModelControllerTest
         var assetId = "valid AssetId";
         var version = "2.0";
         var expectedDeleteStateVersionResult = new DeleteStateVersionResultDto {Version = version, AssetId = assetId, Message = expectedMessage};
-        _mockStateService.Setup(s => s.DeleteVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedDeleteStateVersionResult);
+        _mockStateService.Setup(s => s.DeleteStateVersionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(expectedDeleteStateVersionResult);
         
         // Act
         var result = await _controller.DeleteStateVersion(assetId, version, CancellationToken.None);
