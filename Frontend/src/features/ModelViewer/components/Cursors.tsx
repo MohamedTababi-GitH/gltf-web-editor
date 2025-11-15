@@ -126,7 +126,7 @@ function Cursors({
               </TooltipTrigger>
             </PopoverTrigger>
             <TooltipContent side="right">
-              <p>Compare Versions</p>
+              <p>Compare Versions (D)</p>
             </TooltipContent>
           </Tooltip>
 
@@ -137,7 +137,6 @@ function Cursors({
             <h2 className="font-semibold text-lg mb-2">Compare Versions</h2>
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-2">
-              {/* LEFT VERSION POPOVER */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -170,7 +169,6 @@ function Cursors({
 
               <ArrowLeftRight className="text-foreground" />
 
-              {/* RIGHT VERSION POPOVER */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -205,7 +203,6 @@ function Cursors({
               </Popover>
             </div>
 
-            {/* Compare button */}
             <Button
               className="w-full mt-2"
               disabled={!leftVersion || !rightVersion}
