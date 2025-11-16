@@ -65,6 +65,7 @@ export default function ThreeApp() {
     },
   ];
   const { sortedFiles, baseline } = versioning;
+  const versionsList = baseline ? [baseline, ...sortedFiles] : [...sortedFiles];
 
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
@@ -112,9 +113,10 @@ export default function ThreeApp() {
         setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
         tools={tools}
-        versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
+        versions={versionsList}
         compareOpen={compareOpen}
         setCompareOpen={setCompareOpen}
+        versioning={versioning}
       />
       <Canvas>
         <color attach="background" args={["#888888"]} />
@@ -130,6 +132,13 @@ export default function ThreeApp() {
                   setSelectedVersion={versioning.setSelectedVersion}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
+                  diffNodeIds={
+                    versioning.isComparing ? versioning.diffNodeIds : []
+                  }
+                  compareRight={
+                    versioning.isComparing ? versioning.compareRight : null
+                  }
+                  meshes={[]}
                 />
               )}
             </Resize>

@@ -18,6 +18,8 @@ import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
 import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSaver.ts";
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import type { StateFile } from "@/shared/types/StateFile.ts";
+import type { MeshData } from "@/features/ModelViewer/types/MeshData.ts";
+import type { SceneState } from "@/features/ModelViewer/hooks/useModelVersioning.ts";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -394,6 +396,9 @@ type ModelProps = {
   setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
   selectedVersion: StateFile | undefined;
   setSelectedVersion: (version: StateFile | undefined) => void;
+  diffNodeIds?: string[];
+  compareRight?: StateFile | null;
+  meshes: MeshData[];
 };
 
 export function Model({
@@ -403,9 +408,11 @@ export function Model({
   selectedVersion,
   setSelectedVersion,
   setGroupRef,
+  diffNodeIds,
 }: Readonly<ModelProps>) {
   const {
     model,
+    meshes,
     setMeshes,
     setToggleComponentVisibility,
     setToggleComponentOpacity,
@@ -1011,6 +1018,38 @@ export function Model({
   ]);
 
   const componentToControl = selectedComponents[0];
+
+  // === HIGHLIGHT DIFF NODES DURING COMPARISON ===
+  useEffect(() => {
+    if (!scene) return;
+    console.log("DiffNodeIDs", diffNodeIds);
+
+    if (!diffNodeIds || diffNodeIds.length === 0) return;
+    console.log("Scene", scene);
+    console.log("Scene Chil: ", scene.children);
+
+    for (const obj of scene.children) {
+      const id = obj.name;
+
+      // Only process meshes
+      // if (!(obj instanceof THREE.Mesh)) continue;
+
+      if (id && diffNodeIds.includes(id)) {
+        obj.traverse((child) => {
+          const mat = child.material;
+          console.log("OBJ name", id);
+
+          if (Array.isArray(mat)) {
+            mat.forEach((m) =>
+              (m as THREE.MeshStandardMaterial).color.set("#ff0000"),
+            );
+          } else if (mat) {
+            (mat as THREE.MeshStandardMaterial).color.set("#ff0000");
+          }
+        });
+      }
+    }
+  }, [scene, diffNodeIds, meshes]);
 
   return (
     <>

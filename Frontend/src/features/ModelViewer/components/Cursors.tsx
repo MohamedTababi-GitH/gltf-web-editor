@@ -28,6 +28,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/components/popover.tsx";
+import type { useModelVersioning } from "@/features/ModelViewer/hooks/useModelVersioning.ts";
+type VersioningType = ReturnType<typeof useModelVersioning>;
 
 type CursorProps = {
   setSelectedTool: (tool: Cursor) => void;
@@ -36,6 +38,7 @@ type CursorProps = {
   versions: StateFile[];
   compareOpen: boolean;
   setCompareOpen: (open: boolean) => void;
+  versioning: VersioningType;
 };
 
 type CursorConfig = {
@@ -61,6 +64,7 @@ function Cursors({
   versions,
   compareOpen,
   setCompareOpen,
+  versioning,
 }: Readonly<CursorProps>) {
   const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [rightVersion, setRightVersion] = useState<StateFile | null>(null);
@@ -210,11 +214,22 @@ function Cursors({
               className="w-full mt-2"
               disabled={!leftVersion || !rightVersion}
               onClick={() => {
-                // logic
+                if (!leftVersion || !rightVersion) return;
+                versioning.startCompare(leftVersion, rightVersion);
+                setCompareOpen(true);
               }}
             >
               Compare
             </Button>
+            {versioning.isComparing && (
+              <Button
+                variant={"ghost"}
+                className={`w-full text-xs mt-1`}
+                onClick={() => versioning.stopCompare()}
+              >
+                Stop compare
+              </Button>
+            )}
           </PopoverContent>
         </Popover>
       </div>

@@ -5,6 +5,16 @@ import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import { handleSaveScene } from "@/features/ModelViewer/utils/StateSaver.ts";
 import { useHistory } from "../contexts/HistoryContext";
 import * as THREE from "three";
+import type { SavedComponentState } from "@/features/ModelViewer/utils/StateSaver";
+
+// A map of componentName → SavedComponentState
+export type SceneState = Record<string, SavedComponentState>;
+
+type NodeTransform = {
+  position?: [number, number, number];
+  rotation?: [number, number, number]; // e.g. Euler in radians
+  scale?: [number, number, number];
+};
 
 export const useModelVersioning = (
   groupRef: React.RefObject<THREE.Group | null>,
@@ -23,6 +33,12 @@ export const useModelVersioning = (
   const { model, setModel } = useModel();
   const apiClient = useAxiosConfig();
   const { resetStacks } = useHistory();
+
+  // *** NEW ***
+  const [compareLeft, setCompareLeft] = useState<StateFile | null>(null);
+  const [compareRight, setCompareRight] = useState<StateFile | null>(null);
+  const [diffNodeIds, setDiffNodeIds] = useState<string[]>([]);
+  const [isComparing, setIsComparing] = useState(false);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const files = model?.stateFiles || [];
@@ -144,6 +160,113 @@ export const useModelVersioning = (
     }
   }, [apiClient, model?.assetId, refetchModel, versionToDelete]);
 
+  // *** NEW ***
+  const loadSceneState = useCallback(
+    async (file: StateFile): Promise<SceneState> => {
+      try {
+        const res = await apiClient.get(file.url, {
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+        });
+
+        const json =
+          typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+
+        if (!Array.isArray(json)) {
+          console.error("State JSON is not an array:", json);
+          return {};
+        }
+
+        const arr = json as SavedComponentState[];
+
+        // Convert array → map for fast lookup
+        const map: SceneState = {};
+        for (const item of arr) {
+          map[item.name] = item;
+        }
+
+        return map;
+      } catch (err) {
+        console.error("Failed loading scene JSON:", err);
+        return {};
+      }
+    },
+    [apiClient],
+  );
+
+  const areTransformsDifferent = (a: NodeTransform, b: NodeTransform) => {
+    const eps = 1e-4;
+    const diffVec = (
+      va?: [number, number, number],
+      vb?: [number, number, number],
+    ) => {
+      if (!va && !vb) return false;
+      if (!va || !vb) return true;
+      return (
+        Math.abs(va[0] - vb[0]) > eps ||
+        Math.abs(va[1] - vb[1]) > eps ||
+        Math.abs(va[2] - vb[2]) > eps
+      );
+    };
+    if (diffVec(a.position, b.position)) return true;
+    if (diffVec(a.rotation, b.rotation)) return true;
+    if (diffVec(b.scale, b.scale)) return true;
+
+    return false;
+  };
+
+  // @ts-ignore
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const computeDiffNodeIds = useCallback(
+    async (left: StateFile, right: StateFile): Promise<string[]> => {
+      try {
+        const [leftState, rightState] = await Promise.all([
+          loadSceneState(left),
+          loadSceneState(right),
+        ]);
+        const allIds = new Set<string>([
+          ...Object.keys(leftState),
+          ...Object.keys(rightState),
+        ]);
+
+        const diffs: string[] = [];
+
+        for (const id of allIds) {
+          const leftNode = leftState[id] ?? {};
+          const rightNode = rightState[id] ?? {};
+          if (areTransformsDifferent(leftNode, rightNode)) {
+            diffs.push(id);
+          }
+        }
+        return diffs;
+      } catch (e) {
+        console.error("Error computing version diff:", e);
+        return [];
+      }
+    },
+  );
+
+  const startCompare = useCallback(
+    async (left: StateFile, right: StateFile) => {
+      setCompareLeft(left);
+      setCompareRight(right);
+      const diffs = await computeDiffNodeIds(left, right);
+      setDiffNodeIds(diffs);
+      setIsComparing(true);
+    },
+    [computeDiffNodeIds],
+  );
+
+  const stopCompare = useCallback(() => {
+    setIsComparing(false);
+    setCompareLeft(null);
+    setCompareRight(null);
+    setDiffNodeIds([]);
+  }, []);
+
   return {
     versionModalOpen,
     setVersionModalOpen,
@@ -164,6 +287,16 @@ export const useModelVersioning = (
     sortedFiles,
     handleDeleteVersionClick,
     baseline,
+    //*** NEW ***
+    compareLeft,
+    compareRight,
+    diffNodeIds,
+    isComparing,
+    setIsComparing,
+    setCompareLeft,
+    setCompareRight,
+    startCompare,
+    stopCompare,
     switchWarningDialogProps: {
       showSwitchWarning,
       setShowSwitchWarning,
