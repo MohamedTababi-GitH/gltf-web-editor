@@ -42,16 +42,13 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
       interactionCount = 0;
 
       if (interacted) {
-        const res = await heartbeat(id);
-        console.log(res.success);
+        await heartbeat(id);
         resetTimer();
         return;
       }
 
       const idleTime = Date.now() - lastActivity;
-      console.log(idleTime);
       const idleTimeInSeconds = Math.round(idleTime / 1000);
-      console.log(idleTimeInSeconds);
       const notificationTimeInSeconds =
         (idleTimeout - notificationCheckTime) / 1000;
       const isNotificationTime =

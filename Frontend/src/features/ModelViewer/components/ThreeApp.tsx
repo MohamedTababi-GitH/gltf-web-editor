@@ -27,13 +27,14 @@ export default function ThreeApp() {
     useState<React.RefObject<THREE.Group | null> | null>(null);
 
   const { undo, redo, undoStack, redoStack } = useHistory();
+  const [collisionPrevention, setCollisionPrevention] = useState(false);
 
   const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
   useUnsavedChangesWarning(canUndo);
   const processedModelURL = useProcessedModel();
   const versioning = useModelVersioning(
-    groupRef as React.RefObject<THREE.Group | null>,
+    groupRef as React.RefObject<THREE.Group | null>
   );
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
@@ -75,7 +76,12 @@ export default function ThreeApp() {
       <SaveVersionDialog {...versioning.saveVersionDialogProps} />
       <DeleteVersionDialog {...versioning.deleteVersionDialogProps} />
 
-      <Cursors setSelectedTool={setSelectedTool} selectedTool={selectedTool} />
+      <Cursors
+        setSelectedTool={setSelectedTool}
+        selectedTool={selectedTool}
+        collisionPrevention={collisionPrevention}
+        setCollisionPrevention={setCollisionPrevention}
+      />
       <Canvas>
         <color attach="background" args={["#888888"]} />
         <Suspense fallback={null}>
@@ -89,6 +95,7 @@ export default function ThreeApp() {
                   selectedVersion={versioning.selectedVersion}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
+                  collisionPrevention={collisionPrevention}
                 />
               )}
             </Resize>
