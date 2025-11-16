@@ -38,13 +38,14 @@ export default function ThreeApp() {
   const orbitRef = useRef<OrbitControlsImpl | null>(null);
 
   const { undo, redo, undoStack, redoStack } = useHistory();
+  const [collisionPrevention, setCollisionPrevention] = useState(false);
 
   const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
   useUnsavedChangesWarning(canUndo);
   const processedModelURL = useProcessedModel();
   const versioning = useModelVersioning(
-    groupRef as React.RefObject<THREE.Group | null>,
+    groupRef as React.RefObject<THREE.Group | null>
   );
   const tools: ToolConfig[] = [
     {
@@ -115,6 +116,8 @@ export default function ThreeApp() {
         versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
         compareOpen={compareOpen}
         setCompareOpen={setCompareOpen}
+        collisionPrevention={collisionPrevention}
+        setCollisionPrevention={setCollisionPrevention}
       />
       <Canvas>
         <color attach="background" args={["#888888"]} />
@@ -130,6 +133,7 @@ export default function ThreeApp() {
                   setSelectedVersion={versioning.setSelectedVersion}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
+                  collisionPrevention={collisionPrevention}
                 />
               )}
             </Resize>

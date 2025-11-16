@@ -28,8 +28,10 @@ const AppSidebar = () => {
     updateMeshPosition,
   } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
-    "metadata",
+    "metadata"
   );
+
+  const [oldOpacityValue, setOldOpacityValue] = useState<number>(1);
 
   if (!model) return null;
 
@@ -188,12 +190,24 @@ const AppSidebar = () => {
                         max={1}
                         step={0.01}
                         value={[mesh.opacity ?? 1]}
-                        onValueChange={(value: number[]) => {
-                          const newOpacity = value[0];
-                          toggleComponentOpacity(mesh.id, newOpacity);
+                        onSlideStart={(value) => {
+                          setOldOpacityValue(value);
                         }}
-                        className="w-40 cursor-pointer"
+                        // live update only
+                        onValueChange={(value) => {
+                          toggleComponentOpacity(mesh.id, value[0], false);
+                        }}
+                        // commit change
+                        onValueCommit={(value) => {
+                          toggleComponentOpacity(
+                            mesh.id,
+                            value[0],
+                            true,
+                            oldOpacityValue
+                          );
+                        }}
                       />
+
                       <span className="text-xs w-8 text-right">
                         {Math.round((mesh.opacity ?? 1) * 100)}%
                       </span>

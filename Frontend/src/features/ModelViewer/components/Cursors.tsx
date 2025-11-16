@@ -5,6 +5,7 @@ import {
 } from "@/shared/components/tooltip.tsx";
 import { Button } from "@/shared/components/button.tsx";
 import {
+  FoldHorizontal,
   type LucideProps,
   MousePointer,
   Move,
@@ -19,7 +20,7 @@ import {
 } from "lucide-react";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import { Cursor as CursorEnum } from "@/features/ModelViewer/types/Cursor.ts";
-import { type ComponentType, useState } from "react";
+import React, { type ComponentType, useState } from "react";
 import { Separator } from "@/shared/components/separator.tsx";
 import type { ToolConfig } from "./ThreeApp";
 import type { StateFile } from "@/shared/types/StateFile.ts";
@@ -36,6 +37,8 @@ type CursorProps = {
   versions: StateFile[];
   compareOpen: boolean;
   setCompareOpen: (open: boolean) => void;
+  collisionPrevention: boolean;
+  setCollisionPrevention: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 type CursorConfig = {
@@ -61,6 +64,8 @@ function Cursors({
   versions,
   compareOpen,
   setCompareOpen,
+  collisionPrevention,
+  setCollisionPrevention,
 }: Readonly<CursorProps>) {
   const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [rightVersion, setRightVersion] = useState<StateFile | null>(null);
@@ -214,6 +219,26 @@ function Cursors({
             </Button>
           </PopoverContent>
         </Popover>
+        {/* Collision toggle button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => setCollisionPrevention((prev) => !prev)}
+              variant="default"
+              size="icon"
+              className={`rounded-sm md:rounded-md lg:rounded-lg w-7 h-7 md:w-9 md:h-9 lg:w-12 lg:h-12 ${
+                collisionPrevention
+                  ? "bg-primary text-background"
+                  : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"
+              }`}
+            >
+              <FoldHorizontal className="size-4 md:size-4 lg:size-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Collision Prevention ({collisionPrevention ? "ON" : "OFF"})</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
