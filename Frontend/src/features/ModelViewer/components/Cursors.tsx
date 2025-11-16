@@ -228,7 +228,7 @@ function Cursors({
                 className={`w-full`}
                 onClick={() => versioning.stopCompare()}
               >
-                Stop compare
+                Stop Compare
               </Button>
             )}
           </PopoverContent>
