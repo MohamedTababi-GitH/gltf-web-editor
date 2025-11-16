@@ -19,7 +19,7 @@ import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSave
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 import type { MeshData } from "@/features/ModelViewer/types/MeshData.ts";
-import type { SceneState } from "@/features/ModelViewer/hooks/useModelVersioning.ts";
+//import type { SceneState } from "@/features/ModelViewer/hooks/useModelVersioning.ts";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -1019,32 +1019,24 @@ export function Model({
 
   const componentToControl = selectedComponents[0];
 
-  // === HIGHLIGHT DIFF NODES DURING COMPARISON ===
   useEffect(() => {
     if (!scene) return;
-    console.log("DiffNodeIDs", diffNodeIds);
-
     if (!diffNodeIds || diffNodeIds.length === 0) return;
-    console.log("Scene", scene);
-    console.log("Scene Chil: ", scene.children);
 
     for (const obj of scene.children) {
       const id = obj.name;
 
-      // Only process meshes
-      // if (!(obj instanceof THREE.Mesh)) continue;
-
       if (id && diffNodeIds.includes(id)) {
         obj.traverse((child) => {
+          if (!(child instanceof THREE.Mesh)) return;
           const mat = child.material;
-          console.log("OBJ name", id);
 
           if (Array.isArray(mat)) {
             mat.forEach((m) =>
-              (m as THREE.MeshStandardMaterial).color.set("#ff0000"),
+              (m as THREE.MeshStandardMaterial).color.set("#ff3333"),
             );
           } else if (mat) {
-            (mat as THREE.MeshStandardMaterial).color.set("#ff0000");
+            (mat as THREE.MeshStandardMaterial).color.set("#ff3333");
           }
         });
       }
