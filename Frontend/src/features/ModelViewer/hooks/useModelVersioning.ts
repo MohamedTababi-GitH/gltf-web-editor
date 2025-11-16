@@ -18,6 +18,7 @@ type NodeTransform = {
 
 export const useModelVersioning = (
   groupRef: React.RefObject<THREE.Group | null>,
+  canUndo: boolean,
 ) => {
   const [versionModalOpen, setVersionModalOpen] = useState(false);
   const [versionName, setVersionName] = useState("");
@@ -253,7 +254,7 @@ export const useModelVersioning = (
       const diffs = await computeDiffNodeIds(left, right);
       setDiffNodeIds(diffs);
       if (selectedVersion?.version !== right.version) {
-        handleVersionClick(right, false);
+        handleVersionClick(right, canUndo);
       }
       setIsComparing(true);
     },

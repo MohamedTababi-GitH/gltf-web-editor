@@ -45,6 +45,7 @@ export default function ThreeApp() {
   const processedModelURL = useProcessedModel();
   const versioning = useModelVersioning(
     groupRef as React.RefObject<THREE.Group | null>,
+    canUndo,
   );
   const tools: ToolConfig[] = [
     {
