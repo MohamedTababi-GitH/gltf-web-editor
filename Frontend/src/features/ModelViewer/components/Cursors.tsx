@@ -5,6 +5,7 @@ import {
 } from "@/shared/components/tooltip.tsx";
 import { Button } from "@/shared/components/button.tsx";
 import {
+  FoldHorizontal,
   type LucideProps,
   MousePointer,
   Move,
@@ -36,6 +37,7 @@ type CursorProps = {
   versions: StateFile[];
   compareOpen: boolean;
   setCompareOpen: (open: boolean) => void;
+  collisionPrevention: boolean;
 };
 
 type CursorConfig = {
@@ -61,6 +63,7 @@ function Cursors({
   versions,
   compareOpen,
   setCompareOpen,
+  collisionPrevention,
 }: Readonly<CursorProps>) {
   const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [rightVersion, setRightVersion] = useState<StateFile | null>(null);
@@ -126,7 +129,7 @@ function Cursors({
               </TooltipTrigger>
             </PopoverTrigger>
             <TooltipContent side="right">
-              <p>Compare Versions</p>
+              <p>Compare Versions (D)</p>
             </TooltipContent>
           </Tooltip>
 
@@ -137,7 +140,6 @@ function Cursors({
             <h2 className="font-semibold text-lg mb-2">Compare Versions</h2>
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-2">
-              {/* LEFT VERSION POPOVER */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -170,7 +172,6 @@ function Cursors({
 
               <ArrowLeftRight className="text-foreground" />
 
-              {/* RIGHT VERSION POPOVER */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -205,7 +206,6 @@ function Cursors({
               </Popover>
             </div>
 
-            {/* Compare button */}
             <Button
               className="w-full mt-2"
               disabled={!leftVersion || !rightVersion}
@@ -217,6 +217,29 @@ function Cursors({
             </Button>
           </PopoverContent>
         </Popover>
+        {/* Collision toggle button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={
+                tools.find((tool) => tool.name === "Collision Prevention")
+                  ?.onClick
+              }
+              variant="default"
+              size="icon"
+              className={`rounded-sm md:rounded-md lg:rounded-lg w-7 h-7 md:w-9 md:h-9 lg:w-12 lg:h-12 ${
+                collisionPrevention
+                  ? "bg-primary text-background"
+                  : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"
+              }`}
+            >
+              <FoldHorizontal className="size-4 md:size-4 lg:size-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Collision Prevention (Z)</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

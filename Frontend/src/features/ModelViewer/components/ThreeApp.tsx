@@ -38,6 +38,7 @@ export default function ThreeApp() {
   const orbitRef = useRef<OrbitControlsImpl | null>(null);
 
   const { undo, redo, undoStack, redoStack } = useHistory();
+  const [collisionPrevention, setCollisionPrevention] = useState(false);
 
   const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
@@ -61,6 +62,13 @@ export default function ThreeApp() {
       shortcut: "D",
       onClick: () => {
         setCompareOpen((prev) => !prev);
+      },
+    },
+    {
+      name: "Collision Prevention",
+      shortcut: "Z",
+      onClick: () => {
+        setCollisionPrevention((prev) => !prev);
       },
     },
   ];
@@ -115,6 +123,7 @@ export default function ThreeApp() {
         versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
         compareOpen={compareOpen}
         setCompareOpen={setCompareOpen}
+        collisionPrevention={collisionPrevention}
       />
       <Canvas>
         <color attach="background" args={["#888888"]} />
@@ -130,6 +139,7 @@ export default function ThreeApp() {
                   setSelectedVersion={versioning.setSelectedVersion}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
+                  collisionPrevention={collisionPrevention}
                 />
               )}
             </Resize>
