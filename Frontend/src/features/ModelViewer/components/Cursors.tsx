@@ -120,7 +120,7 @@ function Cursors({
                   variant="default"
                   size="icon"
                   className={`rounded-sm md:rounded-md lg:rounded-lg w-7 h-7 md:w-9 md:h-9 lg:w-12 lg:h-12 ${
-                    compareOpen
+                    compareOpen || versioning.isComparing
                       ? "bg-primary text-background"
                       : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"
                   }`}
@@ -211,6 +211,7 @@ function Cursors({
 
             {/* Compare button */}
             <Button
+              variant={"default"}
               className="w-full mt-2"
               disabled={!leftVersion || !rightVersion}
               onClick={() => {
@@ -224,7 +225,7 @@ function Cursors({
             {versioning.isComparing && (
               <Button
                 variant={"ghost"}
-                className={`w-full text-xs mt-1`}
+                className={`w-full`}
                 onClick={() => versioning.stopCompare()}
               >
                 Stop compare

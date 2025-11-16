@@ -18,8 +18,6 @@ import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
 import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSaver.ts";
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import type { StateFile } from "@/shared/types/StateFile.ts";
-import type { MeshData } from "@/features/ModelViewer/types/MeshData.ts";
-//import type { SceneState } from "@/features/ModelViewer/hooks/useModelVersioning.ts";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -397,8 +395,6 @@ type ModelProps = {
   selectedVersion: StateFile | undefined;
   setSelectedVersion: (version: StateFile | undefined) => void;
   diffNodeIds?: string[];
-  compareRight?: StateFile | null;
-  meshes: MeshData[];
 };
 
 export function Model({
@@ -412,7 +408,6 @@ export function Model({
 }: Readonly<ModelProps>) {
   const {
     model,
-    meshes,
     setMeshes,
     setToggleComponentVisibility,
     setToggleComponentOpacity,
@@ -1020,7 +1015,6 @@ export function Model({
   const componentToControl = selectedComponents[0];
 
   useEffect(() => {
-    if (!scene) return;
     if (!diffNodeIds || diffNodeIds.length === 0) return;
 
     for (const obj of scene.children) {
@@ -1041,7 +1035,7 @@ export function Model({
         });
       }
     }
-  }, [scene, diffNodeIds, meshes]);
+  }, [scene.children, diffNodeIds]);
 
   return (
     <>

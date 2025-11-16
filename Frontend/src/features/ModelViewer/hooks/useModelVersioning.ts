@@ -123,18 +123,18 @@ export const useModelVersioning = (
     setShowSwitchWarning(false);
   };
 
-  const handleVersionClick = (
-    file: React.SetStateAction<StateFile | undefined>,
-    canUndo: boolean,
-  ) => {
-    if (canUndo) {
-      setShowSwitchWarning(true);
-      setVersionToSwitch(file);
-      return;
-    }
-    setSelectedVersion(file);
-    resetStacks();
-  };
+  const handleVersionClick = useCallback(
+    (file: React.SetStateAction<StateFile | undefined>, canUndo: boolean) => {
+      if (canUndo) {
+        setShowSwitchWarning(true);
+        setVersionToSwitch(file);
+        return;
+      }
+      setSelectedVersion(file);
+      resetStacks();
+    },
+    [resetStacks],
+  );
 
   const handleDeleteVersionClick = (
     file: React.SetStateAction<StateFile | undefined>,
@@ -198,7 +198,7 @@ export const useModelVersioning = (
   );
 
   const areTransformsDifferent = (a: NodeTransform, b: NodeTransform) => {
-    const eps = 1e-4;
+    const eps = 1e-6;
     const diffVec = (
       va?: [number, number, number],
       vb?: [number, number, number],
@@ -213,13 +213,9 @@ export const useModelVersioning = (
     };
     if (diffVec(a.position, b.position)) return true;
     if (diffVec(a.rotation, b.rotation)) return true;
-    if (diffVec(b.scale, b.scale)) return true;
-
-    return false;
+    return diffVec(a.scale, b.scale);
   };
 
-  // @ts-ignore
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const computeDiffNodeIds = useCallback(
     async (left: StateFile, right: StateFile): Promise<string[]> => {
       try {
@@ -247,6 +243,7 @@ export const useModelVersioning = (
         return [];
       }
     },
+    [loadSceneState],
   );
 
   const startCompare = useCallback(
@@ -255,9 +252,12 @@ export const useModelVersioning = (
       setCompareRight(right);
       const diffs = await computeDiffNodeIds(left, right);
       setDiffNodeIds(diffs);
+      if (selectedVersion?.version !== right.version) {
+        handleVersionClick(right, false);
+      }
       setIsComparing(true);
     },
-    [computeDiffNodeIds],
+    [computeDiffNodeIds, handleVersionClick, selectedVersion?.version],
   );
 
   const stopCompare = useCallback(() => {
