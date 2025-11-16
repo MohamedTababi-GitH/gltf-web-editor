@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { ICommand } from "@/features/ModelViewer/types/ICommand.ts";
+import { isMesh } from "../components/Model";
 
 export type TransformState = {
   position: THREE.Vector3;
@@ -20,7 +21,7 @@ export class MultiTransformCommand implements ICommand {
     objects: THREE.Object3D[],
     oldStates: TransformState[],
     newStates: TransformState[],
-    updateCallback: (components: THREE.Object3D[]) => void
+    updateCallback: (components: THREE.Object3D[]) => void,
   ) {
     this.objects = objects;
     this.oldStates = oldStates;
@@ -28,17 +29,21 @@ export class MultiTransformCommand implements ICommand {
     this.updateCallback = updateCallback;
   }
 
+  private updateState(obj: THREE.Object3D, state: TransformState) {
+    obj.position.copy(state.position);
+    obj.quaternion.copy(state.rotation);
+    obj.scale.copy(state.scale);
+    obj.visible = state.isVisible;
+    this.applyOpacity(obj, state.opacity);
+    obj.updateMatrixWorld();
+  }
+
   public execute(): void {
     for (let i = 0; i < this.objects.length; i++) {
       const obj = this.objects[i];
       const state = this.newStates[i];
       if (!state) continue;
-      obj.position.copy(state.position);
-      obj.quaternion.copy(state.rotation);
-      obj.scale.copy(state.scale);
-      obj.visible = state.isVisible;
-      this.applyOpacity(obj, state.opacity);
-      obj.updateMatrixWorld();
+      this.updateState(obj, state);
     }
 
     this.updateCallback(this.objects);
@@ -49,19 +54,14 @@ export class MultiTransformCommand implements ICommand {
       const obj = this.objects[i];
       const state = this.oldStates[i];
       if (!state) continue;
-      obj.position.copy(state.position);
-      obj.quaternion.copy(state.rotation);
-      obj.scale.copy(state.scale);
-      obj.visible = state.isVisible;
-      this.applyOpacity(obj, state.opacity);
-      obj.updateMatrixWorld();
+      this.updateState(obj, state);
     }
     this.updateCallback(this.objects);
   }
 
   private applyOpacity(obj: THREE.Object3D, opacity: number) {
     obj.traverse((child) => {
-      if (!(child instanceof THREE.Mesh)) return;
+      if (!isMesh(child)) return;
 
       const material = child.material;
 
@@ -74,7 +74,9 @@ export class MultiTransformCommand implements ICommand {
       };
 
       if (Array.isArray(material)) {
-        material.forEach(setOpacity);
+        for (const mat of material) {
+          setOpacity(mat);
+        }
       } else {
         setOpacity(material);
       }

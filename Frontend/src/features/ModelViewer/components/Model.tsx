@@ -19,7 +19,8 @@ import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSave
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 
-function isMesh(object: THREE.Object3D): object is THREE.Mesh {
+// eslint-disable-next-line react-refresh/only-export-components
+export function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
 }
 
@@ -397,8 +398,8 @@ function detectCollisions(
   // Get world-space bounding box for the moved object
   const movedBox = new THREE.Box3().setFromObject(movedObject);
 
-  scene.children.forEach((child) => {
-    if (child === movedObject || !child.visible) return;
+  for (const child of scene.children) {
+    if (child === movedObject || !child.visible) break;
     const childBox = new THREE.Box3().setFromObject(child);
     if (
       movedBox.min.x <= childBox.max.x - tolerance &&
@@ -410,7 +411,7 @@ function detectCollisions(
     ) {
       collisions.push(child);
     }
-  });
+  }
 
   return collisions;
 }
@@ -619,7 +620,9 @@ export function Model({
             };
 
             if (Array.isArray(material)) {
-              material.forEach(getOpacity);
+              for (const m of material) {
+                getOpacity(m);
+              }
             } else {
               getOpacity(material);
             }
@@ -698,8 +701,8 @@ export function Model({
     }
   }, [loadedState, scene]);
 
-  const handleDragStart = useCallback(() => {
-    dragStartStates.current = selectedComponents.map((comp) => {
+  const getStates = useCallback(() => {
+    return selectedComponents.map((comp) => {
       // compute opacity
       const opacity = (() => {
         let op = 1;
@@ -724,36 +727,18 @@ export function Model({
     });
   }, [selectedComponents]);
 
-  const handleDragEnd = useCallback(() => {
-    const componentsForCommand = [...selectedComponents];
-    const newStates = componentsForCommand.map((comp) => {
-      const opacity = (() => {
-        let op = 1;
-        comp.traverse((child) => {
-          if (isMesh(child) && op === 1) {
-            const mat = child.material;
-            op = Array.isArray(mat)
-              ? (mat[0].opacity ?? 1)
-              : (mat.opacity ?? 1);
-          }
-        });
-        return op;
-      })();
+  const handleDragStart = useCallback(() => {
+    dragStartStates.current = getStates();
+  }, [getStates]);
 
-      return {
-        position: comp.position.clone(),
-        rotation: comp.quaternion.clone(),
-        scale: comp.scale.clone(),
-        isVisible: comp.visible,
-        opacity,
-      };
-    });
+  const handleDragEnd = useCallback(() => {
+    const newStates = getStates();
 
     const oldStates = dragStartStates.current;
 
     if (oldStates.length > 0 && oldStates.length === newStates.length) {
       const command = new MultiTransformCommand(
-        componentsForCommand,
+        selectedComponents,
         oldStates,
         newStates,
         onTransformComplete,
@@ -762,7 +747,7 @@ export function Model({
     }
 
     dragStartStates.current = [];
-  }, [selectedComponents, onTransformComplete, addCommand]);
+  }, [selectedComponents, getStates, onTransformComplete, addCommand]);
 
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
@@ -1090,11 +1075,11 @@ export function Model({
     // --- HIGHLIGHT COLLISIONS (unchanged) ---
     if (scene && leader) {
       const collidedObjects: THREE.Object3D[] = [];
-      selectedComponents.forEach((comp) => {
+      for (const comp of selectedComponents) {
         collidedObjects.push(...detectCollisions(comp, scene));
-      });
+      }
 
-      previousCollided.current.forEach((obj) => {
+      for (const obj of previousCollided.current) {
         if (!collidedObjects.includes(obj)) {
           obj.traverse((child) => {
             if (isMesh(child)) {
@@ -1106,9 +1091,9 @@ export function Model({
             }
           });
         }
-      });
+      }
 
-      collidedObjects.forEach((obj) => {
+      for (const obj of collidedObjects) {
         obj.traverse((child) => {
           if (isMesh(child)) {
             if (!originalMaterials.current.has(child)) {
@@ -1121,9 +1106,9 @@ export function Model({
             child.material = highlight;
           }
         });
-      });
+      }
 
-      selectedComponents.forEach((component) => {
+      for (const component of selectedComponents) {
         const collisions = detectCollisions(component, scene);
         const isColliding = collisions.length > 0;
 
@@ -1143,7 +1128,7 @@ export function Model({
             child.material = highlight;
           }
         });
-      });
+      }
 
       previousCollided.current = collidedObjects;
     }

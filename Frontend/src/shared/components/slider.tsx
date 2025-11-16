@@ -16,7 +16,7 @@ function Slider({
   max = 100,
   onSlideStart,
   ...props
-}: SliderProps) {
+}: Readonly<SliderProps>) {
   const _values = React.useMemo(() => {
     if (Array.isArray(value)) {
       return value;
