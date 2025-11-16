@@ -45,7 +45,7 @@ export default function ThreeApp() {
   useUnsavedChangesWarning(canUndo);
   const processedModelURL = useProcessedModel();
   const versioning = useModelVersioning(
-    groupRef as React.RefObject<THREE.Group | null>
+    groupRef as React.RefObject<THREE.Group | null>,
   );
   const tools: ToolConfig[] = [
     {
@@ -62,6 +62,13 @@ export default function ThreeApp() {
       shortcut: "D",
       onClick: () => {
         setCompareOpen((prev) => !prev);
+      },
+    },
+    {
+      name: "Collision Prevention",
+      shortcut: "Z",
+      onClick: () => {
+        setCollisionPrevention((prev) => !prev);
       },
     },
   ];
@@ -117,7 +124,6 @@ export default function ThreeApp() {
         compareOpen={compareOpen}
         setCompareOpen={setCompareOpen}
         collisionPrevention={collisionPrevention}
-        setCollisionPrevention={setCollisionPrevention}
       />
       <Canvas>
         <color attach="background" args={["#888888"]} />

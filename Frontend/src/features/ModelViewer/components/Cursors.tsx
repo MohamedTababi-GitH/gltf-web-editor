@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import { Cursor as CursorEnum } from "@/features/ModelViewer/types/Cursor.ts";
-import React, { type ComponentType, useState } from "react";
+import { type ComponentType, useState } from "react";
 import { Separator } from "@/shared/components/separator.tsx";
 import type { ToolConfig } from "./ThreeApp";
 import type { StateFile } from "@/shared/types/StateFile.ts";
@@ -38,7 +38,6 @@ type CursorProps = {
   compareOpen: boolean;
   setCompareOpen: (open: boolean) => void;
   collisionPrevention: boolean;
-  setCollisionPrevention: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 type CursorConfig = {
@@ -65,7 +64,6 @@ function Cursors({
   compareOpen,
   setCompareOpen,
   collisionPrevention,
-  setCollisionPrevention,
 }: Readonly<CursorProps>) {
   const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [rightVersion, setRightVersion] = useState<StateFile | null>(null);
@@ -223,7 +221,10 @@ function Cursors({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              onClick={() => setCollisionPrevention((prev) => !prev)}
+              onClick={
+                tools.find((tool) => tool.name === "Collision Prevention")
+                  ?.onClick
+              }
               variant="default"
               size="icon"
               className={`rounded-sm md:rounded-md lg:rounded-lg w-7 h-7 md:w-9 md:h-9 lg:w-12 lg:h-12 ${
@@ -236,7 +237,7 @@ function Cursors({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">
-            <p>Collision Prevention ({collisionPrevention ? "ON" : "OFF"})</p>
+            <p>Collision Prevention (Z)</p>
           </TooltipContent>
         </Tooltip>
       </div>

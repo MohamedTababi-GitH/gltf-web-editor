@@ -18,7 +18,6 @@ import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
 import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSaver.ts";
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import type { StateFile } from "@/shared/types/StateFile.ts";
-import { add } from "three/src/nodes/TSL.js";
 
 function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
@@ -391,7 +390,7 @@ type SlotContext = {
 function detectCollisions(
   movedObject: THREE.Object3D,
   scene: THREE.Group,
-  tolerance = 0.001
+  tolerance = 0.001,
 ): THREE.Object3D[] {
   const collisions: THREE.Object3D[] = [];
 
@@ -461,17 +460,6 @@ export function Model({
   const originalMaterials = useRef(
     new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
   );
-
-  const onTransformComplete = (transformedObjects: THREE.Object3D[]) => {
-    const currentSelection = selectedComponentsRef.current;
-    const currentSelectionSet = new Set(currentSelection.map((c) => c.id));
-    const shouldUpdate = transformedObjects.some((obj) =>
-      currentSelectionSet.has(obj.id)
-    );
-    if (shouldUpdate) {
-      updateSidebarMeshes(currentSelection);
-    }
-  };
 
   useEffect(() => {
     selectedComponentsRef.current = selectedComponents;
@@ -620,7 +608,7 @@ export function Model({
 
           let foundOpacity: number | undefined;
           component.traverse((child) => {
-            if (!(child instanceof THREE.Mesh)) return;
+            if (!isMesh(child)) return;
 
             const material = child.material;
 
@@ -653,6 +641,20 @@ export function Model({
       );
     },
     [setMeshes],
+  );
+
+  const onTransformComplete = useCallback(
+    (transformedObjects: THREE.Object3D[]) => {
+      const currentSelection = selectedComponentsRef.current;
+      const currentSelectionSet = new Set(currentSelection.map((c) => c.id));
+      const shouldUpdate = transformedObjects.some((obj) =>
+        currentSelectionSet.has(obj.id),
+      );
+      if (shouldUpdate) {
+        updateSidebarMeshes(currentSelection);
+      }
+    },
+    [updateSidebarMeshes],
   );
 
   useEffect(() => {
@@ -760,7 +762,7 @@ export function Model({
     }
 
     dragStartStates.current = [];
-  }, [selectedComponents, updateSidebarMeshes, addCommand]);
+  }, [selectedComponents, onTransformComplete, addCommand]);
 
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
@@ -797,18 +799,17 @@ export function Model({
         opacity: oldState.opacity,
       };
 
-      // Create command for undo/redo
       const command = new MultiTransformCommand(
         [componentToToggle],
         [oldState],
         [newState],
-        onTransformComplete
+        onTransformComplete,
       );
 
       addCommand(command);
       command.execute();
     },
-    [selectedComponents, setMeshes, addCommand]
+    [selectedComponents, onTransformComplete, addCommand],
   );
 
   const updateMeshPosition = useCallback(
@@ -849,7 +850,7 @@ export function Model({
         [object],
         [oldState],
         [newState],
-        onTransformComplete
+        onTransformComplete,
       );
       addCommand(command);
 
@@ -862,11 +863,11 @@ export function Model({
                 Y: position.y.toFixed(3),
                 Z: position.z.toFixed(3),
               }
-            : mesh
-        )
+            : mesh,
+        ),
       );
     },
-    [selectedComponents, setMeshes, updateSidebarMeshes, addCommand],
+    [selectedComponents, onTransformComplete, addCommand, setMeshes],
   );
 
   const toggleComponentOpacity = useCallback(
@@ -874,7 +875,7 @@ export function Model({
       componentId: number,
       newOpacity: number,
       isCommit: boolean,
-      oldOpacityValue?: number
+      oldOpacityValue?: number,
     ) => {
       const object = selectedComponents.find((c) => c.id === componentId);
       if (!object) return;
@@ -901,7 +902,7 @@ export function Model({
           [object],
           [oldState],
           [newState],
-          onTransformComplete
+          onTransformComplete,
         );
 
         addCommand(command);
@@ -934,11 +935,11 @@ export function Model({
       // Reflect in sidebar
       setMeshes((prev) =>
         prev.map((m) =>
-          m.id === componentId ? { ...m, opacity: newOpacity } : m
-        )
+          m.id === componentId ? { ...m, opacity: newOpacity } : m,
+        ),
       );
     },
-    [selectedComponents, setMeshes, updateSidebarMeshes, addCommand]
+    [selectedComponents, setMeshes, onTransformComplete, addCommand],
   );
 
   useEffect(() => {
