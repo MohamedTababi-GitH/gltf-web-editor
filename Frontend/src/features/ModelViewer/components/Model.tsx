@@ -370,6 +370,9 @@ function processNodeSlots(node: THREE.Object3D, targetSize: number): void {
     }
 
     if (slotHelperMesh) {
+      slotHelperMesh.traverse((child) => {
+        child.userData.isSlot = true;
+      });
       setSlotHelperPosition(slotHelperMesh, context);
       setSlotHelperOrientation(slotHelperMesh, context);
       node.add(slotHelperMesh);
@@ -388,30 +391,43 @@ type SlotContext = {
   targetVec: THREE.Vector3;
 };
 
+const _tempBox = new THREE.Box3();
+
 function detectCollisions(
   movedObject: THREE.Object3D,
   scene: THREE.Group,
-  tolerance = 0.001,
+  ignoreList: THREE.Object3D[] = [],
+  tolerance = -0.001,
 ): THREE.Object3D[] {
   const collisions: THREE.Object3D[] = [];
 
-  // Get world-space bounding box for the moved object
   const movedBox = new THREE.Box3().setFromObject(movedObject);
 
-  for (const child of scene.children) {
-    if (child === movedObject || !child.visible) break;
+  scene.traverse((child) => {
+    if (!child.visible) return;
+
+    if (child === movedObject) return;
+
+    if (movedObject.getObjectById(child.id)) return;
+
+    if (child.userData.isSlot) return;
+
+    const isIgnored = ignoreList.some(
+      (ignoredObj) =>
+        ignoredObj === child || ignoredObj.getObjectById(child.id),
+    );
+    if (isIgnored) return;
+
+    if (!isMesh(child)) return;
+
     const childBox = new THREE.Box3().setFromObject(child);
-    if (
-      movedBox.min.x <= childBox.max.x - tolerance &&
-      movedBox.max.x >= childBox.min.x + tolerance &&
-      movedBox.min.y <= childBox.max.y - tolerance &&
-      movedBox.max.y >= childBox.min.y + tolerance &&
-      movedBox.min.z <= childBox.max.z - tolerance &&
-      movedBox.max.z >= childBox.min.z + tolerance
-    ) {
+
+    _tempBox.copy(movedBox).expandByScalar(tolerance);
+
+    if (_tempBox.intersectsBox(childBox)) {
       collisions.push(child);
     }
-  }
+  });
 
   return collisions;
 }
@@ -992,7 +1008,7 @@ export function Model({
 
     // only check collision after TransformControls updates leader’s position
     if (collisionPrevention) {
-      const collisions = detectCollisions(leader, scene);
+      const collisions = detectCollisions(leader, scene, selectedComponents);
       if (collisions.length > 0) {
         // revert movement if colliding
         if (prevLeaderWorldPos.current) {
@@ -1021,7 +1037,11 @@ export function Model({
         if (collisionPrevention) {
           const originalPos = follower.getWorldPosition(new THREE.Vector3());
           follower.position.copy(newWorldPos);
-          const collisions = detectCollisions(follower, scene);
+          const collisions = detectCollisions(
+            follower,
+            scene,
+            selectedComponents,
+          );
           if (collisions.length > 0) {
             follower.position.copy(originalPos); // revert position if colliding
           } else {
@@ -1052,7 +1072,9 @@ export function Model({
         if (collisionPrevention) {
           const originalRot = follower.quaternion.clone();
           follower.quaternion.copy(localRot);
-          if (detectCollisions(follower, scene).length > 0) {
+          if (
+            detectCollisions(follower, scene, selectedComponents).length > 0
+          ) {
             follower.quaternion.copy(originalRot); // revert rotation if colliding
           }
         } else {
@@ -1072,7 +1094,9 @@ export function Model({
         if (collisionPrevention) {
           const originalScale = follower.scale.clone();
           follower.scale.copy(localScale);
-          if (detectCollisions(follower, scene).length > 0) {
+          if (
+            detectCollisions(follower, scene, selectedComponents).length > 0
+          ) {
             follower.scale.copy(originalScale); // revert scale if colliding
           }
         } else {
@@ -1085,7 +1109,9 @@ export function Model({
     if (scene && leader) {
       const collidedObjects: THREE.Object3D[] = [];
       for (const comp of selectedComponents) {
-        collidedObjects.push(...detectCollisions(comp, scene));
+        collidedObjects.push(
+          ...detectCollisions(comp, scene, selectedComponents),
+        );
       }
 
       for (const obj of previousCollided.current) {
