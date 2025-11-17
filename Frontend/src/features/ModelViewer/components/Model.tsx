@@ -816,8 +816,6 @@ export function Model({
     const oldStates = dragStartStates.current;
 
     if (isColliding && oldStates.length > 0) {
-      console.log("Collision detected on release. Snapping back.");
-
       if (previousCollided.current.length > 0) {
         previousCollided.current.forEach((obj) => {
           obj.traverse((child) => {
