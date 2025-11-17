@@ -29,6 +29,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/components/popover.tsx";
+import type { useModelVersioning } from "@/features/ModelViewer/hooks/useModelVersioning.ts";
+type VersioningType = ReturnType<typeof useModelVersioning>;
 
 type CursorProps = {
   setSelectedTool: (tool: Cursor) => void;
@@ -38,6 +40,7 @@ type CursorProps = {
   compareOpen: boolean;
   setCompareOpen: (open: boolean) => void;
   collisionPrevention: boolean;
+  versioning: VersioningType;
 };
 
 type CursorConfig = {
@@ -64,6 +67,7 @@ function Cursors({
   compareOpen,
   setCompareOpen,
   collisionPrevention,
+  versioning,
 }: Readonly<CursorProps>) {
   const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [rightVersion, setRightVersion] = useState<StateFile | null>(null);
@@ -119,7 +123,7 @@ function Cursors({
                   variant="default"
                   size="icon"
                   className={`rounded-sm md:rounded-md lg:rounded-lg w-7 h-7 md:w-9 md:h-9 lg:w-12 lg:h-12 ${
-                    compareOpen
+                    compareOpen || versioning.isComparing
                       ? "bg-primary text-background"
                       : "bg-popover text-foreground hover:bg-popover/90 hover:text-foreground"
                   }`}
@@ -207,14 +211,26 @@ function Cursors({
             </div>
 
             <Button
+              variant={"default"}
               className="w-full mt-2"
               disabled={!leftVersion || !rightVersion}
               onClick={() => {
-                // logic
+                if (!leftVersion || !rightVersion) return;
+                versioning.startCompare(leftVersion, rightVersion);
+                setCompareOpen(true);
               }}
             >
               Compare
             </Button>
+            {versioning.isComparing && (
+              <Button
+                variant={"ghost"}
+                className={`w-full`}
+                onClick={() => versioning.stopCompare()}
+              >
+                Stop Compare
+              </Button>
+            )}
           </PopoverContent>
         </Popover>
         {/* Collision toggle button */}

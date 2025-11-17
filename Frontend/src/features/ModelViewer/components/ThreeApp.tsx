@@ -46,6 +46,7 @@ export default function ThreeApp() {
   const processedModelURL = useProcessedModel();
   const versioning = useModelVersioning(
     groupRef as React.RefObject<THREE.Group | null>,
+    canUndo,
   );
   const tools: ToolConfig[] = [
     {
@@ -73,7 +74,8 @@ export default function ThreeApp() {
     },
   ];
   const { sortedFiles, baseline } = versioning;
-
+  const versionsList = baseline ? [baseline, ...sortedFiles] : [...sortedFiles];
+  const backgroundColor = versioning.isComparing ? "#9bb0d1" : "#888888";
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
     setVersionModalOpen: versioning.setVersionModalOpen,
@@ -120,13 +122,14 @@ export default function ThreeApp() {
         setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
         tools={tools}
-        versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
+        versions={versionsList}
         compareOpen={compareOpen}
         setCompareOpen={setCompareOpen}
+        versioning={versioning}
         collisionPrevention={collisionPrevention}
       />
       <Canvas>
-        <color attach="background" args={["#888888"]} />
+        <color attach="background" args={[backgroundColor]} />
         <Suspense fallback={null}>
           <Environment preset="city" background={false} />
           <Center>
@@ -140,6 +143,11 @@ export default function ThreeApp() {
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
                   collisionPrevention={collisionPrevention}
+                  diffNodeIds={
+                    versioning.isComparing ? versioning.diffNodeIds : []
+                  }
+                  isComparing={versioning.isComparing}
+                  setIsComparing={versioning.setIsComparing}
                 />
               )}
             </Resize>
