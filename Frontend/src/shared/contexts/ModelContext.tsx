@@ -22,22 +22,34 @@ type ModelContextType = {
   // Visibility control
   toggleComponentVisibility: (
     componentId: number,
-    newVisibility: CheckedState,
+    newVisibility: CheckedState
   ) => void;
   setToggleComponentVisibility: Dispatch<
     SetStateAction<(id: number, visibility: CheckedState) => void>
   >;
 
   // Opacity control
-  toggleComponentOpacity: (componentId: number, newOpacity: number) => void;
+  toggleComponentOpacity: (
+    componentId: number,
+    newOpacity: number,
+    isCommit: boolean,
+    oldOpacityValue?: number
+  ) => void;
   setToggleComponentOpacity: Dispatch<
-    SetStateAction<(id: number, opacity: number) => void>
+    SetStateAction<
+      (
+        id: number,
+        opacity: number,
+        isCommit: boolean,
+        oldOpacityValue?: number
+      ) => void
+    >
   >;
 
   // Mesh position control
   updateMeshPosition: (
     id: number,
-    position: { x: number; y: number; z: number },
+    position: { x: number; y: number; z: number }
   ) => void;
   setUpdateMeshPosition: Dispatch<
     SetStateAction<
@@ -58,7 +70,12 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
   >(() => () => {});
 
   const [toggleComponentOpacity, setToggleComponentOpacity] = useState<
-    (id: number, opacity: number) => void
+    (
+      id: number,
+      opacity: number,
+      isCommit: boolean,
+      oldOpacityValue?: number
+    ) => void
   >(() => () => {});
 
   const [updateMeshPosition, setUpdateMeshPosition] = useState<
@@ -93,7 +110,7 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
       setToggleComponentOpacity,
       updateMeshPosition,
       setUpdateMeshPosition,
-    ],
+    ]
   );
 
   return (

@@ -19,7 +19,8 @@ import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSave
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 
-function isMesh(object: THREE.Object3D): object is THREE.Mesh {
+// eslint-disable-next-line react-refresh/only-export-components
+export function isMesh(object: THREE.Object3D): object is THREE.Mesh {
   return (object as THREE.Mesh).isMesh;
 }
 
@@ -387,12 +388,41 @@ type SlotContext = {
   targetVec: THREE.Vector3;
 };
 
+function detectCollisions(
+  movedObject: THREE.Object3D,
+  scene: THREE.Group,
+  tolerance = 0.001,
+): THREE.Object3D[] {
+  const collisions: THREE.Object3D[] = [];
+
+  // Get world-space bounding box for the moved object
+  const movedBox = new THREE.Box3().setFromObject(movedObject);
+
+  for (const child of scene.children) {
+    if (child === movedObject || !child.visible) break;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (
+      movedBox.min.x <= childBox.max.x - tolerance &&
+      movedBox.max.x >= childBox.min.x + tolerance &&
+      movedBox.min.y <= childBox.max.y - tolerance &&
+      movedBox.max.y >= childBox.min.y + tolerance &&
+      movedBox.min.z <= childBox.max.z - tolerance &&
+      movedBox.max.z >= childBox.min.z + tolerance
+    ) {
+      collisions.push(child);
+    }
+  }
+
+  return collisions;
+}
+
 type ModelProps = {
   processedUrl: string;
   setLoadingProgress: (progress: number) => void;
   selectedTool: string;
   setGroupRef: (ref: React.RefObject<THREE.Group | null>) => void;
   selectedVersion: StateFile | undefined;
+  collisionPrevention: boolean;
   setSelectedVersion: (version: StateFile | undefined) => void;
   diffNodeIds?: string[];
   isComparing: boolean;
@@ -406,6 +436,7 @@ export function Model({
   selectedVersion,
   setSelectedVersion,
   setGroupRef,
+  collisionPrevention,
   diffNodeIds,
   isComparing,
   setIsComparing,
@@ -426,6 +457,8 @@ export function Model({
   const [loadedState, setLoadedState] = useState<SavedComponentState[]>();
   const { addCommand } = useHistory();
   const apiClient = useAxiosConfig();
+  const previousCollided = useRef<THREE.Object3D[]>([]);
+  const prevLeaderWorldPos = useRef<THREE.Vector3 | null>(null);
 
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
@@ -518,7 +551,6 @@ export function Model({
 
           if (isSavedStateArray(parsedData)) {
             setLoadedState(parsedData);
-            console.log("Scene state loaded successfully.");
           } else {
             console.error(
               "Loaded file is not a valid scene state:",
@@ -586,27 +618,25 @@ export function Model({
 
           let foundOpacity: number | undefined;
           component.traverse((child) => {
-            if (foundOpacity !== undefined) return;
-            if (isMesh(child)) {
-              const saved = originalMaterials.current.get(child);
-              if (saved) {
-                if (Array.isArray(saved)) {
-                  const first = saved[0];
-                  foundOpacity = "opacity" in first ? (first.opacity ?? 1) : 1;
-                } else {
-                  foundOpacity = "opacity" in saved ? (saved.opacity ?? 1) : 1;
-                }
-              } else {
-                const mat = child.material;
-                if (Array.isArray(mat)) {
-                  const first = mat[0];
-                  foundOpacity = "opacity" in first ? (first.opacity ?? 1) : 1;
-                } else {
-                  foundOpacity = "opacity" in mat ? (mat.opacity ?? 1) : 1;
-                }
+            if (!isMesh(child)) return;
+
+            const material = child.material;
+
+            const getOpacity = (mat: THREE.Material) => {
+              if ("opacity" in mat) {
+                foundOpacity = mat.opacity;
               }
+            };
+
+            if (Array.isArray(material)) {
+              for (const m of material) {
+                getOpacity(m);
+              }
+            } else {
+              getOpacity(material);
             }
           });
+
           // eslint-disable-next-line prefer-const
           opacity = foundOpacity ?? 1;
 
@@ -623,6 +653,20 @@ export function Model({
       );
     },
     [setMeshes],
+  );
+
+  const onTransformComplete = useCallback(
+    (transformedObjects: THREE.Object3D[]) => {
+      const currentSelection = selectedComponentsRef.current;
+      const currentSelectionSet = new Set(currentSelection.map((c) => c.id));
+      const shouldUpdate = transformedObjects.some((obj) =>
+        currentSelectionSet.has(obj.id),
+      );
+      if (shouldUpdate) {
+        updateSidebarMeshes(currentSelection);
+      }
+    },
+    [updateSidebarMeshes],
   );
 
   useEffect(() => {
@@ -666,37 +710,44 @@ export function Model({
     }
   }, [loadedState, scene]);
 
-  const handleDragStart = useCallback(() => {
-    dragStartStates.current = selectedComponents.map((comp) => ({
-      position: comp.position.clone(),
-      rotation: comp.quaternion.clone(),
-      scale: comp.scale.clone(),
-    }));
+  const getStates = useCallback(() => {
+    return selectedComponents.map((comp) => {
+      // compute opacity
+      const opacity = (() => {
+        let op = 1;
+        comp.traverse((child) => {
+          if (isMesh(child) && op === 1) {
+            const mat = child.material;
+            op = Array.isArray(mat)
+              ? (mat[0].opacity ?? 1)
+              : (mat.opacity ?? 1);
+          }
+        });
+        return op;
+      })();
+
+      return {
+        position: comp.position.clone(),
+        rotation: comp.quaternion.clone(),
+        scale: comp.scale.clone(),
+        isVisible: comp.visible,
+        opacity,
+      };
+    });
   }, [selectedComponents]);
 
+  const handleDragStart = useCallback(() => {
+    dragStartStates.current = getStates();
+  }, [getStates]);
+
   const handleDragEnd = useCallback(() => {
-    const componentsForCommand = [...selectedComponents];
-    const newStates = componentsForCommand.map((comp) => ({
-      position: comp.position.clone(),
-      rotation: comp.quaternion.clone(),
-      scale: comp.scale.clone(),
-    }));
+    const newStates = getStates();
 
     const oldStates = dragStartStates.current;
 
     if (oldStates.length > 0 && oldStates.length === newStates.length) {
-      const onTransformComplete = (transformedObjects: THREE.Object3D[]) => {
-        const currentSelection = selectedComponentsRef.current;
-        const currentSelectionSet = new Set(currentSelection.map((c) => c.id));
-        const shouldUpdate = transformedObjects.some((obj) =>
-          currentSelectionSet.has(obj.id),
-        );
-        if (shouldUpdate) {
-          updateSidebarMeshes(currentSelection);
-        }
-      };
       const command = new MultiTransformCommand(
-        componentsForCommand,
+        selectedComponents,
         oldStates,
         newStates,
         onTransformComplete,
@@ -705,27 +756,54 @@ export function Model({
     }
 
     dragStartStates.current = [];
-  }, [selectedComponents, updateSidebarMeshes, addCommand]);
+  }, [selectedComponents, getStates, onTransformComplete, addCommand]);
 
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
       const componentToToggle = selectedComponents.find(
         (comp) => comp.id === componentId,
       );
+      if (!componentToToggle) return;
 
-      if (componentToToggle) {
-        componentToToggle.visible = newVisibility;
-      }
+      // Build TransformState for undo/redo
+      const oldState: TransformState = {
+        position: componentToToggle.position.clone(),
+        rotation: componentToToggle.quaternion.clone(),
+        scale: componentToToggle.scale.clone(),
+        isVisible: componentToToggle.visible,
+        opacity: (() => {
+          let op = 1;
+          componentToToggle.traverse((child) => {
+            if (isMesh(child) && op === 1) {
+              const mat = child.material;
+              op = Array.isArray(mat)
+                ? (mat[0].opacity ?? 1)
+                : (mat.opacity ?? 1);
+            }
+          });
+          return op;
+        })(),
+      };
 
-      setMeshes((prevMeshes) =>
-        prevMeshes.map((mesh) =>
-          mesh.id === componentId
-            ? { ...mesh, isVisible: newVisibility }
-            : mesh,
-        ),
+      const newState: TransformState = {
+        position: componentToToggle.position.clone(),
+        rotation: componentToToggle.quaternion.clone(),
+        scale: componentToToggle.scale.clone(),
+        isVisible: newVisibility,
+        opacity: oldState.opacity,
+      };
+
+      const command = new MultiTransformCommand(
+        [componentToToggle],
+        [oldState],
+        [newState],
+        onTransformComplete,
       );
+
+      addCommand(command);
+      command.execute();
     },
-    [selectedComponents, setMeshes],
+    [selectedComponents, onTransformComplete, addCommand],
   );
 
   const updateMeshPosition = useCallback(
@@ -737,6 +815,19 @@ export function Model({
         position: object.position.clone(),
         rotation: object.quaternion.clone(),
         scale: object.scale.clone(),
+        isVisible: object.visible,
+        opacity: (() => {
+          let op = 1;
+          object.traverse((child) => {
+            if (isMesh(child) && op === 1) {
+              const mat = child.material;
+              op = Array.isArray(mat)
+                ? (mat[0].opacity ?? 1)
+                : (mat.opacity ?? 1);
+            }
+          });
+          return op;
+        })(),
       };
 
       object.position.set(position.x, position.y, position.z);
@@ -745,13 +836,15 @@ export function Model({
         position: object.position.clone(),
         rotation: object.quaternion.clone(),
         scale: object.scale.clone(),
+        isVisible: object.visible,
+        opacity: oldState.opacity,
       };
 
       const command = new MultiTransformCommand(
         [object],
         [oldState],
         [newState],
-        updateSidebarMeshes,
+        onTransformComplete,
       );
       addCommand(command);
 
@@ -768,48 +861,79 @@ export function Model({
         ),
       );
     },
-    [selectedComponents, setMeshes, updateSidebarMeshes, addCommand],
+    [selectedComponents, onTransformComplete, addCommand, setMeshes],
   );
 
   const toggleComponentOpacity = useCallback(
-    (componentId: number, newOpacity: number) => {
-      const componentToChange = selectedComponents.find(
-        (comp) => comp.id === componentId,
-      );
+    (
+      componentId: number,
+      newOpacity: number,
+      isCommit: boolean,
+      oldOpacityValue?: number,
+    ) => {
+      const object = selectedComponents.find((c) => c.id === componentId);
+      if (!object) return;
 
-      if (componentToChange) {
-        componentToChange.traverse((child) => {
-          if (!isMesh(child)) return;
+      // ---- 1. Capture OLD state only on first commit ----
+      if (isCommit && oldOpacityValue !== undefined) {
+        const oldState: TransformState = {
+          position: object.position.clone(),
+          rotation: object.quaternion.clone(),
+          scale: object.scale.clone(),
+          isVisible: object.visible,
+          opacity: oldOpacityValue,
+        };
 
-          const currentMaterial = child.material;
-          const savedOriginal = originalMaterials.current.get(child);
+        const newState: TransformState = {
+          position: object.position.clone(),
+          rotation: object.quaternion.clone(),
+          scale: object.scale.clone(),
+          isVisible: object.visible,
+          opacity: newOpacity,
+        };
 
-          const updateOpacity = (mat: THREE.Material | THREE.Material[]) => {
-            if (Array.isArray(mat)) {
-              for (const m of mat) {
-                m.transparent = true;
-                m.opacity = newOpacity;
-                m.needsUpdate = true;
-              }
-            } else {
-              mat.transparent = true;
-              mat.opacity = newOpacity;
-              mat.needsUpdate = true;
-            }
-          };
+        const command = new MultiTransformCommand(
+          [object],
+          [oldState],
+          [newState],
+          onTransformComplete,
+        );
 
-          updateOpacity(currentMaterial);
-          if (savedOriginal) updateOpacity(savedOriginal);
-        });
+        addCommand(command);
       }
 
-      setMeshes((prevMeshes) =>
-        prevMeshes.map((mesh) =>
-          mesh.id === componentId ? { ...mesh, opacity: newOpacity } : mesh,
+      // ---- 2. Live dragging → apply opacity with NO undo stack ----
+      object.traverse((child) => {
+        if (!isMesh(child)) return;
+        const currentMaterial = child.material;
+        const savedOriginal = originalMaterials.current.get(child);
+
+        const updateOpacity = (mat: THREE.Material | THREE.Material[]) => {
+          if (Array.isArray(mat)) {
+            for (const m of mat) {
+              m.transparent = true;
+              m.opacity = newOpacity;
+              m.needsUpdate = true;
+            }
+          } else {
+            mat.transparent = true;
+            mat.opacity = newOpacity;
+            mat.needsUpdate = true;
+          }
+        };
+
+        updateOpacity(currentMaterial);
+        if (savedOriginal) updateOpacity(savedOriginal);
+      });
+
+      // Reflect in sidebar
+      setMeshes((prev) =>
+        prev.map((m) =>
+          m.id === componentId ? { ...m, opacity: newOpacity } : m,
         ),
       );
     },
-    [selectedComponents, setMeshes],
+    [selectedComponents, setMeshes, onTransformComplete, addCommand],
   );
 
   useEffect(() => {
@@ -866,6 +990,21 @@ export function Model({
     const leader = selectedComponents[0];
     if (!leader) return;
 
+    // only check collision after TransformControls updates leader’s position
+    if (collisionPrevention) {
+      const collisions = detectCollisions(leader, scene);
+      if (collisions.length > 0) {
+        // revert movement if colliding
+        if (prevLeaderWorldPos.current) {
+          leader.position.copy(prevLeaderWorldPos.current);
+        }
+        return; // stop followers this frame
+      }
+    }
+
+    // ✅ always remember last good position
+    prevLeaderWorldPos.current = leader.position.clone();
+
     leader.updateWorldMatrix(true, false);
 
     const leaderNewWorldPos = leader.getWorldPosition(new THREE.Vector3());
@@ -875,28 +1014,53 @@ export function Model({
     for (let i = 1; i < selectedComponents.length; i++) {
       const follower = selectedComponents[i];
 
+      // --- POSITION ---
       const offset = initialOffsets.current.get(follower);
       if (offset) {
         const newWorldPos = leaderNewWorldPos.clone().add(offset);
-        follower.parent?.updateWorldMatrix(true, false);
-        follower.parent?.worldToLocal(newWorldPos);
-        follower.position.copy(newWorldPos);
+        if (collisionPrevention) {
+          const originalPos = follower.getWorldPosition(new THREE.Vector3());
+          follower.position.copy(newWorldPos);
+          const collisions = detectCollisions(follower, scene);
+          if (collisions.length > 0) {
+            follower.position.copy(originalPos); // revert position if colliding
+          } else {
+            follower.parent?.updateWorldMatrix(true, false);
+            follower.parent?.worldToLocal(newWorldPos);
+            follower.position.copy(newWorldPos);
+          }
+        } else {
+          follower.parent?.updateWorldMatrix(true, false);
+          follower.parent?.worldToLocal(newWorldPos);
+          follower.position.copy(newWorldPos);
+        }
       }
 
+      // --- ROTATION ---
       const rotationDelta = initialRotations.current.get(follower);
       if (rotationDelta) {
-        const newWorldRot = new THREE.Quaternion().copy(leaderNewWorldRot);
-        newWorldRot.multiply(rotationDelta);
-
+        const newWorldRot = new THREE.Quaternion()
+          .copy(leaderNewWorldRot)
+          .multiply(rotationDelta);
         const localRot = new THREE.Quaternion();
         follower.parent?.updateWorldMatrix(true, true);
         const parentWorldRotInv = follower.parent
           ? follower.parent.getWorldQuaternion(new THREE.Quaternion()).invert()
           : new THREE.Quaternion();
         localRot.copy(newWorldRot).premultiply(parentWorldRotInv);
-        follower.quaternion.copy(localRot);
+
+        if (collisionPrevention) {
+          const originalRot = follower.quaternion.clone();
+          follower.quaternion.copy(localRot);
+          if (detectCollisions(follower, scene).length > 0) {
+            follower.quaternion.copy(originalRot); // revert rotation if colliding
+          }
+        } else {
+          follower.quaternion.copy(localRot);
+        }
       }
 
+      // --- SCALE ---
       const scaleRatio = initialScales.current.get(follower);
       if (scaleRatio) {
         const newWorldScale = leaderNewWorldScale.clone().multiply(scaleRatio);
@@ -904,12 +1068,88 @@ export function Model({
           ? follower.parent.getWorldScale(new THREE.Vector3())
           : new THREE.Vector3(1, 1, 1);
         const localScale = newWorldScale.divide(parentWorldScale);
-        follower.scale.copy(localScale);
+
+        if (collisionPrevention) {
+          const originalScale = follower.scale.clone();
+          follower.scale.copy(localScale);
+          if (detectCollisions(follower, scene).length > 0) {
+            follower.scale.copy(originalScale); // revert scale if colliding
+          }
+        } else {
+          follower.scale.copy(localScale);
+        }
       }
     }
 
+    // --- HIGHLIGHT COLLISIONS (unchanged) ---
+    if (scene && leader) {
+      const collidedObjects: THREE.Object3D[] = [];
+      for (const comp of selectedComponents) {
+        collidedObjects.push(...detectCollisions(comp, scene));
+      }
+
+      for (const obj of previousCollided.current) {
+        if (!collidedObjects.includes(obj)) {
+          obj.traverse((child) => {
+            if (isMesh(child)) {
+              const original = originalMaterials.current.get(child);
+              if (original) {
+                child.material = original;
+                originalMaterials.current.delete(child);
+              }
+            }
+          });
+        }
+      }
+
+      for (const obj of collidedObjects) {
+        obj.traverse((child) => {
+          if (isMesh(child)) {
+            if (!originalMaterials.current.has(child)) {
+              originalMaterials.current.set(child, child.material);
+            }
+            const highlight = (
+              child.material as THREE.MeshStandardMaterial
+            ).clone();
+            highlight.color.set("red");
+            child.material = highlight;
+          }
+        });
+      }
+
+      for (const component of selectedComponents) {
+        const collisions = detectCollisions(component, scene);
+        const isColliding = collisions.length > 0;
+
+        component.traverse((child) => {
+          if (!isMesh(child)) return;
+          if (isColliding) {
+            const collisionMat = (
+              child.material as THREE.MeshStandardMaterial
+            ).clone();
+            collisionMat.emissive = new THREE.Color("#ff6f91");
+            collisionMat.emissiveIntensity = 0.8;
+            child.material = collisionMat;
+          } else {
+            const highlight = highlightMaterial.clone();
+            if ("opacity" in child.material)
+              highlight.opacity = child.material.opacity ?? 1;
+            child.material = highlight;
+          }
+        });
+      }
+
+      previousCollided.current = collidedObjects;
+    }
+
     updateSidebarMeshes(selectedComponents);
-  }, [selectedComponents, updateSidebarMeshes]);
+  }, [
+    selectedComponents,
+    updateSidebarMeshes,
+    scene,
+    collisionPrevention,
+    highlightMaterial,
+  ]);
 
   const restoreOriginalMaterials = useCallback(() => {
     for (const [mesh, material] of originalMaterials.current) {
