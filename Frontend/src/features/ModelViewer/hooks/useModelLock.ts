@@ -23,12 +23,17 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     let lastActivity = Date.now();
     const resetTimer = () => (lastActivity = Date.now());
     let interactionCount = 0;
-
     const incrementInteractionCount = () => {
       interactionCount += 1;
     };
 
     globalThis.addEventListener("mousemove", incrementInteractionCount);
+    globalThis.addEventListener("mouseup", incrementInteractionCount);
+    globalThis.addEventListener("mousedown", incrementInteractionCount);
+    globalThis.addEventListener("mouseleave", incrementInteractionCount);
+    globalThis.addEventListener("mouseenter", incrementInteractionCount);
+    globalThis.addEventListener("mouseout", incrementInteractionCount);
+    globalThis.addEventListener("mouseover", incrementInteractionCount);
     globalThis.addEventListener("keydown", incrementInteractionCount);
     globalThis.addEventListener("pointerdown", incrementInteractionCount);
     globalThis.addEventListener("wheel", incrementInteractionCount);
@@ -36,16 +41,10 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
     globalThis.addEventListener("touchstart", incrementInteractionCount);
     globalThis.addEventListener("touchend", incrementInteractionCount);
     globalThis.addEventListener("touchcancel", incrementInteractionCount);
-    //TODO: Delete console statements
+
     const idleCheckInterval = setInterval(async () => {
       const interacted = interactionCount > 0;
       interactionCount = 0;
-
-      if (interacted) {
-        await heartbeat(id);
-        resetTimer();
-        return;
-      }
 
       const idleTime = Date.now() - lastActivity;
       const idleTimeInSeconds = Math.round(idleTime / 1000);
@@ -54,6 +53,12 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
       const isNotificationTime =
         idleTimeInSeconds >= notificationTimeInSeconds - 1 &&
         idleTimeInSeconds <= notificationTimeInSeconds + 1;
+
+      if (interacted && idleTime < idleTimeout) {
+        await heartbeat(id);
+        resetTimer();
+        return;
+      }
 
       if (isNotificationTime) {
         showNotification("Still there? Session ends in 30 seconds.", "warn");
@@ -79,6 +84,12 @@ export const useModelLock = ({ id, saveModel, canUndo }: ModelLockProps) => {
 
     return () => {
       globalThis.removeEventListener("mousemove", incrementInteractionCount);
+      globalThis.removeEventListener("mouseup", incrementInteractionCount);
+      globalThis.removeEventListener("mousedown", incrementInteractionCount);
+      globalThis.removeEventListener("mouseleave", incrementInteractionCount);
+      globalThis.removeEventListener("mouseenter", incrementInteractionCount);
+      globalThis.removeEventListener("mouseout", incrementInteractionCount);
+      globalThis.removeEventListener("mouseover", incrementInteractionCount);
       globalThis.removeEventListener("keydown", incrementInteractionCount);
       globalThis.removeEventListener("pointerdown", incrementInteractionCount);
       globalThis.removeEventListener("wheel", incrementInteractionCount);
