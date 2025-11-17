@@ -22,19 +22,24 @@ export const useModelItem = ({
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(item.isFavourite);
   const [isNew, setIsNew] = useState(item.isNew);
+  const [isLocking, setIsLocking] = useState(false);
 
   const apiClient = useAxiosConfig();
   const { lockModel } = useMutex();
 
   const handleOpenModel = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (isLocking) return;
     try {
+      setIsLocking(true);
       const result = await lockModel(item.id);
       if (!result.success) return;
       onClick();
       if (isNew) await handleIsNewToggle(e);
     } catch (error) {
       console.error("Failed to open model:", error);
+    } finally {
+      setIsLocking(false);
     }
   };
 
