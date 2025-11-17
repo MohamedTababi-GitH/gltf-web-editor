@@ -803,9 +803,61 @@ export function Model({
   }, [getStates, selectedComponents]);
 
   const handleDragEnd = useCallback(() => {
-    const newStates = getStates();
+    let isColliding = false;
+    if (scene) {
+      for (const comp of selectedComponents) {
+        if (hasCollision(comp, scene, selectedComponents)) {
+          isColliding = true;
+          break;
+        }
+      }
+    }
 
     const oldStates = dragStartStates.current;
+
+    if (isColliding && oldStates.length > 0) {
+      console.log("Collision detected on release. Snapping back.");
+
+      if (previousCollided.current.length > 0) {
+        previousCollided.current.forEach((obj) => {
+          obj.traverse((child) => {
+            if (isMesh(child)) {
+              const original = originalMaterials.current.get(child);
+              if (original) {
+                child.material = original;
+                originalMaterials.current.delete(child);
+              }
+            }
+          });
+        });
+        previousCollided.current = [];
+      }
+
+      selectedComponents.forEach((comp, index) => {
+        const state = oldStates[index];
+        if (!state) return;
+
+        comp.position.copy(state.position);
+        comp.quaternion.copy(state.rotation);
+        comp.scale.copy(state.scale);
+        comp.visible = state.isVisible;
+
+        comp.traverse((child) => {
+          if (isMesh(child)) {
+            const blueHighlight = highlightMaterial.clone();
+            const baseOpacity = state.opacity ?? 1;
+            blueHighlight.opacity = baseOpacity < 1 ? baseOpacity : 0.9;
+            child.material = blueHighlight;
+          }
+        });
+      });
+
+      updateSidebarMeshes(selectedComponents);
+      dragStartStates.current = [];
+      return;
+    }
+
+    const newStates = getStates();
 
     if (oldStates.length > 0 && oldStates.length === newStates.length) {
       const command = new MultiTransformCommand(
@@ -818,7 +870,15 @@ export function Model({
     }
 
     dragStartStates.current = [];
-  }, [selectedComponents, getStates, onTransformComplete, addCommand]);
+  }, [
+    selectedComponents,
+    getStates,
+    onTransformComplete,
+    addCommand,
+    scene,
+    updateSidebarMeshes,
+    highlightMaterial,
+  ]);
 
   const toggleComponentVisibility = useCallback(
     (componentId: number, newVisibility: boolean) => {
