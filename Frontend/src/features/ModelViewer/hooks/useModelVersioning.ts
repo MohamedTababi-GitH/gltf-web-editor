@@ -120,9 +120,16 @@ export const useModelVersioning = (
     }
 
     resetStacks();
+    stopCompare();
     setVersionToSwitch(undefined);
     setShowSwitchWarning(false);
   };
+  const stopCompare = useCallback(() => {
+    //setIsComparing(false);
+    setCompareLeft(null);
+    setCompareRight(null);
+    setDiffNodeIds([]);
+  }, []);
 
   const handleVersionClick = useCallback(
     (file: React.SetStateAction<StateFile | undefined>, canUndo: boolean) => {
@@ -131,10 +138,11 @@ export const useModelVersioning = (
         setVersionToSwitch(file);
         return;
       }
+      stopCompare();
       setSelectedVersion(file);
       resetStacks();
     },
-    [resetStacks],
+    [resetStacks, stopCompare],
   );
 
   const handleDeleteVersionClick = (
@@ -258,15 +266,8 @@ export const useModelVersioning = (
       }
       setIsComparing(true);
     },
-    [computeDiffNodeIds, handleVersionClick, selectedVersion?.version],
+    [computeDiffNodeIds, handleVersionClick, selectedVersion?.version, canUndo],
   );
-
-  const stopCompare = useCallback(() => {
-    setIsComparing(false);
-    setCompareLeft(null);
-    setCompareRight(null);
-    setDiffNodeIds([]);
-  }, []);
 
   return {
     versionModalOpen,

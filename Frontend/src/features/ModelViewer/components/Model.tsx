@@ -395,6 +395,8 @@ type ModelProps = {
   selectedVersion: StateFile | undefined;
   setSelectedVersion: (version: StateFile | undefined) => void;
   diffNodeIds?: string[];
+  isComparing: boolean;
+  setIsComparing: (isComparing: boolean) => void;
 };
 
 export function Model({
@@ -405,6 +407,8 @@ export function Model({
   setSelectedVersion,
   setGroupRef,
   diffNodeIds,
+  isComparing,
+  setIsComparing,
 }: Readonly<ModelProps>) {
   const {
     model,
@@ -428,6 +432,9 @@ export function Model({
   >([]);
   const selectedComponentsRef = useRef<THREE.Object3D[]>(selectedComponents);
   const originalMaterials = useRef(
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
+  );
+  const originalDiffMaterials = useRef(
     new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
   );
 
@@ -910,13 +917,27 @@ export function Model({
     }
     originalMaterials.current.clear();
   }, []);
+  const restoreOriginalDiffMaterials = useCallback(() => {
+    for (const [mesh, material] of originalDiffMaterials.current) {
+      if (!originalMaterials.current.has(mesh)) {
+        mesh.material = material;
+      }
+    }
+    originalDiffMaterials.current.clear();
+  }, []);
 
   const applyHighlight = useCallback(
     (component: THREE.Object3D) => {
       component.traverse((child) => {
         if (isMesh(child)) {
           if (!originalMaterials.current.has(child)) {
-            originalMaterials.current.set(child, child.material);
+            const materialToSave =
+              originalDiffMaterials.current.get(child) ?? child.material;
+            originalMaterials.current.set(child, materialToSave);
+
+            if (originalDiffMaterials.current.has(child)) {
+              originalDiffMaterials.current.delete(child);
+            }
 
             const clonedHighlight = highlightMaterial.clone();
             if ("opacity" in child.material) {
@@ -932,17 +953,41 @@ export function Model({
     [highlightMaterial],
   );
 
-  const removeHighlight = useCallback((component: THREE.Object3D) => {
-    component.traverse((child) => {
-      if (isMesh(child)) {
-        const originalMaterial = originalMaterials.current.get(child);
-        if (originalMaterial) {
-          child.material = originalMaterial;
-          originalMaterials.current.delete(child);
+  const removeHighlight = useCallback(
+    (component: THREE.Object3D) => {
+      const isDiffed = diffNodeIds && diffNodeIds.includes(component.name);
+      component.traverse((child) => {
+        if (isMesh(child)) {
+          const originalMaterial = originalMaterials.current.get(child);
+          if (originalMaterial) {
+            if (isDiffed) {
+              originalDiffMaterials.current.set(child, originalMaterial);
+              if (Array.isArray(originalMaterial)) {
+                child.material = originalMaterial.map((m) => m.clone());
+              } else {
+                child.material = originalMaterial.clone();
+              }
+
+              const mat = child.material;
+              const color = "#ff3333";
+
+              if (Array.isArray(mat)) {
+                mat.forEach((m) =>
+                  (m as THREE.MeshStandardMaterial).color.set(color),
+                );
+              } else if (mat) {
+                (mat as THREE.MeshStandardMaterial).color.set(color);
+              }
+            } else {
+              child.material = originalMaterial;
+            }
+            originalMaterials.current.delete(child);
+          }
         }
-      }
-    });
-  }, []);
+      });
+    },
+    [diffNodeIds],
+  );
 
   useEffect(() => {
     return () => {
@@ -980,11 +1025,13 @@ export function Model({
           updateSidebarMeshes(newSelection);
         }
       } else if (isSelected) {
-        restoreOriginalMaterials();
+        //restoreOriginalMaterials();
+        removeHighlight(componentParent);
         setSelectedComponents([]);
         updateSidebarMeshes([]);
       } else {
-        restoreOriginalMaterials();
+        //restoreOriginalMaterials();
+        selectedComponents.forEach((comp) => removeHighlight(comp));
         setSelectedComponents([componentParent]);
         applyHighlight(componentParent);
         updateSidebarMeshes([componentParent]);
@@ -996,26 +1043,29 @@ export function Model({
       updateSidebarMeshes,
       applyHighlight,
       removeHighlight,
-      restoreOriginalMaterials,
     ],
   );
 
   const handleMiss = useCallback(() => {
     if (selectedComponents.length > 0) {
-      restoreOriginalMaterials();
+      //restoreOriginalMaterials();
+      selectedComponents.forEach((comp) => removeHighlight(comp));
       setSelectedComponents([]);
       updateSidebarMeshes([]);
     }
-  }, [
-    selectedComponents.length,
-    restoreOriginalMaterials,
-    updateSidebarMeshes,
-  ]);
+  }, [selectedComponents, removeHighlight, updateSidebarMeshes]);
 
   const componentToControl = selectedComponents[0];
 
   useEffect(() => {
-    if (!diffNodeIds || diffNodeIds.length === 0) return;
+    if (!diffNodeIds || diffNodeIds.length === 0) {
+      if (isComparing) {
+        console.log("Resetting Diff");
+        restoreOriginalDiffMaterials();
+        setIsComparing(false);
+      }
+      return;
+    }
 
     for (const obj of scene.children) {
       const id = obj.name;
@@ -1023,19 +1073,41 @@ export function Model({
       if (id && diffNodeIds.includes(id)) {
         obj.traverse((child) => {
           if (!(child instanceof THREE.Mesh)) return;
-          const mat = child.material;
+          const mesh = child as THREE.Mesh;
+          if (originalMaterials.current.has(mesh)) {
+            return;
+          }
+          if (!originalDiffMaterials.current.has(mesh)) {
+            const originalMaterial = mesh.material;
+            originalDiffMaterials.current.set(mesh, originalMaterial);
+
+            if (Array.isArray(originalMaterial)) {
+              mesh.material = originalMaterial.map((m) => m.clone());
+            } else {
+              mesh.material = originalMaterial.clone();
+            }
+          }
+
+          const mat = mesh.material;
+          const color = "#ff3333";
 
           if (Array.isArray(mat)) {
-            mat.forEach((m) =>
-              (m as THREE.MeshStandardMaterial).color.set("#ff3333"),
-            );
+            mat.forEach((m) => {
+              (m as THREE.MeshStandardMaterial).color.set(color);
+            });
           } else if (mat) {
-            (mat as THREE.MeshStandardMaterial).color.set("#ff3333");
+            (mat as THREE.MeshStandardMaterial).color.set(color);
           }
         });
       }
     }
-  }, [scene.children, diffNodeIds]);
+  }, [
+    scene.children,
+    diffNodeIds,
+    restoreOriginalDiffMaterials,
+    isComparing,
+    setIsComparing,
+  ]);
 
   return (
     <>

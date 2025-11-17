@@ -136,6 +136,8 @@ export default function ThreeApp() {
                   diffNodeIds={
                     versioning.isComparing ? versioning.diffNodeIds : []
                   }
+                  isComparing={versioning.isComparing}
+                  setIsComparing={versioning.setIsComparing}
                 />
               )}
             </Resize>
