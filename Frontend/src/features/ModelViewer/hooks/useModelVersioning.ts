@@ -7,12 +7,11 @@ import { useHistory } from "../contexts/HistoryContext";
 import * as THREE from "three";
 import type { SavedComponentState } from "@/features/ModelViewer/utils/StateSaver";
 
-// A map of componentName → SavedComponentState
 export type SceneState = Record<string, SavedComponentState>;
 
 type NodeTransform = {
   position?: [number, number, number];
-  rotation?: [number, number, number]; // e.g. Euler in radians
+  rotation?: [number, number, number];
   scale?: [number, number, number];
 };
 
@@ -35,7 +34,6 @@ export const useModelVersioning = (
   const apiClient = useAxiosConfig();
   const { resetStacks } = useHistory();
 
-  // *** NEW ***
   const [compareLeft, setCompareLeft] = useState<StateFile | null>(null);
   const [compareRight, setCompareRight] = useState<StateFile | null>(null);
   const [diffNodeIds, setDiffNodeIds] = useState<string[]>([]);
@@ -154,8 +152,6 @@ export const useModelVersioning = (
 
   const handleDeleteVersion = useCallback(async () => {
     if (!model?.assetId || !versionToDelete) return;
-    console.log(model.assetId);
-    console.log(versionToDelete);
     try {
       setIsDeleting(true);
       await apiClient.delete(
@@ -169,7 +165,6 @@ export const useModelVersioning = (
     }
   }, [apiClient, model?.assetId, refetchModel, versionToDelete]);
 
-  // *** NEW ***
   const loadSceneState = useCallback(
     async (file: StateFile): Promise<SceneState> => {
       try {
@@ -191,7 +186,6 @@ export const useModelVersioning = (
 
         const arr = json as SavedComponentState[];
 
-        // Convert array → map for fast lookup
         const map: SceneState = {};
         for (const item of arr) {
           map[item.name] = item;
@@ -289,7 +283,6 @@ export const useModelVersioning = (
     sortedFiles,
     handleDeleteVersionClick,
     baseline,
-    //*** NEW ***
     compareLeft,
     compareRight,
     diffNodeIds,
