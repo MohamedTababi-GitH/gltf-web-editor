@@ -392,6 +392,9 @@ type SlotContext = {
 };
 
 const _tempBox = new THREE.Box3();
+const _childBox = new THREE.Box3();
+const _movedBox = new THREE.Box3();
+const _tempVec = new THREE.Vector3();
 
 function detectCollisions(
   movedObject: THREE.Object3D,
@@ -401,15 +404,55 @@ function detectCollisions(
 ): THREE.Object3D[] {
   const collisions: THREE.Object3D[] = [];
 
-  const movedBox = new THREE.Box3().setFromObject(movedObject);
+  // 1. Use setFromObject on the reusable box
+  _movedBox.setFromObject(movedObject);
 
   scene.traverse((child) => {
     if (!child.visible) return;
-
     if (child === movedObject) return;
+    if (movedObject.getObjectById(child.id)) return; // Ignore descendants
+    if (child.userData.isSlot) return; // Ignore slots
 
+    // Fast check: Is it in the ignore list?
+    const isIgnored = ignoreList.some(
+      (ignoredObj) =>
+        ignoredObj === child || ignoredObj.getObjectById(child.id),
+    );
+    if (isIgnored) return;
+
+    if (!isMesh(child)) return;
+
+    // 2. Use setFromObject on the reusable child box
+    _childBox.setFromObject(child);
+
+    // 3. Expand temp box for tolerance check
+    _tempBox.copy(_movedBox).expandByScalar(tolerance);
+
+    if (_tempBox.intersectsBox(_childBox)) {
+      collisions.push(child);
+    }
+  });
+
+  return collisions;
+}
+
+function hasCollision(
+  movedObject: THREE.Object3D,
+  scene: THREE.Group,
+  ignoreList: THREE.Object3D[],
+  tolerance = -0.001,
+): boolean {
+  _movedBox.setFromObject(movedObject);
+  // Expand immediately for the boolean check
+  _movedBox.expandByScalar(tolerance);
+
+  let collisionFound = false;
+
+  scene.traverse((child) => {
+    if (collisionFound) return; // Exit early
+    if (!child.visible) return;
+    if (child === movedObject) return;
     if (movedObject.getObjectById(child.id)) return;
-
     if (child.userData.isSlot) return;
 
     const isIgnored = ignoreList.some(
@@ -420,16 +463,14 @@ function detectCollisions(
 
     if (!isMesh(child)) return;
 
-    const childBox = new THREE.Box3().setFromObject(child);
+    _childBox.setFromObject(child);
 
-    _tempBox.copy(movedBox).expandByScalar(tolerance);
-
-    if (_tempBox.intersectsBox(childBox)) {
-      collisions.push(child);
+    if (_movedBox.intersectsBox(_childBox)) {
+      collisionFound = true;
     }
   });
 
-  return collisions;
+  return collisionFound;
 }
 
 type ModelProps = {
@@ -475,6 +516,7 @@ export function Model({
   const apiClient = useAxiosConfig();
   const previousCollided = useRef<THREE.Object3D[]>([]);
   const prevLeaderWorldPos = useRef<THREE.Vector3 | null>(null);
+  const currentLeaderId = useRef<number | null>(null);
 
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
@@ -728,7 +770,6 @@ export function Model({
 
   const getStates = useCallback(() => {
     return selectedComponents.map((comp) => {
-      // compute opacity
       const opacity = (() => {
         let op = 1;
         comp.traverse((child) => {
@@ -754,7 +795,12 @@ export function Model({
 
   const handleDragStart = useCallback(() => {
     dragStartStates.current = getStates();
-  }, [getStates]);
+    if (selectedComponents.length > 0) {
+      const leader = selectedComponents[0];
+      leader.updateWorldMatrix(true, false);
+      prevLeaderWorldPos.current = leader.position.clone();
+    }
+  }, [getStates, selectedComponents]);
 
   const handleDragEnd = useCallback(() => {
     const newStates = getStates();
@@ -781,7 +827,6 @@ export function Model({
       );
       if (!componentToToggle) return;
 
-      // Build TransformState for undo/redo
       const oldState: TransformState = {
         position: componentToToggle.position.clone(),
         rotation: componentToToggle.quaternion.clone(),
@@ -890,7 +935,6 @@ export function Model({
       const object = selectedComponents.find((c) => c.id === componentId);
       if (!object) return;
 
-      // ---- 1. Capture OLD state only on first commit ----
       if (isCommit && oldOpacityValue !== undefined) {
         const oldState: TransformState = {
           position: object.position.clone(),
@@ -918,7 +962,6 @@ export function Model({
         addCommand(command);
       }
 
-      // ---- 2. Live dragging → apply opacity with NO undo stack ----
       object.traverse((child) => {
         if (!isMesh(child)) return;
         const currentMaterial = child.material;
@@ -942,7 +985,6 @@ export function Model({
         if (savedOriginal) updateOpacity(savedOriginal);
       });
 
-      // Reflect in sidebar
       setMeshes((prev) =>
         prev.map((m) =>
           m.id === componentId ? { ...m, opacity: newOpacity } : m,
@@ -978,6 +1020,8 @@ export function Model({
       const leaderWorldRot = leader.getWorldQuaternion(new THREE.Quaternion());
       const leaderWorldScale = leader.getWorldScale(new THREE.Vector3());
 
+      prevLeaderWorldPos.current = leader.position.clone();
+
       for (let i = 1; i < selectedComponents.length; i++) {
         const follower = selectedComponents[i];
         follower.updateWorldMatrix(true, false);
@@ -999,29 +1043,108 @@ export function Model({
         const scaleRatio = followerWorldScale.clone().divide(leaderWorldScale);
         initialScales.current.set(follower, scaleRatio);
       }
+    } else {
+      prevLeaderWorldPos.current = null;
     }
   }, [selectedComponents]);
+
+  const findSafeGroupPosition = useCallback(
+    (
+      leader: THREE.Object3D,
+      followers: THREE.Object3D[],
+      startPos: THREE.Vector3,
+      targetPos: THREE.Vector3,
+      scene: THREE.Group,
+      ignoreList: THREE.Object3D[],
+    ) => {
+      if (startPos.distanceToSquared(targetPos) < 0.000001) return startPos;
+
+      let low = 0;
+      let high = 1;
+      let bestSafeT = 0;
+      const iterations = 4;
+
+      const checkGroupSafety = (t: number): boolean => {
+        _tempVec.lerpVectors(startPos, targetPos, t); // Reuse _tempVec
+        leader.position.copy(_tempVec);
+        leader.updateWorldMatrix(true, false);
+
+        if (hasCollision(leader, scene, ignoreList)) return false;
+
+        const leaderWorldPos = _tempVec.setFromMatrixPosition(
+          leader.matrixWorld,
+        );
+
+        for (const follower of followers) {
+          const offset = initialOffsets.current.get(follower);
+          if (offset) {
+            const targetFollowerWorld = leaderWorldPos.clone().add(offset);
+
+            follower.parent?.updateWorldMatrix(true, false);
+            follower.parent?.worldToLocal(targetFollowerWorld);
+
+            const oldFollowerPos = follower.position.clone();
+            follower.position.copy(targetFollowerWorld);
+            follower.updateWorldMatrix(true, false);
+
+            const isColliding = hasCollision(follower, scene, ignoreList);
+
+            follower.position.copy(oldFollowerPos);
+
+            if (isColliding) return false;
+          }
+        }
+        return true;
+      };
+
+      for (let i = 0; i < iterations; i++) {
+        const mid = (low + high) / 2;
+        if (checkGroupSafety(mid)) {
+          bestSafeT = mid;
+          low = mid;
+        } else {
+          high = mid;
+        }
+      }
+
+      return new THREE.Vector3().lerpVectors(startPos, targetPos, bestSafeT);
+    },
+    [initialOffsets],
+  );
 
   const handleGizmoChange = useCallback(() => {
     const leader = selectedComponents[0];
     if (!leader) return;
+    if (currentLeaderId.current !== leader.id) {
+      currentLeaderId.current = leader.id;
+      prevLeaderWorldPos.current = leader.position.clone();
+      return;
+    }
+    const targetPos = leader.position.clone();
 
-    // only check collision after TransformControls updates leader’s position
-    if (collisionPrevention) {
-      const collisions = detectCollisions(leader, scene, selectedComponents);
-      if (collisions.length > 0) {
-        // revert movement if colliding
-        if (prevLeaderWorldPos.current) {
-          leader.position.copy(prevLeaderWorldPos.current);
-        }
-        return; // stop followers this frame
-      }
+    if (!prevLeaderWorldPos.current) {
+      prevLeaderWorldPos.current = targetPos.clone();
     }
 
-    // ✅ always remember last good position
-    prevLeaderWorldPos.current = leader.position.clone();
+    leader.position.copy(prevLeaderWorldPos.current);
+    leader.updateWorldMatrix(true, false);
+
+    if (collisionPrevention) {
+      const safePos = findSafeGroupPosition(
+        leader,
+        selectedComponents.slice(1),
+        prevLeaderWorldPos.current,
+        targetPos,
+        scene,
+        selectedComponents,
+      );
+      leader.position.copy(safePos);
+    } else {
+      leader.position.copy(targetPos);
+    }
 
     leader.updateWorldMatrix(true, false);
+    prevLeaderWorldPos.current = leader.position.clone();
 
     const leaderNewWorldPos = leader.getWorldPosition(new THREE.Vector3());
     const leaderNewWorldRot = leader.getWorldQuaternion(new THREE.Quaternion());
@@ -1030,33 +1153,14 @@ export function Model({
     for (let i = 1; i < selectedComponents.length; i++) {
       const follower = selectedComponents[i];
 
-      // --- POSITION ---
       const offset = initialOffsets.current.get(follower);
       if (offset) {
         const newWorldPos = leaderNewWorldPos.clone().add(offset);
-        if (collisionPrevention) {
-          const originalPos = follower.getWorldPosition(new THREE.Vector3());
-          follower.position.copy(newWorldPos);
-          const collisions = detectCollisions(
-            follower,
-            scene,
-            selectedComponents,
-          );
-          if (collisions.length > 0) {
-            follower.position.copy(originalPos); // revert position if colliding
-          } else {
-            follower.parent?.updateWorldMatrix(true, false);
-            follower.parent?.worldToLocal(newWorldPos);
-            follower.position.copy(newWorldPos);
-          }
-        } else {
-          follower.parent?.updateWorldMatrix(true, false);
-          follower.parent?.worldToLocal(newWorldPos);
-          follower.position.copy(newWorldPos);
-        }
+        follower.parent?.updateWorldMatrix(true, false);
+        follower.parent?.worldToLocal(newWorldPos);
+        follower.position.copy(newWorldPos);
       }
 
-      // --- ROTATION ---
       const rotationDelta = initialRotations.current.get(follower);
       if (rotationDelta) {
         const newWorldRot = new THREE.Quaternion()
@@ -1068,21 +1172,9 @@ export function Model({
           ? follower.parent.getWorldQuaternion(new THREE.Quaternion()).invert()
           : new THREE.Quaternion();
         localRot.copy(newWorldRot).premultiply(parentWorldRotInv);
-
-        if (collisionPrevention) {
-          const originalRot = follower.quaternion.clone();
-          follower.quaternion.copy(localRot);
-          if (
-            detectCollisions(follower, scene, selectedComponents).length > 0
-          ) {
-            follower.quaternion.copy(originalRot); // revert rotation if colliding
-          }
-        } else {
-          follower.quaternion.copy(localRot);
-        }
+        follower.quaternion.copy(localRot);
       }
 
-      // --- SCALE ---
       const scaleRatio = initialScales.current.get(follower);
       if (scaleRatio) {
         const newWorldScale = leaderNewWorldScale.clone().multiply(scaleRatio);
@@ -1091,21 +1183,10 @@ export function Model({
           : new THREE.Vector3(1, 1, 1);
         const localScale = newWorldScale.divide(parentWorldScale);
 
-        if (collisionPrevention) {
-          const originalScale = follower.scale.clone();
-          follower.scale.copy(localScale);
-          if (
-            detectCollisions(follower, scene, selectedComponents).length > 0
-          ) {
-            follower.scale.copy(originalScale); // revert scale if colliding
-          }
-        } else {
-          follower.scale.copy(localScale);
-        }
+        follower.scale.copy(localScale);
       }
     }
 
-    // --- HIGHLIGHT COLLISIONS (unchanged) ---
     if (scene && leader) {
       const collidedObjects: THREE.Object3D[] = [];
       for (const comp of selectedComponents) {
@@ -1144,7 +1225,11 @@ export function Model({
       }
 
       for (const component of selectedComponents) {
-        const collisions = detectCollisions(component, scene);
+        const collisions = detectCollisions(
+          component,
+          scene,
+          selectedComponents,
+        );
         const isColliding = collisions.length > 0;
 
         component.traverse((child) => {
@@ -1171,9 +1256,10 @@ export function Model({
     updateSidebarMeshes(selectedComponents);
   }, [
     selectedComponents,
-    updateSidebarMeshes,
-    scene,
     collisionPrevention,
+    scene,
+    updateSidebarMeshes,
+    findSafeGroupPosition,
     highlightMaterial,
   ]);
 
@@ -1291,12 +1377,10 @@ export function Model({
           updateSidebarMeshes(newSelection);
         }
       } else if (isSelected) {
-        //restoreOriginalMaterials();
         removeHighlight(componentParent);
         setSelectedComponents([]);
         updateSidebarMeshes([]);
       } else {
-        //restoreOriginalMaterials();
         selectedComponents.forEach((comp) => removeHighlight(comp));
         setSelectedComponents([componentParent]);
         applyHighlight(componentParent);
@@ -1314,7 +1398,6 @@ export function Model({
 
   const handleMiss = useCallback(() => {
     if (selectedComponents.length > 0) {
-      //restoreOriginalMaterials();
       selectedComponents.forEach((comp) => removeHighlight(comp));
       setSelectedComponents([]);
       updateSidebarMeshes([]);
