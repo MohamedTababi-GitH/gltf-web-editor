@@ -18,6 +18,7 @@ import { useHistory } from "@/features/ModelViewer/contexts/HistoryContext.tsx";
 import { type SavedComponentState } from "@/features/ModelViewer/utils/StateSaver.ts";
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import type { StateFile } from "@/shared/types/StateFile.ts";
+import { useNotification } from "@/shared/contexts/NotificationContext.tsx";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function isMesh(object: THREE.Object3D): object is THREE.Mesh {
@@ -443,13 +444,12 @@ function hasCollision(
   tolerance = -0.001,
 ): boolean {
   _movedBox.setFromObject(movedObject);
-  // Expand immediately for the boolean check
   _movedBox.expandByScalar(tolerance);
 
   let collisionFound = false;
 
   scene.traverse((child) => {
-    if (collisionFound) return; // Exit early
+    if (collisionFound) return;
     if (!child.visible) return;
     if (child === movedObject) return;
     if (movedObject.getObjectById(child.id)) return;
@@ -517,6 +517,7 @@ export function Model({
   const previousCollided = useRef<THREE.Object3D[]>([]);
   const prevLeaderWorldPos = useRef<THREE.Vector3 | null>(null);
   const currentLeaderId = useRef<number | null>(null);
+  const { showNotification } = useNotification();
 
   const [selectedComponents, setSelectedComponents] = useState<
     THREE.Object3D[]
@@ -930,6 +931,21 @@ export function Model({
       const object = selectedComponents.find((comp) => comp.id === componentId);
       if (!object) return;
 
+      const originalPos = object.position.clone();
+
+      object.position.set(position.x, position.y, position.z);
+      object.updateWorldMatrix(true, false);
+
+      if (scene && hasCollision(object, scene, selectedComponents)) {
+        showNotification(
+          "Collision Detected! Position update blocked.",
+          "error",
+        );
+        object.position.copy(originalPos);
+        object.updateWorldMatrix(true, false);
+        return;
+      }
+
       const oldState: TransformState = {
         position: object.position.clone(),
         rotation: object.quaternion.clone(),
@@ -980,7 +996,14 @@ export function Model({
         ),
       );
     },
-    [selectedComponents, onTransformComplete, addCommand, setMeshes],
+    [
+      selectedComponents,
+      scene,
+      onTransformComplete,
+      addCommand,
+      setMeshes,
+      showNotification,
+    ],
   );
 
   const toggleComponentOpacity = useCallback(
