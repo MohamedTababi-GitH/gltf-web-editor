@@ -28,10 +28,11 @@ const AppSidebar = () => {
     updateMeshPosition,
   } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
-    "metadata"
+    "metadata",
   );
 
   const [oldOpacityValue, setOldOpacityValue] = useState<number>(1);
+  const [resetKey, setResetKey] = useState(0);
 
   if (!model) return null;
 
@@ -47,6 +48,14 @@ const AppSidebar = () => {
     { label: "Format", value: "." + model.format },
     { label: "Created On", value: formatDateTime(model.createdOn).fullStr },
   ];
+
+  const handlePositionCommit = (
+    id: number,
+    newPos: { x: number; y: number; z: number },
+  ) => {
+    updateMeshPosition(id, newPos);
+    setResetKey((prev) => prev + 1);
+  };
 
   return (
     <Sidebar>
@@ -119,10 +128,11 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        key={`x-${mesh.id}-${resetKey}`}
                         label="X Position"
                         value={mesh.X}
                         onCommit={(newX) =>
-                          updateMeshPosition(mesh.id, {
+                          handlePositionCommit(mesh.id, {
                             x: newX,
                             y: Number.parseFloat(mesh.Y),
                             z: Number.parseFloat(mesh.Z),
@@ -135,10 +145,11 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        key={`y-${mesh.id}-${resetKey}`}
                         label="Y Position"
                         value={mesh.Y}
                         onCommit={(newY) =>
-                          updateMeshPosition(mesh.id, {
+                          handlePositionCommit(mesh.id, {
                             x: Number.parseFloat(mesh.X),
                             y: newY,
                             z: Number.parseFloat(mesh.Z),
@@ -151,10 +162,11 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        key={`z-${mesh.id}-${resetKey}`}
                         label="Z Position"
                         value={mesh.Z}
                         onCommit={(newZ) =>
-                          updateMeshPosition(mesh.id, {
+                          handlePositionCommit(mesh.id, {
                             x: Number.parseFloat(mesh.X),
                             y: Number.parseFloat(mesh.Y),
                             z: newZ,
@@ -203,7 +215,7 @@ const AppSidebar = () => {
                             mesh.id,
                             value[0],
                             true,
-                            oldOpacityValue
+                            oldOpacityValue,
                           );
                         }}
                       />
