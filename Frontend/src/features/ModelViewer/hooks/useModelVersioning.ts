@@ -6,6 +6,7 @@ import { handleSaveScene } from "@/features/ModelViewer/utils/StateSaver.ts";
 import { useHistory } from "../contexts/HistoryContext";
 import * as THREE from "three";
 import type { SavedComponentState } from "@/features/ModelViewer/utils/StateSaver";
+import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 
 export type SceneState = Record<string, SavedComponentState>;
 
@@ -15,10 +16,19 @@ type NodeTransform = {
   scale?: [number, number, number];
 };
 
-export const useModelVersioning = (
-  groupRef: React.RefObject<THREE.Group | null>,
-  canUndo: boolean,
-) => {
+type ModelVersioningProps = {
+  groupRef: React.RefObject<THREE.Group | null>;
+  canUndo: boolean;
+  setSelectedTool: (tool: Cursor) => void;
+  setLeftVersion: (leftVersion: StateFile | null) => void;
+};
+
+export const useModelVersioning = ({
+  groupRef,
+  canUndo,
+  setSelectedTool,
+  setLeftVersion,
+}: ModelVersioningProps) => {
   const [versionModalOpen, setVersionModalOpen] = useState(false);
   const [versionName, setVersionName] = useState("");
   const [selectedVersion, setSelectedVersion] = useState<StateFile>();
@@ -123,20 +133,27 @@ export const useModelVersioning = (
     setShowSwitchWarning(false);
   };
   const stopCompare = useCallback(() => {
-    //setIsComparing(false);
     setCompareLeft(null);
     setCompareRight(null);
+    setLeftVersion(null);
     setDiffNodeIds([]);
-  }, []);
+  }, [setLeftVersion]);
 
   const handleVersionClick = useCallback(
-    (file: React.SetStateAction<StateFile | undefined>, canUndo: boolean) => {
+    (
+      file: React.SetStateAction<StateFile | undefined>,
+      canUndo: boolean,
+      isInternal: boolean,
+    ) => {
       if (canUndo) {
         setShowSwitchWarning(true);
         setVersionToSwitch(file);
         return;
       }
-      stopCompare();
+
+      if (!isInternal) {
+        stopCompare();
+      }
       setSelectedVersion(file);
       resetStacks();
     },
@@ -256,11 +273,22 @@ export const useModelVersioning = (
       const diffs = await computeDiffNodeIds(left, right);
       setDiffNodeIds(diffs);
       if (selectedVersion?.version !== right.version) {
-        handleVersionClick(right, canUndo);
+        if (selectedVersion?.version === "Original") {
+          handleVersionClick(right, false, true);
+        } else {
+          handleVersionClick(right, canUndo, true);
+        }
       }
       setIsComparing(true);
+      setSelectedTool("Select");
     },
-    [computeDiffNodeIds, handleVersionClick, selectedVersion?.version, canUndo],
+    [
+      computeDiffNodeIds,
+      selectedVersion?.version,
+      setSelectedTool,
+      handleVersionClick,
+      canUndo,
+    ],
   );
 
   return {

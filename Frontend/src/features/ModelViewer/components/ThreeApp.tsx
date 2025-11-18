@@ -21,6 +21,7 @@ import { SaveVersionDialog } from "@/features/ModelViewer/components/SaveVersion
 import { Loading } from "@/features/ModelViewer/components/Loading.tsx";
 import { DeleteVersionDialog } from "@/features/ModelViewer/components/DeleteVersionDialog.tsx";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import type { StateFile } from "@/shared/types/StateFile.ts";
 
 export type ToolConfig = {
   name: string;
@@ -33,6 +34,7 @@ export default function ThreeApp() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
   const [compareOpen, setCompareOpen] = useState(false);
+  const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null> | null>(null);
   const orbitRef = useRef<OrbitControlsImpl | null>(null);
@@ -44,10 +46,12 @@ export default function ThreeApp() {
   const canRedo = redoStack.length > 0;
   useUnsavedChangesWarning(canUndo);
   const processedModelURL = useProcessedModel();
-  const versioning = useModelVersioning(
-    groupRef as React.RefObject<THREE.Group | null>,
+  const versioning = useModelVersioning({
+    groupRef: groupRef as React.RefObject<THREE.Group | null>,
     canUndo,
-  );
+    setSelectedTool,
+    setLeftVersion,
+  });
   const tools: ToolConfig[] = [
     {
       name: "Reset Camera",
@@ -127,6 +131,8 @@ export default function ThreeApp() {
         setCompareOpen={setCompareOpen}
         versioning={versioning}
         collisionPrevention={collisionPrevention}
+        setLeftVersion={setLeftVersion}
+        leftVersion={leftVersion}
       />
       <Canvas>
         <color attach="background" args={[backgroundColor]} />

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import { Cursor as CursorEnum } from "@/features/ModelViewer/types/Cursor.ts";
-import { type ComponentType, useState } from "react";
+import { type ComponentType } from "react";
 import { Separator } from "@/shared/components/separator.tsx";
 import type { ToolConfig } from "./ThreeApp";
 import type { StateFile } from "@/shared/types/StateFile.ts";
@@ -41,22 +41,55 @@ type CursorProps = {
   setCompareOpen: (open: boolean) => void;
   collisionPrevention: boolean;
   versioning: VersioningType;
+  setLeftVersion: (leftVersion: StateFile | null) => void;
+  leftVersion: StateFile | null | undefined;
 };
 
 type CursorConfig = {
   name: Cursor;
   icon: ComponentType<LucideProps>;
   shortcut: string;
+  isTransformCursor: boolean;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const cursors: CursorConfig[] = [
-  { name: CursorEnum.Select, icon: MousePointer, shortcut: "S" },
-  { name: CursorEnum.MultiSelect, icon: SquareStack, shortcut: "X" },
-  { name: CursorEnum.Move, icon: Move, shortcut: "M" },
-  { name: CursorEnum.Translate, icon: Move3d, shortcut: "T" },
-  { name: CursorEnum.Scale, icon: Scale3d, shortcut: "C" },
-  { name: CursorEnum.Rotate, icon: Rotate3d, shortcut: "R" },
+  {
+    name: CursorEnum.Select,
+    icon: MousePointer,
+    shortcut: "S",
+    isTransformCursor: false,
+  },
+  {
+    name: CursorEnum.MultiSelect,
+    icon: SquareStack,
+    shortcut: "X",
+    isTransformCursor: false,
+  },
+  {
+    name: CursorEnum.Move,
+    icon: Move,
+    shortcut: "M",
+    isTransformCursor: false,
+  },
+  {
+    name: CursorEnum.Translate,
+    icon: Move3d,
+    shortcut: "T",
+    isTransformCursor: true,
+  },
+  {
+    name: CursorEnum.Scale,
+    icon: Scale3d,
+    shortcut: "C",
+    isTransformCursor: true,
+  },
+  {
+    name: CursorEnum.Rotate,
+    icon: Rotate3d,
+    shortcut: "R",
+    isTransformCursor: true,
+  },
 ];
 
 function Cursors({
@@ -68,9 +101,9 @@ function Cursors({
   setCompareOpen,
   collisionPrevention,
   versioning,
+  setLeftVersion,
+  leftVersion,
 }: Readonly<CursorProps>) {
-  const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
-  const [rightVersion, setRightVersion] = useState<StateFile | null>(null);
   return (
     <div className="absolute left-4 top-1/2 z-10 -translate-y-1/2  sm:mt-4">
       <div className="flex flex-col items-center gap-1.5 lg:gap-2 rounded-md md:rounded-lg lg:rounded-xl border bg-popover/60 p-1.25 lg:p-2 text-popover-foreground shadow-lg backdrop-blur-xl">
@@ -81,6 +114,7 @@ function Cursors({
                 onClick={() => setSelectedTool(cursor.name)}
                 variant="default"
                 size="icon"
+                disabled={versioning.isComparing && cursor.isTransformCursor}
                 className={`rounded-sm md:rounded-md lg:rounded-lg w-7 h-7 md:w-9 md:h-9 lg:w-12 lg:h-12 ${
                   cursor.name === selectedTool
                     ? "bg-primary text-background"
@@ -157,49 +191,17 @@ function Cursors({
 
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-2">
                   <div className="space-y-1">
-                    {versions.map((v) => (
-                      <Button
-                        key={v.version}
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          setLeftVersion(v);
-                          setRightVersion(null);
-                        }}
-                      >
-                        {v.version}
-                      </Button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              <ArrowLeftRight className="text-foreground" />
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    disabled={!leftVersion}
-                    className={`flex-1 min-w-0 justify-between bg-background text-foreground ${
-                      leftVersion ? "" : "opacity-40 cursor-not-allowed"
-                    }`}
-                  >
-                    {rightVersion?.version || "Select version"}
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-2">
-                  <div className="space-y-1">
                     {versions.map((v) => {
-                      if (v.version === leftVersion?.version) return null;
+                      if (v.version === versioning?.selectedVersion?.version)
+                        return null;
                       return (
                         <Button
                           key={v.version}
                           variant="ghost"
                           className="w-full justify-start"
-                          onClick={() => setRightVersion(v)}
+                          onClick={() => {
+                            setLeftVersion(v);
+                          }}
                         >
                           {v.version}
                         </Button>
@@ -208,24 +210,41 @@ function Cursors({
                   </div>
                 </PopoverContent>
               </Popover>
+
+              <ArrowLeftRight className="text-foreground size-4" />
+
+              <div
+                className={`flex flex-col flex-1 min-w-0 justify-center items-start`}
+              >
+                <div className={`text-[11px] text-primary/50 uppercase`}>
+                  Selected Version
+                </div>
+                <div className={`text-xs`}>
+                  {versioning.selectedVersion?.version}
+                </div>
+              </div>
             </div>
 
-            <Button
-              variant={"default"}
-              className="w-full mt-2"
-              disabled={!leftVersion || !rightVersion}
-              onClick={() => {
-                if (!leftVersion || !rightVersion) return;
-                versioning.startCompare(leftVersion, rightVersion);
-                setCompareOpen(true);
-              }}
-            >
-              Compare
-            </Button>
+            {!versioning.isComparing && (
+              <Button
+                variant={"default"}
+                className="w-full mt-2"
+                disabled={!leftVersion}
+                onClick={() => {
+                  if (!leftVersion || !versioning?.selectedVersion) return;
+                  versioning.startCompare(
+                    leftVersion,
+                    versioning?.selectedVersion,
+                  );
+                  setCompareOpen(true);
+                }}
+              >
+                Compare
+              </Button>
+            )}
             {versioning.isComparing && (
               <Button
-                variant={"ghost"}
-                className={`w-full`}
+                className={`w-full bg-destructive/15 text-destructive/80 hover:bg-destructive/25 hover:text-destructive`}
                 onClick={() => versioning.stopCompare()}
               >
                 Stop Compare
