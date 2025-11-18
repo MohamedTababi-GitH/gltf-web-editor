@@ -18,14 +18,12 @@ type NodeTransform = {
 
 type ModelVersioningProps = {
   groupRef: React.RefObject<THREE.Group | null>;
-  canUndo: boolean;
   setSelectedTool: (tool: Cursor) => void;
   setLeftVersion: (leftVersion: StateFile | null) => void;
 };
 
 export const useModelVersioning = ({
   groupRef,
-  canUndo,
   setSelectedTool,
   setLeftVersion,
 }: ModelVersioningProps) => {
@@ -140,20 +138,13 @@ export const useModelVersioning = ({
   }, [setLeftVersion]);
 
   const handleVersionClick = useCallback(
-    (
-      file: React.SetStateAction<StateFile | undefined>,
-      canUndo: boolean,
-      isInternal: boolean,
-    ) => {
+    (file: React.SetStateAction<StateFile | undefined>, canUndo: boolean) => {
       if (canUndo) {
         setShowSwitchWarning(true);
         setVersionToSwitch(file);
         return;
       }
-
-      if (!isInternal) {
-        stopCompare();
-      }
+      stopCompare();
       setSelectedVersion(file);
       resetStacks();
     },
@@ -272,23 +263,10 @@ export const useModelVersioning = ({
       setCompareRight(right);
       const diffs = await computeDiffNodeIds(left, right);
       setDiffNodeIds(diffs);
-      if (selectedVersion?.version !== right.version) {
-        if (selectedVersion?.version === "Original") {
-          handleVersionClick(right, false, true);
-        } else {
-          handleVersionClick(right, canUndo, true);
-        }
-      }
       setIsComparing(true);
       setSelectedTool("Select");
     },
-    [
-      computeDiffNodeIds,
-      selectedVersion?.version,
-      setSelectedTool,
-      handleVersionClick,
-      canUndo,
-    ],
+    [computeDiffNodeIds, setSelectedTool],
   );
 
   return {

@@ -38,11 +38,7 @@ type ModelViewerToolbarProps = {
   setShowCloseWarning: (show: boolean) => void;
   handleDeleteVersionClick: (file: StateFile) => void;
   saveModel: (version?: string) => void;
-  handleVersionClick: (
-    version: StateFile,
-    canUndo: boolean,
-    isInternal: boolean,
-  ) => void;
+  handleVersionClick: (version: StateFile, canUndo: boolean) => void;
   sortedFiles: StateFile[];
   undoShortcut: string;
   redoShortcut: string;
@@ -276,7 +272,7 @@ export function ModelViewerToolbar({
                       className={`cursor-pointer p-2 rounded-sm size-9 ${selectedVersion?.version === "Original" ? "bg-foreground text-background" : "bg-muted text-foreground"}`}
                       onClick={() => {
                         if (!baseline) return;
-                        handleVersionClick(baseline, canUndo, false);
+                        handleVersionClick(baseline, canUndo);
                       }}
                     />
                   </TooltipTrigger>
@@ -293,9 +289,9 @@ export function ModelViewerToolbar({
                         type="button"
                         onClick={() => {
                           if (selectedVersion?.version === "Original") {
-                            handleVersionClick(file, false, false);
+                            handleVersionClick(file, false);
                           } else {
-                            handleVersionClick(file, canUndo, false);
+                            handleVersionClick(file, canUndo);
                           }
                         }}
                         className={`w-full text-left py-2 px-4 rounded-md cursor-pointer ${
