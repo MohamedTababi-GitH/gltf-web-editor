@@ -18,11 +18,13 @@ type ModelContextType = {
   setModel: Dispatch<SetStateAction<ModelItem | undefined>>;
   meshes: MeshData[];
   setMeshes: Dispatch<SetStateAction<MeshData[]>>;
+  isDiffMode: boolean;
+  setIsDiffMode: Dispatch<SetStateAction<boolean>>;
 
   // Visibility control
   toggleComponentVisibility: (
     componentId: number,
-    newVisibility: CheckedState
+    newVisibility: CheckedState,
   ) => void;
   setToggleComponentVisibility: Dispatch<
     SetStateAction<(id: number, visibility: CheckedState) => void>
@@ -33,7 +35,7 @@ type ModelContextType = {
     componentId: number,
     newOpacity: number,
     isCommit: boolean,
-    oldOpacityValue?: number
+    oldOpacityValue?: number,
   ) => void;
   setToggleComponentOpacity: Dispatch<
     SetStateAction<
@@ -41,7 +43,7 @@ type ModelContextType = {
         id: number,
         opacity: number,
         isCommit: boolean,
-        oldOpacityValue?: number
+        oldOpacityValue?: number,
       ) => void
     >
   >;
@@ -49,7 +51,7 @@ type ModelContextType = {
   // Mesh position control
   updateMeshPosition: (
     id: number,
-    position: { x: number; y: number; z: number }
+    position: { x: number; y: number; z: number },
   ) => void;
   setUpdateMeshPosition: Dispatch<
     SetStateAction<
@@ -64,6 +66,7 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
   const [url, setUrl] = useState<string>();
   const [model, setModel] = useState<ModelItem>();
   const [meshes, setMeshes] = useState<MeshData[]>([]);
+  const [isDiffMode, setIsDiffMode] = useState<boolean>(false);
 
   const [toggleComponentVisibility, setToggleComponentVisibility] = useState<
     (id: number, visibility: CheckedState) => void
@@ -74,7 +77,7 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
       id: number,
       opacity: number,
       isCommit: boolean,
-      oldOpacityValue?: number
+      oldOpacityValue?: number,
     ) => void
   >(() => () => {});
 
@@ -96,6 +99,8 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
       setToggleComponentOpacity,
       updateMeshPosition,
       setUpdateMeshPosition,
+      isDiffMode,
+      setIsDiffMode,
     }),
     [
       url,
@@ -110,7 +115,9 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
       setToggleComponentOpacity,
       updateMeshPosition,
       setUpdateMeshPosition,
-    ]
+      isDiffMode,
+      setIsDiffMode,
+    ],
   );
 
   return (

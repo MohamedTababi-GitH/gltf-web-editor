@@ -33,7 +33,7 @@ type Slot = {
 const pointSlotHelperMaterial = new THREE.MeshBasicMaterial({
   color: 0x000000,
   transparent: true,
-  opacity: 0.5,
+  opacity: 1,
   side: THREE.DoubleSide,
   depthWrite: true,
   polygonOffset: true,
@@ -43,7 +43,7 @@ const pointSlotHelperMaterial = new THREE.MeshBasicMaterial({
 const areaSlotHelperMaterial = new THREE.MeshBasicMaterial({
   color: 0x00ff00,
   transparent: true,
-  opacity: 0.5,
+  opacity: 1,
   side: THREE.DoubleSide,
   depthWrite: true,
   polygonOffset: true,
@@ -53,7 +53,7 @@ const areaSlotHelperMaterial = new THREE.MeshBasicMaterial({
 const lineSlotHelperMaterial = new THREE.MeshBasicMaterial({
   color: 0x0000ff,
   transparent: true,
-  opacity: 0.5,
+  opacity: 1,
   side: THREE.DoubleSide,
   depthWrite: true,
   polygonOffset: true,
@@ -182,7 +182,9 @@ function createAreaSlot(context: SlotContext): THREE.Mesh {
     );
 
   const geometry = new THREE.BoxGeometry(areaW, areaH, helperThickness);
-  return new THREE.Mesh(geometry, areaSlotHelperMaterial);
+  const mesh = new THREE.Mesh(geometry, areaSlotHelperMaterial);
+  mesh.userData.slotDims = { width: areaW, height: areaH };
+  return mesh;
 }
 
 function createLineSlot(context: SlotContext): THREE.Mesh {
@@ -209,7 +211,9 @@ function createLineSlot(context: SlotContext): THREE.Mesh {
     helperThickness,
     helperThickness / 2,
   );
-  return new THREE.Mesh(geometry, lineSlotHelperMaterial);
+  const mesh = new THREE.Mesh(geometry, lineSlotHelperMaterial);
+  mesh.userData.slotDims = { length: lineLength };
+  return mesh;
 }
 
 function createPointSlot(context: SlotContext): THREE.ArrowHelper {
@@ -332,6 +336,7 @@ function processNodeSlots(node: THREE.Object3D, targetSize: number): void {
 
   const localGeomBox = getLocalBoundingBox(node);
   const componentSize = localGeomBox.getSize(new THREE.Vector3());
+  node.userData.componentSize = componentSize;
   const boxCenter = localGeomBox.getCenter(new THREE.Vector3());
   const helperThickness = getHelperThickness(
     localGeomBox,
@@ -371,8 +376,14 @@ function processNodeSlots(node: THREE.Object3D, targetSize: number): void {
     }
 
     if (slotHelperMesh) {
+      slotHelperMesh.userData.slotType = slot.type;
+      slotHelperMesh.userData.slotDirection = slot.directionVector;
+      slotHelperMesh.userData.slotDescription = slot.description;
       slotHelperMesh.traverse((child) => {
         child.userData.isSlot = true;
+        child.userData.slotType = slot.type;
+        child.userData.slotDims = slotHelperMesh?.userData.slotDims;
+        child.userData.slotDescription = slot.description;
       });
       setSlotHelperPosition(slotHelperMesh, context);
       setSlotHelperOrientation(slotHelperMesh, context);
@@ -391,6 +402,163 @@ type SlotContext = {
   justifications: ReturnType<typeof getJustifications>;
   targetVec: THREE.Vector3;
 };
+
+// Reusable variables to avoid garbage collection
+const _targetWorldPos = new THREE.Vector3();
+const _targetWorldQuat = new THREE.Quaternion();
+const _inverseTargetQuat = new THREE.Quaternion();
+const _localPoint = new THREE.Vector3();
+
+function getClosestPointOnAreaSlot(
+  pointWorldPos: THREE.Vector3,
+  areaSlot: THREE.Object3D,
+  dims: { width: number; height: number },
+): THREE.Vector3 {
+  areaSlot.getWorldPosition(_targetWorldPos);
+  areaSlot.getWorldQuaternion(_targetWorldQuat);
+
+  _inverseTargetQuat.copy(_targetWorldQuat).invert();
+  _localPoint
+    .subVectors(pointWorldPos, _targetWorldPos)
+    .applyQuaternion(_inverseTargetQuat);
+
+  const halfW = dims.width / 2;
+  const halfH = dims.height / 2;
+
+  _localPoint.x = Math.max(-halfW, Math.min(halfW, _localPoint.x));
+  _localPoint.y = Math.max(-halfH, Math.min(halfH, _localPoint.y));
+  _localPoint.z = 0;
+
+  _localPoint.applyQuaternion(_targetWorldQuat).add(_targetWorldPos);
+
+  return _localPoint.clone();
+}
+
+function getClosestPointOnLineSlot(
+  pointWorldPos: THREE.Vector3,
+  lineSlot: THREE.Object3D,
+  dims: { length: number },
+): THREE.Vector3 {
+  lineSlot.getWorldPosition(_targetWorldPos);
+  lineSlot.getWorldQuaternion(_targetWorldQuat);
+
+  _inverseTargetQuat.copy(_targetWorldQuat).invert();
+  _localPoint
+    .subVectors(pointWorldPos, _targetWorldPos)
+    .applyQuaternion(_inverseTargetQuat);
+
+  const halfL = dims.length / 2;
+  _localPoint.x = Math.max(-halfL, Math.min(halfL, _localPoint.x));
+  _localPoint.y = 0;
+  _localPoint.z = 0;
+
+  _localPoint.applyQuaternion(_targetWorldQuat).add(_targetWorldPos);
+
+  return _localPoint.clone();
+}
+
+function calculateSnap(
+  movingObject: THREE.Object3D,
+  scene: THREE.Group,
+  ignoreList: THREE.Object3D[],
+  snapThreshold: number = 0.5, // Adjustable distance
+): THREE.Vector3 | null {
+  // 1. Get the Leader's allowed targets
+  const mountingDesc = movingObject.userData.MountingDescription;
+  const allowedEntries: string[] = mountingDesc?.entries || [];
+
+  if (allowedEntries.length === 0) return null;
+
+  // 2. Find all "Point" slots on the moving object
+  // We assume the moving object connects via its own Point slots
+  const movingSlots: { obj: THREE.Object3D; worldPos: THREE.Vector3 }[] = [];
+  movingObject.traverse((child) => {
+    if (child.userData.isSlot && child.userData.slotType === "ModelPointSlot") {
+      if (child.parent && child.parent.userData.isSlot) return;
+      const worldPos = new THREE.Vector3();
+      child.getWorldPosition(worldPos);
+      movingSlots.push({ obj: child, worldPos });
+    }
+  });
+
+  if (movingSlots.length === 0) return null;
+
+  let bestDelta: THREE.Vector3 | null = null;
+  let minDistance = snapThreshold;
+
+  // 3. Search the scene for valid targets
+  scene.traverse((target) => {
+    if (!target.visible || !target.userData.isSlot) return;
+    if (target.parent && target.parent.userData.isSlot) return;
+
+    // Don't snap to self
+    const isSelf = ignoreList.some(
+      (ignoredObj) =>
+        ignoredObj === target || ignoredObj.getObjectById(target.id),
+    );
+    if (isSelf) return;
+
+    // CHECK: Is this slot ID in the allowed list?
+    if (!allowedEntries.includes(target.userData.slotDescription)) {
+      return;
+    }
+
+    const tType = target.userData.slotType;
+    const tDims = target.userData.slotDims;
+
+    for (const mSlot of movingSlots) {
+      let dist = Infinity;
+      let closestPoint = new THREE.Vector3();
+
+      if (tType === "ModelPointSlot") {
+        target.getWorldPosition(_targetWorldPos);
+        dist = mSlot.worldPos.distanceTo(_targetWorldPos);
+        closestPoint.copy(_targetWorldPos);
+      } else if (tType === "ModelLineSlot" && tDims) {
+        closestPoint = getClosestPointOnLineSlot(mSlot.worldPos, target, tDims);
+        dist = mSlot.worldPos.distanceTo(closestPoint);
+      } else if (tType === "ModelAreaSlot" && tDims) {
+        closestPoint = getClosestPointOnAreaSlot(mSlot.worldPos, target, tDims);
+        dist = mSlot.worldPos.distanceTo(closestPoint);
+      }
+
+      if (dist < minDistance) {
+        minDistance = dist;
+
+        // 1. Calculate exact snap delta (Slot to Target)
+        const snapDelta = new THREE.Vector3().subVectors(
+          closestPoint,
+          mSlot.worldPos,
+        );
+
+        // 2. Calculate "Left by Half Width" offset in World Space
+        // We calculate the vector difference between Center(0,0,0) and Left(-Width/2, 0,0)
+        // in World Space to account for Rotation and Scale.
+
+        const halfWidth = movingObject.userData.componentSize.x / 2;
+
+        // Point A: Object Origin in World Space
+        const startParams = new THREE.Vector3(0, 0, 0);
+        startParams.applyMatrix4(movingObject.matrixWorld);
+
+        // Point B: "Left" point in World Space
+        const endParams = new THREE.Vector3(-halfWidth, 0, 0);
+        endParams.applyMatrix4(movingObject.matrixWorld);
+
+        // Vector from Origin to Left
+        const offsetVector = new THREE.Vector3().subVectors(
+          endParams,
+          startParams,
+        );
+
+        // 3. Combine Snap + Offset
+        bestDelta = new THREE.Vector3().addVectors(snapDelta, offsetVector);
+      }
+    }
+  });
+
+  return bestDelta;
+}
 
 const _tempBox = new THREE.Box3();
 const _childBox = new THREE.Box3();
@@ -504,6 +672,7 @@ export function Model({
     setToggleComponentVisibility,
     setToggleComponentOpacity,
     setUpdateMeshPosition,
+    setIsDiffMode,
   } = useModel();
 
   const groupRef = useRef<THREE.Group>(null);
@@ -533,6 +702,32 @@ export function Model({
   useEffect(() => {
     selectedComponentsRef.current = selectedComponents;
   }, [selectedComponents]);
+
+  const targetHighlightMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ad42f5",
+        emissive: "#ad42f5",
+        emissiveIntensity: 0.2,
+        transparent: true,
+        opacity: 1,
+        roughness: 0.5,
+        metalness: 0.5,
+      }),
+    [],
+  );
+
+  // We need a ref to store original materials of potential targets so we can restore them
+  const originalTargetMaterials = useRef(
+    new Map<THREE.Mesh, THREE.Material | THREE.Material[]>(),
+  );
+
+  const restoreTargetMaterials = useCallback(() => {
+    for (const [mesh, material] of originalTargetMaterials.current) {
+      mesh.material = material;
+    }
+    originalTargetMaterials.current.clear();
+  }, []);
 
   const highlightMaterial = useMemo(
     () =>
@@ -1193,6 +1388,61 @@ export function Model({
     [initialOffsets],
   );
 
+  useEffect(() => {
+    // 1. Clean up previous highlights
+    restoreTargetMaterials();
+
+    // 2. Only proceed if exactly one leader is selected
+    if (selectedComponents.length !== 1 || !scene) return;
+
+    const leader = selectedComponents[0];
+    const mountingDesc = leader.userData.MountingDescription;
+
+    // 3. Get the list of allowed slot names from the leader
+    // Example: ["Slot01", "Slot05"]
+    const allowedSlotNames: string[] = mountingDesc?.entries;
+
+    if (!allowedSlotNames || allowedSlotNames.length === 0) return;
+
+    // 4. Traverse scene to find objects that have these specific slots
+    scene.traverse((candidate) => {
+      // Basic checks: skip self, slots, hidden, and parts of the leader itself
+      if (candidate === leader) return;
+      if (candidate.userData.isSlot) return;
+      if (!candidate.visible) return;
+      if (leader.getObjectById(candidate.id)) return;
+
+      let isEligible = false;
+
+      // Check if this candidate has a child which is a slot with a matching description
+      candidate.children.forEach((child) => {
+        if (child.userData.isSlot) {
+          // Compare the slot's description ("Slot01") with the leader's allowed list
+          if (allowedSlotNames.includes(child.userData.slotDescription)) {
+            isEligible = true;
+          }
+        }
+      });
+
+      // 5. Apply Highlight if eligible
+      if (isEligible) {
+        candidate.traverse((child) => {
+          if (isMesh(child) && !child.userData.isSlot) {
+            if (!originalTargetMaterials.current.has(child)) {
+              originalTargetMaterials.current.set(child, child.material);
+              child.material = targetHighlightMaterial;
+            }
+          }
+        });
+      }
+    });
+  }, [
+    selectedComponents,
+    scene,
+    restoreTargetMaterials,
+    targetHighlightMaterial,
+  ]);
+
   const handleGizmoChange = useCallback(() => {
     const leader = selectedComponents[0];
     if (!leader) return;
@@ -1207,8 +1457,35 @@ export function Model({
       prevLeaderWorldPos.current = targetPos.clone();
     }
 
+    if (scene && selectedTool === "Translate") {
+      // 1. Temporarily update matrix to get the current dragged world position
+      leader.updateWorldMatrix(true, true);
+
+      // 2. Calculate if we are close enough to snap
+      const snapOffset = calculateSnap(leader, scene, selectedComponents, 0.1);
+
+      if (snapOffset) {
+        // Get the leader's current world position (freshly updated)
+        const currentWorldPos = new THREE.Vector3();
+        leader.getWorldPosition(currentWorldPos);
+
+        // Add the snap offset
+        const snappedWorldPos = currentWorldPos.add(snapOffset);
+
+        // Convert back to Local Space for the final assignment
+        if (leader.parent) {
+          // Ensure parent is updated so worldToLocal works correctly
+          leader.parent.updateWorldMatrix(true, false);
+          leader.parent.worldToLocal(snappedWorldPos);
+        }
+
+        // Overwrite the target position
+        targetPos.copy(snappedWorldPos);
+      }
+    }
+
     leader.position.copy(prevLeaderWorldPos.current);
-    leader.updateWorldMatrix(true, false);
+    leader.updateWorldMatrix(true, true);
 
     if (collisionPrevention) {
       const safePos = findSafeGroupPosition(
@@ -1224,7 +1501,7 @@ export function Model({
       leader.position.copy(targetPos);
     }
 
-    leader.updateWorldMatrix(true, false);
+    leader.updateWorldMatrix(true, true);
     prevLeaderWorldPos.current = leader.position.clone();
 
     const leaderNewWorldPos = leader.getWorldPosition(new THREE.Vector3());
@@ -1337,8 +1614,9 @@ export function Model({
     updateSidebarMeshes(selectedComponents);
   }, [
     selectedComponents,
-    collisionPrevention,
     scene,
+    selectedTool,
+    collisionPrevention,
     updateSidebarMeshes,
     findSafeGroupPosition,
     highlightMaterial,
@@ -1493,6 +1771,7 @@ export function Model({
         console.log("Resetting Diff");
         restoreOriginalDiffMaterials();
         setIsComparing(false);
+        setIsDiffMode(false);
       }
       return;
     }
