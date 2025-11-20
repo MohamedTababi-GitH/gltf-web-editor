@@ -474,7 +474,7 @@ function calculateSnap(
   const movingSlots: { obj: THREE.Object3D; worldPos: THREE.Vector3 }[] = [];
   movingObject.traverse((child) => {
     if (child.userData.isSlot && child.userData.slotType === "ModelPointSlot") {
-      if (child.parent && child.parent.userData.isSlot) return;
+      if (child.parent?.userData.isSlot) return;
       const worldPos = new THREE.Vector3();
       child.getWorldPosition(worldPos);
       movingSlots.push({ obj: child, worldPos });
@@ -489,7 +489,7 @@ function calculateSnap(
   // 3. Search the scene for valid targets
   scene.traverse((target) => {
     if (!target.visible || !target.userData.isSlot) return;
-    if (target.parent && target.parent.userData.isSlot) return;
+    if (target.parent?.userData.isSlot) return;
 
     // Don't snap to self
     const isSelf = ignoreList.some(
@@ -1816,6 +1816,7 @@ export function Model({
     restoreOriginalDiffMaterials,
     isComparing,
     setIsComparing,
+    setIsDiffMode,
   ]);
 
   return (
