@@ -26,6 +26,7 @@ const AppSidebar = () => {
     toggleComponentVisibility,
     toggleComponentOpacity,
     updateMeshPosition,
+    isDiffMode,
   } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
     "metadata",
@@ -128,6 +129,7 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        disabled={isDiffMode}
                         key={`x-${mesh.id}-${resetKey}`}
                         label="X Position"
                         value={mesh.X}
@@ -145,6 +147,7 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        disabled={isDiffMode}
                         key={`y-${mesh.id}-${resetKey}`}
                         label="Y Position"
                         value={mesh.Y}
@@ -162,6 +165,7 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        disabled={isDiffMode}
                         key={`z-${mesh.id}-${resetKey}`}
                         label="Z Position"
                         value={mesh.Z}
@@ -183,6 +187,7 @@ const AppSidebar = () => {
                           Is Visible
                         </span>
                         <Checkbox
+                          disabled={isDiffMode}
                           checked={mesh.isVisible}
                           onCheckedChange={(checked) =>
                             toggleComponentVisibility(mesh.id, checked)
@@ -199,6 +204,7 @@ const AppSidebar = () => {
                       </span>
                       <Slider
                         min={0}
+                        disabled={isDiffMode}
                         max={1}
                         step={0.01}
                         value={[mesh.opacity ?? 1]}

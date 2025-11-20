@@ -38,7 +38,7 @@ export const useModelVersioning = ({
   const [showDeleteVersionWarning, setShowDeleteVersionWarning] =
     useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const { model, setModel } = useModel();
+  const { model, setModel, setIsDiffMode } = useModel();
   const apiClient = useAxiosConfig();
   const { resetStacks } = useHistory();
 
@@ -264,9 +264,10 @@ export const useModelVersioning = ({
       const diffs = await computeDiffNodeIds(left, right);
       setDiffNodeIds(diffs);
       setIsComparing(true);
+      setIsDiffMode(true);
       setSelectedTool("Select");
     },
-    [computeDiffNodeIds, setSelectedTool],
+    [computeDiffNodeIds, setIsDiffMode, setSelectedTool],
   );
 
   return {

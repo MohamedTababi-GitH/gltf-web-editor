@@ -63,6 +63,9 @@ export function SaveVersionDialog({
           </Button>
           <Button
             className={`cursor-pointer`}
+            disabled={
+              versionName.trim().length === 0 || versionName === "Original"
+            }
             onClick={() => {
               saveModel(versionName);
             }}

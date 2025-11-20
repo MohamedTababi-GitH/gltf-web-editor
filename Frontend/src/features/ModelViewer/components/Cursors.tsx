@@ -17,6 +17,7 @@ import {
   GitCompareIcon,
   ArrowLeftRight,
   ChevronDown,
+  Check,
 } from "lucide-react";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
 import { Cursor as CursorEnum } from "@/features/ModelViewer/types/Cursor.ts";
@@ -181,29 +182,35 @@ function Cursors({
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    disabled={versioning.isComparing}
                     variant="outline"
                     className="flex-1 min-w-0 justify-between bg-background text-foreground"
                   >
-                    {leftVersion?.version || "Select version"}
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                    <span className="truncate flex-1 min-w-0 text-left">
+                      {leftVersion?.version || "Select version"}
+                    </span>
+
+                    <ChevronDown className="ml-1 h-4 w-4 opacity-50 shrink-0" />
                   </Button>
                 </PopoverTrigger>
 
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-2">
                   <div className="space-y-1">
                     {versions.map((v) => {
-                      if (v.version === versioning?.selectedVersion?.version)
-                        return null;
+                      if (v.version === versioning.selectedVersion?.version)
+                        return;
                       return (
                         <Button
                           key={v.version}
                           variant="ghost"
-                          className="w-full justify-start"
-                          onClick={() => {
-                            setLeftVersion(v);
-                          }}
+                          className="w-full justify-start flex items-center gap-2"
+                          onClick={() => setLeftVersion(v)}
                         >
-                          {v.version}
+                          <span className="flex-1 text-left">{v.version}</span>
+
+                          {leftVersion?.version === v.version && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
                         </Button>
                       );
                     })}
