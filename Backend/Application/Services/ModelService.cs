@@ -5,6 +5,7 @@ using ECAD_Backend.Application.DTOs.ResultDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Infrastructure.Exceptions;
+using ECAD_Backend.Infrastructure.Interfaces;
 
 namespace ECAD_Backend.Application.Services;
 

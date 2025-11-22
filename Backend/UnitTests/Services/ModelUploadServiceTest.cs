@@ -3,6 +3,7 @@ using ECAD_Backend.Application.DTOs.RequestDTO;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Exceptions;
+using ECAD_Backend.Infrastructure.Interfaces;
 using Moq;
 
 namespace ECAD_Backend.UnitTests.Services;

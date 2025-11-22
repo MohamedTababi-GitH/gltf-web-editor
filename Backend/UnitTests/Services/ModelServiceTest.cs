@@ -6,6 +6,7 @@ using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Exceptions;
+using ECAD_Backend.Infrastructure.Interfaces;
 
 namespace ECAD_Backend.UnitTests.Services;
 

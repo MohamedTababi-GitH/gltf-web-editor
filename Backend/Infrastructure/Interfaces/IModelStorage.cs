@@ -1,7 +1,7 @@
 using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Domain.Entities;
 
-namespace ECAD_Backend.Application.Interfaces;
+namespace ECAD_Backend.Infrastructure.Interfaces;
 
 /// <summary>
 /// Abstraction for storage operations related to model files.

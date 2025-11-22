@@ -5,6 +5,7 @@ using ECAD_Backend.Application.Mappers.Implementation;
 using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Cursor;
+using ECAD_Backend.Infrastructure.Interfaces;
 using ECAD_Backend.Infrastructure.Middleware;
 using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
