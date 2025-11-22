@@ -60,7 +60,6 @@ services.AddSingleton<BlobContainerClient>(sp =>
 
 // App services
 services.AddScoped<IModelStorage, AzureBlobModelStorage>();
-services.AddScoped<IModelService, ModelService>();
 services.AddSingleton<IMutexService, MutexService>();
 
 // MVC / Swagger / CORS
