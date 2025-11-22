@@ -66,7 +66,11 @@ services.AddSingleton<IMutexService, MutexService>();
 // MVC / Swagger / CORS
 services.AddControllers();
 services.AddEndpointsApiExplorer();
-services.AddSwaggerGen();
+services.AddSwaggerGen(options =>
+{
+    var xmlFilename = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+});
 
 services.AddCors(o => o.AddPolicy("frontend", p => p
     .WithOrigins("http://localhost:5173", "https://localhost:3000")
