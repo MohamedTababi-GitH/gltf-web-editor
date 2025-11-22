@@ -4,15 +4,20 @@ import { useNotification } from "@/shared/contexts/NotificationContext.tsx";
 import { useAxiosConfig } from "@/shared/services/AxiosConfig.ts";
 import { handleSaveScene } from "@/features/ModelViewer/utils/StateSaver.ts";
 import * as THREE from "three";
+import type { useFileUpload } from "@/features/HomeTab/hooks/useFileUpload.ts";
+
+type FileUploadReturnType = ReturnType<typeof useFileUpload>;
 
 type ModelUploadProps = {
   onOpenChange: (isOpen: boolean) => void;
   groupRef: React.RefObject<THREE.Group | null>;
+  fileUpload: FileUploadReturnType;
 };
 
 export const useModelUpload = ({
   onOpenChange,
   groupRef,
+  fileUpload,
 }: ModelUploadProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [requiredFiles, setRequiredFiles] = useState<File[]>([]);
@@ -132,6 +137,7 @@ export const useModelUpload = ({
       await apiClient.post("/api/model/upload", formData);
       onOpenChange(false);
       resetFields();
+      fileUpload.removeFile();
     } catch (error) {
       console.log(error);
       showNotification("An unknown error occurred during upload.", "error");
@@ -152,6 +158,7 @@ export const useModelUpload = ({
     apiClient,
     onOpenChange,
     resetFields,
+    fileUpload,
   ]);
 
   const handleOpenChange = useCallback(

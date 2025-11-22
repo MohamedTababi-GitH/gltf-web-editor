@@ -18,6 +18,8 @@ type ModelContextType = {
   setModel: Dispatch<SetStateAction<ModelItem | undefined>>;
   meshes: MeshData[];
   setMeshes: Dispatch<SetStateAction<MeshData[]>>;
+  isDiffMode: boolean;
+  setIsDiffMode: Dispatch<SetStateAction<boolean>>;
 
   // Visibility control
   toggleComponentVisibility: (
@@ -29,9 +31,21 @@ type ModelContextType = {
   >;
 
   // Opacity control
-  toggleComponentOpacity: (componentId: number, newOpacity: number) => void;
+  toggleComponentOpacity: (
+    componentId: number,
+    newOpacity: number,
+    isCommit: boolean,
+    oldOpacityValue?: number,
+  ) => void;
   setToggleComponentOpacity: Dispatch<
-    SetStateAction<(id: number, opacity: number) => void>
+    SetStateAction<
+      (
+        id: number,
+        opacity: number,
+        isCommit: boolean,
+        oldOpacityValue?: number,
+      ) => void
+    >
   >;
 
   // Mesh position control
@@ -52,13 +66,19 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
   const [url, setUrl] = useState<string>();
   const [model, setModel] = useState<ModelItem>();
   const [meshes, setMeshes] = useState<MeshData[]>([]);
+  const [isDiffMode, setIsDiffMode] = useState<boolean>(false);
 
   const [toggleComponentVisibility, setToggleComponentVisibility] = useState<
     (id: number, visibility: CheckedState) => void
   >(() => () => {});
 
   const [toggleComponentOpacity, setToggleComponentOpacity] = useState<
-    (id: number, opacity: number) => void
+    (
+      id: number,
+      opacity: number,
+      isCommit: boolean,
+      oldOpacityValue?: number,
+    ) => void
   >(() => () => {});
 
   const [updateMeshPosition, setUpdateMeshPosition] = useState<
@@ -79,6 +99,8 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
       setToggleComponentOpacity,
       updateMeshPosition,
       setUpdateMeshPosition,
+      isDiffMode,
+      setIsDiffMode,
     }),
     [
       url,
@@ -93,6 +115,8 @@ export function ModelProvider({ children }: { readonly children: ReactNode }) {
       setToggleComponentOpacity,
       updateMeshPosition,
       setUpdateMeshPosition,
+      isDiffMode,
+      setIsDiffMode,
     ],
   );
 

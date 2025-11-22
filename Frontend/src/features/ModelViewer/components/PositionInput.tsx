@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { Input } from "@/shared/components/input.tsx";
 
 type PositionInputProps = {
   label: string;
   value: string;
   onCommit: (newValue: number) => void;
+  disabled: boolean;
 };
 
 export const PositionInput = ({
   label,
   value,
   onCommit,
+  disabled,
 }: PositionInputProps) => {
   const [localValue, setLocalValue] = useState(value);
   const committedByEnter = useRef(false);
@@ -44,8 +47,9 @@ export const PositionInput = ({
   return (
     <div className="flex justify-between w-full text-left cursor-default pl-2">
       <span className="font-medium text-sidebar-foreground/70">{label}</span>
-      <input
+      <Input
         type="text"
+        disabled={disabled}
         value={localValue}
         className="w-25 text-left border rounded px-1"
         onChange={(e) => setLocalValue(e.target.value)}

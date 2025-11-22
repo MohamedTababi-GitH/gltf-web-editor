@@ -30,6 +30,7 @@ export default function ModelUploadDialog({
 }: Readonly<ModelUploadDialogProps>) {
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null> | null>(null);
+  const fileUpload = useFileUpload({});
   const {
     file,
     fileAlias,
@@ -53,8 +54,8 @@ export default function ModelUploadDialog({
   } = useModelUpload({
     onOpenChange,
     groupRef: groupRef as React.RefObject<THREE.Group | null>,
+    fileUpload,
   });
-  const fileUpload = useFileUpload({});
   const {
     file: uploadedFile,
     allRequiredFilesUploaded,

@@ -26,10 +26,14 @@ const AppSidebar = () => {
     toggleComponentVisibility,
     toggleComponentOpacity,
     updateMeshPosition,
+    isDiffMode,
   } = useModel();
   const [activeTab, setActiveTab] = useState<"metadata" | "components">(
     "metadata",
   );
+
+  const [oldOpacityValue, setOldOpacityValue] = useState<number>(1);
+  const [resetKey, setResetKey] = useState(0);
 
   if (!model) return null;
 
@@ -45,6 +49,14 @@ const AppSidebar = () => {
     { label: "Format", value: "." + model.format },
     { label: "Created On", value: formatDateTime(model.createdOn).fullStr },
   ];
+
+  const handlePositionCommit = (
+    id: number,
+    newPos: { x: number; y: number; z: number },
+  ) => {
+    updateMeshPosition(id, newPos);
+    setResetKey((prev) => prev + 1);
+  };
 
   return (
     <Sidebar>
@@ -117,10 +129,12 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        disabled={isDiffMode}
+                        key={`x-${mesh.id}-${resetKey}`}
                         label="X Position"
                         value={mesh.X}
                         onCommit={(newX) =>
-                          updateMeshPosition(mesh.id, {
+                          handlePositionCommit(mesh.id, {
                             x: newX,
                             y: Number.parseFloat(mesh.Y),
                             z: Number.parseFloat(mesh.Z),
@@ -133,10 +147,12 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        disabled={isDiffMode}
+                        key={`y-${mesh.id}-${resetKey}`}
                         label="Y Position"
                         value={mesh.Y}
                         onCommit={(newY) =>
-                          updateMeshPosition(mesh.id, {
+                          handlePositionCommit(mesh.id, {
                             x: Number.parseFloat(mesh.X),
                             y: newY,
                             z: Number.parseFloat(mesh.Z),
@@ -149,10 +165,12 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        disabled={isDiffMode}
+                        key={`z-${mesh.id}-${resetKey}`}
                         label="Z Position"
                         value={mesh.Z}
                         onCommit={(newZ) =>
-                          updateMeshPosition(mesh.id, {
+                          handlePositionCommit(mesh.id, {
                             x: Number.parseFloat(mesh.X),
                             y: Number.parseFloat(mesh.Y),
                             z: newZ,
@@ -169,6 +187,7 @@ const AppSidebar = () => {
                           Is Visible
                         </span>
                         <Checkbox
+                          disabled={isDiffMode}
                           checked={mesh.isVisible}
                           onCheckedChange={(checked) =>
                             toggleComponentVisibility(mesh.id, checked)
@@ -185,15 +204,28 @@ const AppSidebar = () => {
                       </span>
                       <Slider
                         min={0}
+                        disabled={isDiffMode}
                         max={1}
                         step={0.01}
                         value={[mesh.opacity ?? 1]}
-                        onValueChange={(value: number[]) => {
-                          const newOpacity = value[0];
-                          toggleComponentOpacity(mesh.id, newOpacity);
+                        onSlideStart={(value) => {
+                          setOldOpacityValue(value);
                         }}
-                        className="w-40 cursor-pointer"
+                        // live update only
+                        onValueChange={(value) => {
+                          toggleComponentOpacity(mesh.id, value[0], false);
+                        }}
+                        // commit change
+                        onValueCommit={(value) => {
+                          toggleComponentOpacity(
+                            mesh.id,
+                            value[0],
+                            true,
+                            oldOpacityValue,
+                          );
+                        }}
                       />
+
                       <span className="text-xs w-8 text-right">
                         {Math.round((mesh.opacity ?? 1) * 100)}%
                       </span>

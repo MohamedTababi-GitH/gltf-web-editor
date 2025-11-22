@@ -21,6 +21,7 @@ import { SaveVersionDialog } from "@/features/ModelViewer/components/SaveVersion
 import { Loading } from "@/features/ModelViewer/components/Loading.tsx";
 import { DeleteVersionDialog } from "@/features/ModelViewer/components/DeleteVersionDialog.tsx";
 import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import type { StateFile } from "@/shared/types/StateFile.ts";
 
 export type ToolConfig = {
   name: string;
@@ -33,19 +34,23 @@ export default function ThreeApp() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [selectedTool, setSelectedTool] = useState<Cursor>("Select");
   const [compareOpen, setCompareOpen] = useState(false);
+  const [leftVersion, setLeftVersion] = useState<StateFile | null>(null);
   const [groupRef, setGroupRef] =
     useState<React.RefObject<THREE.Group | null> | null>(null);
   const orbitRef = useRef<OrbitControlsImpl | null>(null);
 
   const { undo, redo, undoStack, redoStack } = useHistory();
+  const [collisionPrevention, setCollisionPrevention] = useState(false);
 
   const canUndo = undoStack.length > 0;
   const canRedo = redoStack.length > 0;
   useUnsavedChangesWarning(canUndo);
   const processedModelURL = useProcessedModel();
-  const versioning = useModelVersioning(
-    groupRef as React.RefObject<THREE.Group | null>,
-  );
+  const versioning = useModelVersioning({
+    groupRef: groupRef as React.RefObject<THREE.Group | null>,
+    setSelectedTool,
+    setLeftVersion,
+  });
   const tools: ToolConfig[] = [
     {
       name: "Reset Camera",
@@ -63,9 +68,17 @@ export default function ThreeApp() {
         setCompareOpen((prev) => !prev);
       },
     },
+    {
+      name: "Collision Prevention",
+      shortcut: "Z",
+      onClick: () => {
+        setCollisionPrevention((prev) => !prev);
+      },
+    },
   ];
   const { sortedFiles, baseline } = versioning;
-
+  const versionsList = baseline ? [baseline, ...sortedFiles] : [...sortedFiles];
+  const backgroundColor = versioning.isComparing ? "#9bb0d1" : "#888888";
   const shortcuts = useKeyboardShortcuts({
     saveModel: versioning.saveModel,
     setVersionModalOpen: versioning.setVersionModalOpen,
@@ -112,12 +125,16 @@ export default function ThreeApp() {
         setSelectedTool={setSelectedTool}
         selectedTool={selectedTool}
         tools={tools}
-        versions={baseline ? [baseline, ...sortedFiles] : sortedFiles}
+        versions={versionsList}
         compareOpen={compareOpen}
         setCompareOpen={setCompareOpen}
+        versioning={versioning}
+        collisionPrevention={collisionPrevention}
+        setLeftVersion={setLeftVersion}
+        leftVersion={leftVersion}
       />
       <Canvas>
-        <color attach="background" args={["#888888"]} />
+        <color attach="background" args={[backgroundColor]} />
         <Suspense fallback={null}>
           <Environment preset="city" background={false} />
           <Center>
@@ -130,6 +147,12 @@ export default function ThreeApp() {
                   setSelectedVersion={versioning.setSelectedVersion}
                   processedUrl={processedModelURL}
                   setLoadingProgress={setLoadingProgress}
+                  collisionPrevention={collisionPrevention}
+                  diffNodeIds={
+                    versioning.isComparing ? versioning.diffNodeIds : []
+                  }
+                  isComparing={versioning.isComparing}
+                  setIsComparing={versioning.setIsComparing}
                 />
               )}
             </Resize>
