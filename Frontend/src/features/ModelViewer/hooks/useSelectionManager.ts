@@ -85,7 +85,7 @@ export const useSelectionManager = ({
 
   const removeHighlight = useCallback(
     (component: THREE.Object3D) => {
-      const isDiffed = diffNodeIds && diffNodeIds.includes(component.name);
+      const isDiffed = diffNodeIds?.includes(component.name);
       component.traverse((child) => {
         if (isMesh(child)) {
           const originalMaterial = originalMaterials.current.get(child);
@@ -271,11 +271,12 @@ export const useSelectionManager = ({
       }
     },
     [
+      isDraggingRef,
       selectedComponents,
       selectedTool,
+      removeHighlight,
       updateSidebarMeshes,
       applyHighlight,
-      removeHighlight,
     ],
   );
 

@@ -59,7 +59,7 @@ export const useDiffSystem = ({
       if (id && diffNodeIds.includes(id)) {
         obj.traverse((child) => {
           if (!isMesh(child)) return;
-          const mesh = child as THREE.Mesh;
+          const mesh = child;
           if (originalMaterials.current.has(mesh)) {
             return;
           }
