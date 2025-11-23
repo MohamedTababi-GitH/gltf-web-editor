@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "@/shared/components/input.tsx";
 
 type PositionInputProps = {
+  id?: string;
   label: string;
   value: string;
   onCommit: (newValue: number) => void;
@@ -9,6 +10,7 @@ type PositionInputProps = {
 };
 
 export const PositionInput = ({
+  id,
   label,
   value,
   onCommit,
@@ -48,6 +50,7 @@ export const PositionInput = ({
     <div className="flex justify-between w-full text-left cursor-default pl-2">
       <span className="font-medium text-sidebar-foreground/70">{label}</span>
       <Input
+        id={id}
         type="text"
         disabled={disabled}
         value={localValue}

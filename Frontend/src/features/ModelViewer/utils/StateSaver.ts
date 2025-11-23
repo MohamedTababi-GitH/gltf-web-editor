@@ -1,9 +1,6 @@
 import React from "react";
 import * as THREE from "three";
-
-function isMesh(object: THREE.Object3D): object is THREE.Mesh {
-  return (object as THREE.Mesh).isMesh;
-}
+import { isMesh } from "@/features/ModelViewer/utils/ModelUtils.ts";
 
 function getComponentOpacity(component: THREE.Object3D): number {
   let foundOpacity = 1;

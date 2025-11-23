@@ -10,6 +10,7 @@ import { Button } from "@/shared/components/button.tsx";
 import { useNavigation } from "@/shared/contexts/NavigationContext.tsx";
 import type { StateFile } from "@/shared/types/StateFile.ts";
 import { useMutex } from "@/shared/hooks/useMutex.ts";
+import { formatDateTime } from "@/shared/utils/DateTime.ts";
 
 type CloseWarningDialogProps = {
   showCloseWarning: boolean;
@@ -51,7 +52,11 @@ export function CloseWarningDialog({
           <Button
             onClick={async () => {
               if (selectedVersion?.version === "Default") {
-                saveModel();
+                saveModel(
+                  `AutoSave at ${
+                    formatDateTime(new Date().toISOString()).timeStr
+                  }`,
+                );
               } else {
                 saveModel(selectedVersion?.version);
               }

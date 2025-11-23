@@ -86,7 +86,6 @@ export default function ThreeApp() {
     canUndo,
     groupRef: groupRef as React.RefObject<THREE.Group | null>,
     selectedVersion: versioning.selectedVersion,
-    versionModalOpen: versioning.versionModalOpen,
     tools,
   });
   useModelLock({ id: model?.id, saveModel: versioning.saveModel, canUndo });

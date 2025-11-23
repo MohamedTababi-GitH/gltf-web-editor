@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { ICommand } from "@/features/ModelViewer/types/ICommand.ts";
-import { isMesh } from "../components/Model";
+import { isMesh } from "@/features/ModelViewer/utils/ModelUtils.ts";
 
 export type TransformState = {
   position: THREE.Vector3;
