@@ -129,6 +129,7 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        id={`pos-x-${mesh.id}`}
                         disabled={isDiffMode}
                         key={`x-${mesh.id}-${resetKey}`}
                         label="X Position"
@@ -147,6 +148,7 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        id={`pos-y-${mesh.id}`}
                         disabled={isDiffMode}
                         key={`y-${mesh.id}-${resetKey}`}
                         label="Y Position"
@@ -165,6 +167,7 @@ const AppSidebar = () => {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
                       <PositionInput
+                        id={`pos-z-${mesh.id}`}
                         disabled={isDiffMode}
                         key={`z-${mesh.id}-${resetKey}`}
                         label="Z Position"
