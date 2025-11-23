@@ -5,6 +5,7 @@ using ECAD_Backend.Application.DTOs.Filter;
 using ECAD_Backend.Application.Interfaces;
 using ECAD_Backend.Domain.Entities;
 using ECAD_Backend.Infrastructure.Cursor;
+using ECAD_Backend.Infrastructure.Interfaces;
 using ECAD_Backend.Infrastructure.Options;
 using FuzzySharp;
 using Microsoft.Extensions.Options;
