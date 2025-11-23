@@ -5,6 +5,7 @@ using ECAD_Backend.Application.Mappers.Implementation;
 using ECAD_Backend.Application.Mappers.Interfaces;
 using ECAD_Backend.Application.Services;
 using ECAD_Backend.Infrastructure.Cursor;
+using ECAD_Backend.Infrastructure.Interfaces;
 using ECAD_Backend.Infrastructure.Middleware;
 using ECAD_Backend.Infrastructure.Options;
 using ECAD_Backend.Infrastructure.Storage;
@@ -59,13 +60,16 @@ services.AddSingleton<BlobContainerClient>(sp =>
 
 // App services
 services.AddScoped<IModelStorage, AzureBlobModelStorage>();
-services.AddScoped<IModelService, ModelService>();
 services.AddSingleton<IMutexService, MutexService>();
 
 // MVC / Swagger / CORS
 services.AddControllers();
 services.AddEndpointsApiExplorer();
-services.AddSwaggerGen();
+services.AddSwaggerGen(options =>
+{
+    var xmlFilename = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+});
 
 services.AddCors(o => o.AddPolicy("frontend", p => p
     .WithOrigins("http://localhost:5173", "https://localhost:3000")
