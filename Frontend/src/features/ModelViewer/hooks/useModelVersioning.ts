@@ -7,6 +7,7 @@ import { useHistory } from "../contexts/HistoryContext";
 import * as THREE from "three";
 import type { SavedComponentState } from "@/features/ModelViewer/utils/StateSaver";
 import type { Cursor } from "@/features/ModelViewer/types/Cursor.ts";
+import { useNotification } from "@/shared/contexts/NotificationContext.tsx";
 
 export type SceneState = Record<string, SavedComponentState>;
 
@@ -41,6 +42,7 @@ export const useModelVersioning = ({
   const { model, setModel, setIsDiffMode } = useModel();
   const apiClient = useAxiosConfig();
   const { resetStacks } = useHistory();
+  const { showNotification } = useNotification();
 
   const [compareLeft, setCompareLeft] = useState<StateFile | null>(null);
   const [compareRight, setCompareRight] = useState<StateFile | null>(null);
@@ -85,14 +87,13 @@ export const useModelVersioning = ({
 
   const saveModel = useCallback(
     async (targetVersion?: string) => {
-      if (!groupRef || !model?.assetId || !refetchModel) return;
+      if (!groupRef || !model?.assetId || !refetchModel || !targetVersion)
+        return;
       try {
         const state = handleSaveScene(groupRef);
         const formData = new FormData();
         formData.append("StateJson", state);
-        if (targetVersion) {
-          formData.append("TargetVersion", targetVersion);
-        }
+        formData.append("TargetVersion", targetVersion);
         await apiClient.post(`/api/model/${model?.assetId}/state`, formData);
         setVersionModalOpen(false);
         setVersionName("");
@@ -208,6 +209,26 @@ export const useModelVersioning = ({
     [apiClient],
   );
 
+  const mapStateListToDict = (arr: SavedComponentState[]): SceneState => {
+    const map: SceneState = {};
+    for (const item of arr) {
+      map[item.name] = item;
+    }
+    return map;
+  };
+
+  const getCurrentSceneState = useCallback((): SceneState => {
+    if (!groupRef?.current) return {};
+    try {
+      const jsonString = handleSaveScene(groupRef);
+      const arr = JSON.parse(jsonString) as SavedComponentState[];
+      return mapStateListToDict(arr);
+    } catch (e) {
+      console.error("Error getting current scene state:", e);
+      return {};
+    }
+  }, [groupRef]);
+
   const areTransformsDifferent = (a: NodeTransform, b: NodeTransform) => {
     const eps = 1e-6;
     const diffVec = (
@@ -228,12 +249,10 @@ export const useModelVersioning = ({
   };
 
   const computeDiffNodeIds = useCallback(
-    async (left: StateFile, right: StateFile): Promise<string[]> => {
+    async (left: StateFile): Promise<string[]> => {
       try {
-        const [leftState, rightState] = await Promise.all([
-          loadSceneState(left),
-          loadSceneState(right),
-        ]);
+        const leftState = await loadSceneState(left);
+        const rightState = getCurrentSceneState();
         const allIds = new Set<string>([
           ...Object.keys(leftState),
           ...Object.keys(rightState),
@@ -254,20 +273,33 @@ export const useModelVersioning = ({
         return [];
       }
     },
-    [loadSceneState],
+    [getCurrentSceneState, loadSceneState],
   );
 
   const startCompare = useCallback(
-    async (left: StateFile, right: StateFile) => {
+    async (left: StateFile) => {
+      const diffs = await computeDiffNodeIds(left);
+      if (diffs.length === 0) {
+        showNotification(
+          "No differences found between these versions.",
+          "info",
+        );
+        return;
+      }
       setCompareLeft(left);
-      setCompareRight(right);
-      const diffs = await computeDiffNodeIds(left, right);
+      setCompareRight(selectedVersion || null);
       setDiffNodeIds(diffs);
       setIsComparing(true);
       setIsDiffMode(true);
       setSelectedTool("Select");
     },
-    [computeDiffNodeIds, setIsDiffMode, setSelectedTool],
+    [
+      computeDiffNodeIds,
+      selectedVersion,
+      setIsDiffMode,
+      setSelectedTool,
+      showNotification,
+    ],
   );
 
   return {

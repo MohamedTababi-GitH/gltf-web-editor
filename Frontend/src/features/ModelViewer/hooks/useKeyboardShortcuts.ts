@@ -12,7 +12,6 @@ import type { ToolConfig } from "@/features/ModelViewer/components/ThreeApp.tsx"
 
 type KeyboardShortcutsProps = {
   saveModel: (version?: string) => void;
-  versionModalOpen: boolean;
   groupRef: React.RefObject<THREE.Group | null>;
   setVersionModalOpen: (open: boolean) => void;
   selectedVersion?: { version: string };
@@ -23,7 +22,6 @@ type KeyboardShortcutsProps = {
 
 export const useKeyboardShortcuts = ({
   saveModel,
-  versionModalOpen,
   groupRef,
   setVersionModalOpen,
   selectedVersion,
@@ -82,7 +80,10 @@ export const useKeyboardShortcuts = ({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (versionModalOpen) return;
+      const target = event.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        return;
+      }
 
       const { key, ctrlKey, metaKey, shiftKey, altKey } = event;
       const lowerKey = key.toLowerCase();
@@ -128,7 +129,6 @@ export const useKeyboardShortcuts = ({
     selectedVersion?.version,
     setSelectedTool,
     setVersionModalOpen,
-    versionModalOpen,
     handleToolSelect,
   ]);
 

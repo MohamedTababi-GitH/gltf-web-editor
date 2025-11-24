@@ -239,10 +239,7 @@ function Cursors({
                 disabled={!leftVersion}
                 onClick={() => {
                   if (!leftVersion || !versioning?.selectedVersion) return;
-                  versioning.startCompare(
-                    leftVersion,
-                    versioning?.selectedVersion,
-                  );
+                  versioning.startCompare(leftVersion);
                   setCompareOpen(true);
                 }}
               >
