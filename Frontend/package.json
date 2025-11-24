@@ -26,7 +26,6 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",
-    "@reduxjs/toolkit": "^2.9.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/three": "^0.180.0",
     "axios": "^1.12.2",
@@ -34,15 +33,14 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.22",
     "lucide-react": "^0.545.0",
-    "prettier": "^3.6.2",
     "radix-ui": "^1.4.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-dropzone": "^14.3.8",
-    "react-router-dom": "^7.9.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.14",
-    "three": "^0.180.0"
+    "three": "^0.180.0",
+    "three-stdlib": "^2.36.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
