@@ -1,167 +1,154 @@
-# ⚙️ ECAD 3D Model Viewer — Frontend
+# Frontend Developer Onboarding Guide
 
-A modern **React + TypeScript** web application for viewing, inspecting, and interacting with **3D ECAD models** in real
-time.
-This frontend leverages **Babylon.js** for 3D rendering, **Redux Toolkit** for state management, and **Tailwind CSS**
-for clean, responsive design.
+Welcome to the team! This document is designed to get you set up and running with the frontend application as quickly as possible.
 
----
+## 1. Technical Stack & Environment
+This project runs on a bleeding-edge stack. Ensure your environment matches the specific version requirements to avoid compilation issues.
 
-## 🚀 Tech Stack
-
-| Category               | Technologies                                                                                               |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Frontend Framework** | [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)                             |
-| **3D Rendering**       | [Babylon.js](https://www.babylonjs.com/) + [react-babylonjs](https://github.com/brianzinn/react-babylonjs) |
-| **Styling**            | [Tailwind CSS 4](https://tailwindcss.com/) + [Radix UI](https://www.radix-ui.com/)                         |
-| **State Management**   | [Redux Toolkit](https://redux-toolkit.js.org/)                                                             |
-| **Routing**            | [React Router 7](https://reactrouter.com/)                                                                 |
-| **Tooling**            | [Vite](https://vitejs.dev/), [ESLint](https://eslint.org/), [Prettier](https://prettier.io/)               |
+| Component        | Technology     | Version / Note                                               |
+|:-----------------|:---------------|:-------------------------------------------------------------|
+| **Runtime**      | Node.js        | **v23+** (Strict requirement due to latest Vite/TS features) |
+| **Framework**    | React          | **v19** (Leveraging latest concurrent features)              |
+| **Build System** | Vite           | **v7**                                                       |
+| **Language**     | TypeScript     | **v5.9** (Strict mode enabled)                               |
+| **Styling**      | Tailwind CSS   | **v4** (Using `@theme` and native CSS variables)             |
+| **3D Engine**    | Three.js / R3F | WebGL 2.0 Hardware Acceleration **Required**                 |
 
 ---
 
-## 🧱 Project Structure
+## 2. Prerequisites
 
-```
-frontend/
-├── public/               # Static assets
-├── src/
-│   ├── components/       # Reusable UI components
-│   ├── features/         # Redux slices and logic
-│   ├── pages/            # Page-level components (Viewer, Dashboard, etc.)
-│   ├── hooks/            # Custom React hooks
-│   ├── types/            # TypeScript type definitions
-│   ├── App.tsx           # Root component
-│   ├── main.tsx          # Entry point
-│   └── store.ts          # Redux store setup
-├── package.json
-├── tsconfig.json
-└── vite.config.ts
-```
+Before you begin, ensure your development environment has the following:
+
+* **Node.js:** v23.9.0+
+* **Package Manager:** `npm` (included with Node.js).
+* **Browser:** A modern browser (Chrome/Firefox/Edge) with **Hardware Acceleration enabled**.
+    * *Note: Since this application relies heavily on WebGL for the `ModelViewer`, performance will degrade significantly if hardware acceleration is disabled.*
 
 ---
 
-## ⚡ Getting Started
+## 3. Getting Started
 
-### 1. Prerequisites
+### Installation
 
-- [Node.js](https://nodejs.org/) **v18+**
-- [npm](https://www.npmjs.com/) **v9+** (or [pnpm](https://pnpm.io/) / [yarn](https://yarnpkg.com/))
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd <project-folder>
+    ```
 
----
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-### 2. Installation
+### Environment Configuration
 
-Clone the repository and install dependencies:
+The application requires connection to a backend service.
 
-```bash
-git clone https://github.com/Kekschorstviy/gltf-web-editor.git
-cd Frontend
-npm install
-```
+1.  Create a `.env` file in the root directory.
+2.  Add the following variable:
+    ```properties
+    VITE_BACKEND_URL=http://your-backend-url
+    ```
+    *(Ask a team lead for the current development backend URL if unknown).*
 
----
+### Running the Application
 
-### 3. Development Server
+Start the local development server:
 
-Start the local dev environment:
+```npm run dev```
 
-```bash
-npm run dev
-```
+The application will be accessible at: **`http://localhost:5173`**. 
 
-This will:
-
-- Run **Prettier** and **ESLint** checks
-- Launch Vite’s dev server
-- Open the app at [http://localhost:5173](http://localhost:5173)
-
----
-
-### 4. Production Build
-
-Create an optimized production build:
-
-```bash
-npm run build
-```
-
-Preview the production output:
-
-```bash
-npm run preview
-```
+Make sure to run the backend to be able to access network-specific features
 
 ---
 
-### 5. Linting & Formatting
+## 4. Project Architecture
 
-Run code quality checks manually:
+We follow a **Feature-First Architecture**. Instead of grouping files by technical type (e.g., all components together), we group them by business domain.
 
-```bash
-npm run lint
-```
+### 📂 `src/features`
 
-Prettier auto-format check:
+This is where the core logic lives. If you are working on a specific page or functionality, you will likely be working here.
 
-```bash
-npx prettier -c .
-```
+- **`HomeTab/`**: The landing experience and file upload wizard.
+    
+- **`ModelsTab/`**: The dashboard for listing, searching, and editing metadata of existing models.
+    
+- **`ModelViewer/`**: The 3D workspace. Contains complex logic for the `ThreeApp`, transformation controls, and versioning history.
+    
+<blockquote>Note: Components inside these folders are private to that feature.  </blockquote>
 
----
+        
 
-## 🧩 Key Features
+### 📂 `src/shared`
 
-- 🌀 **Interactive 3D Model Viewer** built on Babylon.js
-- 🧭 **Camera controls** for zoom, pan, and orbit
-- 🧱 **Model loading support** via common ECAD file formats (e.g., `.glb`, `.glTF`)
-- ⚙️ **Layer and part toggling** for detailed inspection
-- 🧠 **Redux-based state management**
-- 🎨 **Tailwind + Radix UI components** for clean, accessible interfaces
-- 🔧 **Strict TypeScript setup** with ESLint & Prettier integration
+Contains reusable code used across multiple features.
 
----
+- **`components/`**: Atomic UI elements (Buttons, Dialogs, Inputs). These are "dumb" components with no business logic.
+    
+- **`contexts/`**: Global providers (Theme, Navigation, Notification).
+    
+- **`services/`**: Global services like `AxiosConfig`.
+    
+- **`hooks/`**: Generic hooks (e.g., `useMutex`).
+    
 
-## 🧠 Development Guidelines
+### 📂 `src/App.tsx`
 
-- **Use TypeScript** for all code.
-- **Keep components modular** — place them under `src/components/`.
-- **Maintain consistent styling** using Tailwind utilities.
-- **Validate 3D models** for compatibility before importing.
-- **Commit frequently** with meaningful messages.
-
----
-
-## 🧰 Useful Commands
-
-| Command             | Description                          |
-| ------------------- | ------------------------------------ |
-| `npm run dev`       | Run the app in development mode      |
-| `npm run build`     | Create a production build            |
-| `npm run preview`   | Preview the production build locally |
-| `npm run lint`      | Run ESLint checks                    |
-| `npx prettier -c .` | Verify code formatting               |
+The global wrapper. It initializes the Providers and renders the `Home` layout.
 
 ---
 
-## 🧭 Roadmap
+## 5. Code Quality & CI/CD
 
-- [ ] Support for multiple 3D file formats
-- [ ] Model annotation and measurement tools
-- [ ] Viewer themes (light/dark)
-- [ ] Performance profiling for large models
+### Static Analysis
+
+We use **SonarQube** for code quality checks.
+
+- You do not need to run this locally.
+    
+- Analysis runs automatically in our CI/CD pipeline when you open a Pull Request.
+    
+- Please check the PR status checks to ensure you haven't introduced code smells or bugs.
+    
+
+### Linting
+
+ESLint is configured to enforce code style. You should see these errors in your IDE or by running:
+
+Bash
+
+```npm run lint```
 
 ---
 
-## 🤝 Contributing
+## 6. Common Issues / FAQ
 
-1. Create a new branch: `feature/your-feature-name`
-2. Commit your changes
-3. Submit a pull request
+#### General & Environment
+<details> <summary><strong>The 3D Viewer is extremely slow or crashing.</strong></summary> <blockquote> Verify that your browser has Hardware Acceleration enabled. If you are running this in a virtual machine or a constrained container, WebGL performance may be limited. </blockquote> </details>
 
----
+<details> <summary><strong>Where do I change the global theme?</strong></summary> <blockquote> Global styles are in <code>src/index.css</code> (Tailwind directives), but logic for toggling Light/Dark mode is handled in <code>src/shared/contexts/ThemeContext.tsx</code>. </blockquote> </details>
 
-## 👥 Authors
+#### Architecture & Workflow
+<details> <summary><strong>I created a new component. Should it go in src/shared or src/features?</strong></summary> <blockquote> Ask yourself: "Is this component used in more than one tab?" <ul> <li><strong>Yes:</strong> Put it in <code>src/shared/components</code>.</li> <li><strong>No:</strong> Put it in <code>src/features/[YourFeature]/components</code>.</li> <li><strong>Maybe later?</strong> Start in the feature folder. It is easier to move it to shared later than to clutter shared with specific logic now.</li> </ul> </blockquote> </details>
 
-**ECAD Viewer Team**
-Built with ❤️ using React, Babylon.js, and TypeScript.
+<details> <summary><strong>Can I import a component from ModelsTab into HomeTab?</strong></summary> <blockquote> <strong>No.</strong> Features should remain isolated. If you need to share logic or UI between features, move that code to <code>src/shared</code>. This prevents circular dependencies and "spaghetti code." </blockquote> </details>
+
+<details> <summary><strong>How do features communicate (e.g., selecting a model in the List opens it in the Viewer)?</strong></summary> <blockquote> We use <strong>Context Providers</strong> in <code>src/shared/contexts</code>. <ul> <li>Do not try to pass props across different pages/tabs.</li> <li>Update the global state (e.g., <code>ModelContext</code>) in one feature, and consume it in the other.</li> </ul> </blockquote> </details>
+
+#### Styling (Tailwind CSS)
+<details> <summary><strong>Can I create a new .css file for my component?</strong></summary> <blockquote> <strong>Avoid it.</strong> We use Tailwind CSS for everything. <ul> <li>Use utility classes directly in your JSX (e.g., <code>className="p-4 bg-primary"</code>).</li> <li>If you need a complex style reused often, create a small wrapper component.</li> <li>The only global CSS lives in <code>src/index.css</code> (mainly for fonts and variables).</li> </ul> </blockquote> </details>
+
+<details> <summary><strong>How do I access the theme colors (like primary or sidebar)?</strong></summary> <blockquote> Use Tailwind's semantic classes. <ul> <li>Instead of hardcoding hex values (<code>#ffffff</code>), use <code>bg-background</code> or <code>text-primary</code>.</li> <li>This ensures the app automatically looks correct in both Light and Dark modes (defined in <code>index.css</code>).</li> </ul> </blockquote> </details>
+
+#### Development & Tools
+<details> <summary><strong>Which icon library do we use?</strong></summary> <blockquote> We use <strong>Lucide React</strong>. <br /> Import icons like this: <code>import { Box, User } from 'lucide-react';</code> <br /> Do not install other icon libraries (like FontAwesome) to keep the bundle size small. </blockquote> </details>
+
+<details> <summary><strong>My new 3D code works, but the TypeScript compiler is yelling at me.</strong></summary> <blockquote> Three.js types can be tricky. <ul> <li>Ensure you have installed <code>@types/three</code>.</li> <li>If you are extending Three.js elements in React Three Fiber, remember to use the <code>extend</code> function.</li> </ul> </blockquote> </details>
+
+<details> <summary><strong>Why did my PR fail even though the app runs locally?</strong></summary> <blockquote> The CI pipeline runs strict checks that you might not be running constantly. Before pushing, run: <ul> <li><code>npm run lint</code> (Checks for code style errors)</li> <li><code>npm run build</code> (Checks for TypeScript type errors that Vite might ignore in dev mode)</li> </ul> </blockquote> </details>
+
+### Happy Coding!
